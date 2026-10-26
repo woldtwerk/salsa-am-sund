@@ -1,0 +1,15 @@
+uuid: d9216b6c-bd69-495b-849c-f1923a98ea79
+langcode: de
+status: true
+dependencies:
+  config:
+    - flag.flag.mastered
+  module:
+    - flag
+id: flag_action.mastered_unflag
+label: 'Gemeistert ✓'
+type: taxonomy_term
+plugin: 'flag_action:mastered_unflag'
+configuration:
+  flag_id: mastered
+  flag_action: unflag
