@@ -1,0 +1,12 @@
+uuid: 807e9e50-d6ac-4429-94ef-b147b7f9360b
+langcode: de
+status: true
+dependencies:
+  module:
+    - workspace_events
+id: member
+label: Mitglied
+weight: 2
+is_admin: false
+permissions:
+  - 'view dance figures'

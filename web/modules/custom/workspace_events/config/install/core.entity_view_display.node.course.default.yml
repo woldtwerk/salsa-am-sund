@@ -3,13 +3,14 @@ status: true
 dependencies:
   config:
     - field.field.node.course.body
-    - field.field.node.course.field_level
+    - field.field.node.course.field_difficulty
     - field.field.node.course.field_link
     - field.field.node.course.field_location
     - field.field.node.course.field_when
     - node.type.course
   module:
     - link
+    - options
     - smart_date
     - text
     - user
@@ -30,12 +31,10 @@ content:
     third_party_settings: {  }
     weight: -20
     region: content
-  field_level:
-    type: string
+  field_difficulty:
+    type: list_default
     label: inline
-    settings:
-      link_to_entity: false
-      link_rel: canonical
+    settings: {  }
     third_party_settings: {  }
     weight: 3
     region: content

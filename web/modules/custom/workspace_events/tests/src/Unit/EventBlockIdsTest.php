@@ -8,6 +8,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\text\TextSummary;
+use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventOccurrenceRepository;
 use Drupal\workspace_events\Plugin\Block\EventBlockBase;
@@ -114,7 +115,7 @@ final class EventBlockIdsTest extends UnitTestCase {
       new TextSummary($entity_type_manager),
     );
 
-    return new class($configuration, 'test', ['provider' => 'workspace_events'], $repository, $entity_type_manager, $formatter) extends EventBlockBase {
+    return new class($configuration, 'test', ['provider' => 'workspace_events'], $repository, $entity_type_manager, $formatter, new DetailFieldResolver()) extends EventBlockBase {
 
       /**
        * {@inheritdoc}

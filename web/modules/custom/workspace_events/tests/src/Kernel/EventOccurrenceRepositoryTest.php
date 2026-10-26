@@ -83,7 +83,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     $course = $this->createCourse([
       'title' => 'Anfänger',
       'field_location' => $this->locationA,
-      'field_level' => 'Level 0',
+      'field_difficulty' => [0],
       'field_when' => $this->recurringDeltas(
         $this->date('2026-10-05', '18:15'),
         $this->date('2026-10-05', '19:15'),

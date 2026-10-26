@@ -114,4 +114,33 @@ final class DetailFieldResolver {
     ];
   }
 
+  /**
+   * Returns the difficulty label of a course.
+   *
+   * @param \Drupal\node\NodeInterface $node
+   *   The course node.
+   *
+   * @return string
+   *   The formatted level, or an empty string when the course has none.
+   */
+  public function getDifficultyLabel(NodeInterface $node): string {
+    if (!$node->hasField('field_difficulty')) {
+      return '';
+    }
+    $items = $node->get('field_difficulty');
+    if ($items->isEmpty()) {
+      return '';
+    }
+
+    $values = [];
+    foreach ($items as $item) {
+      $value = $item->get('value')->getString();
+      if (is_numeric($value)) {
+        $values[] = (int) $value;
+      }
+    }
+
+    return Difficulty::label($values);
+  }
+
 }

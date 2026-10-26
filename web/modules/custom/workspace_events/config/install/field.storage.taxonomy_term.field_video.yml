@@ -1,16 +1,15 @@
-langcode: en
+langcode: de
 status: true
 dependencies:
   module:
-    - node
-id: node.field_level
-field_name: field_level
-entity_type: node
-type: string
+    - media
+    - taxonomy
+id: taxonomy_term.field_video
+field_name: field_video
+entity_type: taxonomy_term
+type: entity_reference
 settings:
-  max_length: 255
-  case_sensitive: false
-  is_ascii: false
+  target_type: media
 module: core
 locked: false
 cardinality: 1

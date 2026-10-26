@@ -12,6 +12,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
+use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventOccurrence;
@@ -53,6 +54,8 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
    *   The entity type manager.
    * @param \Drupal\workspace_events\EventDescriptionFormatter $descriptionFormatter
    *   The event description formatter.
+   * @param \Drupal\workspace_events\DetailFieldResolver $detailFieldResolver
+   *   The reader of the location, link and difficulty fields.
    */
   public function __construct(
     array $configuration,
@@ -61,6 +64,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     protected readonly EventOccurrenceRepository $repository,
     protected readonly EntityTypeManagerInterface $entityTypeManager,
     protected readonly EventDescriptionFormatter $descriptionFormatter,
+    protected readonly DetailFieldResolver $detailFieldResolver,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
   }
@@ -84,6 +88,8 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     \assert($entity_type_manager instanceof EntityTypeManagerInterface);
     $description_formatter = $container->get(EventDescriptionFormatter::class);
     \assert($description_formatter instanceof EventDescriptionFormatter);
+    $detail_field_resolver = $container->get(DetailFieldResolver::class);
+    \assert($detail_field_resolver instanceof DetailFieldResolver);
 
     // @phpstan-ignore-next-line
     return new static(
@@ -93,6 +99,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
       $repository,
       $entity_type_manager,
       $description_formatter,
+      $detail_field_resolver,
     );
   }
 

@@ -13,6 +13,9 @@ use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
 use Drupal\workflows\Entity\Workflow;
+use Drupal\workspace_events\CourseDifficultyMigrator;
+use Drupal\workspace_events\DanceFigureInstaller;
+use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\OrganizerResolver;
 
 /**
@@ -75,6 +78,34 @@ function workspace_events_update_10002(): void {
  */
 function workspace_events_update_10003(): void {
   workspace_events_rename_external_organizer();
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Replaces the free-text course level with the shared difficulty scale and
+ * migrates the existing course values.
+ */
+function workspace_events_update_10004(): void {
+  $migrator = \Drupal::service(CourseDifficultyMigrator::class);
+  \assert($migrator instanceof CourseDifficultyMigrator);
+  $migrator->migrate();
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Adds the dance figure vocabulary, its fields and displays, the pathauto
+ * pattern and the member role, and grants the new permissions to the content
+ * editor role.
+ */
+function workspace_events_update_10005(): void {
+  $installer = \Drupal::service(DanceFigureInstaller::class);
+  \assert($installer instanceof DanceFigureInstaller);
+  $installer->install();
+
+  workspace_events_grant_editor_permissions();
+  workspace_events_grant_member_permissions();
 }
 
 /**
@@ -252,8 +283,12 @@ function workspace_events_editor_permissions(): array {
     'create terms in organizer',
     'edit terms in organizer',
     'delete terms in organizer',
+    'create terms in dance_figure',
+    'edit terms in dance_figure',
+    'delete terms in dance_figure',
     'access taxonomy overview',
     'make smart dates recur',
+    DanceFigureAccessHooks::VIEW_PERMISSION,
   ];
 }
 
@@ -268,6 +303,18 @@ function workspace_events_grant_editor_permissions(): void {
   foreach (workspace_events_editor_permissions() as $permission) {
     $role->grantPermission($permission);
   }
+  $role->save();
+}
+
+/**
+ * Grants the dance figure permission to the member role.
+ */
+function workspace_events_grant_member_permissions(): void {
+  $role = Role::load('member');
+  if ($role === NULL) {
+    return;
+  }
+  $role->grantPermission(DanceFigureAccessHooks::VIEW_PERMISSION);
   $role->save();
 }
 

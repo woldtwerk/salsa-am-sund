@@ -169,9 +169,7 @@ final class DetailPagePreprocessHooks {
    *   The upcoming occurrences.
    */
   private function prepareCourse(array &$variables, NodeInterface $node, array $occurrences): void {
-    $variables['course_level'] = $node->hasField('field_level')
-      ? $node->get('field_level')->getString()
-      : '';
+    $variables['course_level'] = $this->detailFieldResolver->getDifficultyLabel($node);
     $variables['course_schedule'] = isset($occurrences[0])
       ? $this->formatSchedule($occurrences[0])
       : '';

@@ -1,0 +1,11 @@
+langcode: de
+status: true
+dependencies:
+  module:
+    - workspace_events
+id: member
+label: Mitglied
+weight: 2
+is_admin: false
+permissions:
+  - 'view dance figures'

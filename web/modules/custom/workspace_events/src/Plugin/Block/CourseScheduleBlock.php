@@ -81,7 +81,7 @@ final class CourseScheduleBlock extends EventBlockBase {
           'time' => $this->formatTime($occurrence) ?? '',
           'title' => (string) $node->label(),
         ];
-        $level = $node->get('field_level')->getString();
+        $level = $this->detailFieldResolver->getDifficultyLabel($node);
         if ($level !== '') {
           $props['level'] = $level;
         }
