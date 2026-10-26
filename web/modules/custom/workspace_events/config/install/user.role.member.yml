@@ -2,10 +2,13 @@ langcode: de
 status: true
 dependencies:
   module:
+    - flag
     - workspace_events
 id: member
 label: Mitglied
 weight: 2
 is_admin: false
 permissions:
+  - 'flag mastered'
+  - 'unflag mastered'
   - 'view dance figures'

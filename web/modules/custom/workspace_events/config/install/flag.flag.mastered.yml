@@ -1,0 +1,29 @@
+langcode: de
+status: true
+dependencies:
+  module:
+    - taxonomy
+    - workspace_events
+id: mastered
+label: Gemeistert
+bundles:
+  - dance_figure
+entity_type: taxonomy_term
+global: false
+weight: 0
+flag_short: 'Als gemeistert markieren'
+flag_long: 'Diese Figur zu den gemeisterten Figuren hinzufügen'
+flag_message: 'Die Figur ist jetzt als gemeistert markiert.'
+unflag_short: 'Gemeistert ✓'
+unflag_long: 'Die Markierung als gemeistert entfernen'
+unflag_message: 'Die Markierung als gemeistert wurde entfernt.'
+unflag_denied_text: ''
+flag_type: 'entity:taxonomy_term'
+link_type: htmx
+flagTypeConfig:
+  show_in_links: {  }
+  show_as_field: true
+  show_on_form: false
+  show_contextual_link: false
+  extra_permissions: {  }
+linkTypeConfig: {  }

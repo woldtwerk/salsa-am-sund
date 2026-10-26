@@ -48,6 +48,7 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     'workflows',
     'pathauto',
     'token',
+    'flag',
     'smart_date',
     'smart_date_recur',
     'workspace_events',

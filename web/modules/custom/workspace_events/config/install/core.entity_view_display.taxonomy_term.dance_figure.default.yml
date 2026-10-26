@@ -36,5 +36,10 @@ content:
     third_party_settings: {  }
     weight: 2
     region: content
+  flag_mastered:
+    settings: {  }
+    third_party_settings: {  }
+    weight: 3
+    region: content
 hidden:
   langcode: true

@@ -16,6 +16,7 @@ dependencies:
   - drupal:taxonomy
   - drupal:text
   - canvas:canvas
+  - flag:flag
   - pathauto:pathauto
   - smart_date:smart_date
   - smart_date:smart_date_recur
