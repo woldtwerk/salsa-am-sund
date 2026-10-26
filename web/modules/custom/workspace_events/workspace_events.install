@@ -16,6 +16,7 @@ use Drupal\workflows\Entity\Workflow;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
+use Drupal\workspace_events\MasteredFlag;
 use Drupal\workspace_events\OrganizerResolver;
 
 /**
@@ -43,6 +44,7 @@ function workspace_events_uninstall(): void {
     workspace_events_set_bundle_in_workflow($bundle, FALSE);
   }
   workspace_events_revoke_editor_permissions();
+  workspace_events_revoke_mastered_flag_permissions();
 }
 
 /**
@@ -106,6 +108,22 @@ function workspace_events_update_10005(): void {
 
   workspace_events_grant_editor_permissions();
   workspace_events_grant_member_permissions();
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Installs the Flag module, adds the "mastered" flag for dance figures and
+ * grants the flag permissions to the member role.
+ */
+function workspace_events_update_10009(): void {
+  \Drupal::service('module_installer')->install(['flag']);
+
+  $installer = \Drupal::service(DanceFigureInstaller::class);
+  \assert($installer instanceof DanceFigureInstaller);
+  $installer->install([MasteredFlag::CONFIG_NAME]);
+
+  workspace_events_grant_mastered_flag_permissions();
 }
 
 /**
@@ -319,6 +337,20 @@ function workspace_events_grant_member_permissions(): void {
 }
 
 /**
+ * Grants the mastered flag permissions to the member role.
+ */
+function workspace_events_grant_mastered_flag_permissions(): void {
+  $role = Role::load('member');
+  if ($role === NULL) {
+    return;
+  }
+  foreach (MasteredFlag::PERMISSIONS as $permission) {
+    $role->grantPermission($permission);
+  }
+  $role->save();
+}
+
+/**
  * Revokes the event and course permissions from the content editor role.
  */
 function workspace_events_revoke_editor_permissions(): void {
@@ -327,6 +359,20 @@ function workspace_events_revoke_editor_permissions(): void {
     return;
   }
   foreach (workspace_events_editor_permissions() as $permission) {
+    $role->revokePermission($permission);
+  }
+  $role->save();
+}
+
+/**
+ * Revokes the mastered flag permissions from the member role.
+ */
+function workspace_events_revoke_mastered_flag_permissions(): void {
+  $role = Role::load('member');
+  if ($role === NULL) {
+    return;
+  }
+  foreach (MasteredFlag::PERMISSIONS as $permission) {
     $role->revokePermission($permission);
   }
   $role->save();

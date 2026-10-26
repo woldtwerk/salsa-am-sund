@@ -9,6 +9,9 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
  * Creates the dance figure vocabulary and its configuration.
+ *
+ * The installer reads the configuration records from the sync or install
+ * storage, so the entities get the UUIDs of the exported configuration.
  */
 final class DanceFigureInstaller {
 
@@ -51,9 +54,13 @@ final class DanceFigureInstaller {
    * read from the sync storage when present, so the UUIDs match the exported
    * configuration and a later configuration import updates the entities
    * instead of recreating them.
+   *
+   * @param string[]|null $config_names
+   *   The configuration names to install, or NULL for the dance figure
+   *   configuration of this module.
    */
-  public function install(): void {
-    foreach (self::CONFIG_NAMES as $name) {
+  public function install(?array $config_names = NULL): void {
+    foreach ($config_names ?? self::CONFIG_NAMES as $name) {
       $data = $this->configRecordLoader->load($name);
       $storage = $this->getStorage($name);
       $id = $this->getId($data, $name);
@@ -83,6 +90,7 @@ final class DanceFigureInstaller {
       str_starts_with($name, 'core.entity_view_display.') => 'entity_view_display',
       str_starts_with($name, 'pathauto.pattern.') => 'pathauto_pattern',
       str_starts_with($name, 'user.role.') => 'user_role',
+      str_starts_with($name, 'flag.flag.') => 'flag',
       default => throw new \InvalidArgumentException(sprintf('Unsupported configuration %s.', $name)),
     };
 

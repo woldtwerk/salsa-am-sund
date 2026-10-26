@@ -15,6 +15,10 @@ services:
       - '@Drupal\workspace_events\ConfigRecordLoader'
   Drupal\workspace_events\DanceFigureInstaller:
     autowire: true
+  Drupal\workspace_events\EventSubscriber\HtmxFlagResponseSubscriber:
+    autowire: true
+    tags:
+      - { name: event_subscriber }
   Drupal\workspace_events\StructuredDataBuilder:
     autowire: true
   Drupal\workspace_events\OrganizerResolver:
