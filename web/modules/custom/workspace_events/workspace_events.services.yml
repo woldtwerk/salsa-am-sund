@@ -5,6 +5,16 @@ services:
     autowire: true
   Drupal\workspace_events\DetailFieldResolver:
     autowire: true
+  Drupal\workspace_events\ConfigRecordLoader:
+    arguments:
+      - '@config.storage.sync'
+      - '@extension.path.resolver'
+  Drupal\workspace_events\CourseDifficultyMigrator:
+    arguments:
+      - '@entity_type.manager'
+      - '@Drupal\workspace_events\ConfigRecordLoader'
+  Drupal\workspace_events\DanceFigureInstaller:
+    autowire: true
   Drupal\workspace_events\StructuredDataBuilder:
     autowire: true
   Drupal\workspace_events\OrganizerResolver:

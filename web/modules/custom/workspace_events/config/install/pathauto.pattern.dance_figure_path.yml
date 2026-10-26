@@ -1,0 +1,22 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - taxonomy.vocabulary.dance_figure
+  module:
+    - taxonomy
+id: dance_figure_path
+label: Tanzfigur
+type: 'canonical_entities:taxonomy_term'
+pattern: '/tanzfiguren/[term:name]'
+selection_criteria:
+  5b2a7d0e-8c1f-4a6b-9d3e-2f1c0b9a8d7e:
+    id: 'entity_bundle:taxonomy_term'
+    negate: false
+    context_mapping:
+      term: term
+    bundles:
+      dance_figure: dance_figure
+selection_logic: and
+weight: -5
+relationships: {  }

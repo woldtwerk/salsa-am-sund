@@ -183,7 +183,7 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
     );
     $course = $this->createCourse([
       'title' => 'Leicht Fortgeschrittene',
-      'field_level' => 'Level 2',
+      'field_difficulty' => [2],
       'field_location' => $location->id(),
       'body' => [
         'value' => '<p>Neue Figuren und Elemente für Fortgeschrittene.</p>',

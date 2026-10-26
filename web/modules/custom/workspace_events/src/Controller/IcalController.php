@@ -9,6 +9,7 @@ use Drupal\Core\Cache\CacheableResponse;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\node\NodeInterface;
+use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventFilterFactory;
@@ -67,6 +68,8 @@ final class IcalController implements ContainerInjectionInterface {
    *   The event description formatter.
    * @param \Drupal\workspace_events\EventFilterFactory $filterFactory
    *   The filter factory that parses the query parameters.
+   * @param \Drupal\workspace_events\DetailFieldResolver $detailFieldResolver
+   *   The reader of the course difficulty.
    * @param \Drupal\Component\Transliteration\TransliterationInterface $transliteration
    *   The transliteration service for the download filename.
    */
@@ -75,6 +78,7 @@ final class IcalController implements ContainerInjectionInterface {
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly EventDescriptionFormatter $descriptionFormatter,
     private readonly EventFilterFactory $filterFactory,
+    private readonly DetailFieldResolver $detailFieldResolver,
     private readonly TransliterationInterface $transliteration,
   ) {}
 
@@ -90,10 +94,12 @@ final class IcalController implements ContainerInjectionInterface {
     \assert($description_formatter instanceof EventDescriptionFormatter);
     $filter_factory = $container->get(EventFilterFactory::class);
     \assert($filter_factory instanceof EventFilterFactory);
+    $detail_field_resolver = $container->get(DetailFieldResolver::class);
+    \assert($detail_field_resolver instanceof DetailFieldResolver);
     $transliteration = $container->get('transliteration');
     \assert($transliteration instanceof TransliterationInterface);
 
-    return new static($repository, $entity_type_manager, $description_formatter, $filter_factory, $transliteration);
+    return new static($repository, $entity_type_manager, $description_formatter, $filter_factory, $detail_field_resolver, $transliteration);
   }
 
   /**
@@ -466,8 +472,8 @@ final class IcalController implements ContainerInjectionInterface {
    */
   private function getSummary(EventOccurrence $occurrence): string {
     $title = (string) $occurrence->node->label();
-    if ($occurrence->node->bundle() === 'course' && $occurrence->node->hasField('field_level')) {
-      $level = $occurrence->node->get('field_level')->getString();
+    if ($occurrence->node->bundle() === 'course') {
+      $level = $this->detailFieldResolver->getDifficultyLabel($occurrence->node);
       if ($level !== '') {
         return $title . ' (' . $level . ')';
       }

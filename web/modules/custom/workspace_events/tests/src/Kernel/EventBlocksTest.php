@@ -6,6 +6,7 @@ namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\Core\Block\BlockManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventOccurrence;
 use Drupal\workspace_events\EventOccurrenceRepository;
@@ -282,7 +283,7 @@ final class EventBlocksTest extends EventKernelTestBase {
     );
     $this->createCourse([
       'title' => 'Anfänger',
-      'field_level' => 'Level 0',
+      'field_difficulty' => [0],
       'field_location' => $location->id(),
       'field_when' => $this->recurringDeltas(
         $this->date('next monday', '18:15'),
@@ -295,7 +296,7 @@ final class EventBlocksTest extends EventKernelTestBase {
     ]);
     $this->createCourse([
       'title' => 'Tanzfeeling u. mehr',
-      'field_level' => 'Level 1',
+      'field_difficulty' => [1],
       'field_location' => $location->id(),
       'field_when' => [
         $this->dateDelta($this->date('next tuesday', '19:30'), $this->date('next tuesday', '20:30')),
@@ -487,7 +488,7 @@ final class EventBlocksTest extends EventKernelTestBase {
     $formatter = $this->container->get(EventDescriptionFormatter::class);
     \assert($formatter instanceof EventDescriptionFormatter);
 
-    return new class([], 'test', ['provider' => 'workspace_events'], $repository, $entity_type_manager, $formatter) extends EventBlockBase {
+    return new class([], 'test', ['provider' => 'workspace_events'], $repository, $entity_type_manager, $formatter, new DetailFieldResolver()) extends EventBlockBase {
 
       /**
        * {@inheritdoc}

@@ -62,7 +62,7 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     );
     $course = $this->createCourse([
       'title' => 'Leicht Fortgeschrittene',
-      'field_level' => 'Level 2',
+      'field_difficulty' => [2],
       'field_location' => $location->id(),
       'field_link' => [
         'uri' => 'https://example.com/kurs',
@@ -155,6 +155,29 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     $graph = $structured_data['@graph'];
     \assert(is_array($graph));
     self::assertSame('Course', $graph[0]['@type']);
+  }
+
+  /**
+   * Tests the difficulty labels of courses with several levels.
+   */
+  public function testCourseDifficultyLabels(): void {
+    $cases = [
+      [[3, 1, 2], 'Level 1–3'],
+      [[2, 1], 'Level 1 + 2'],
+      [[0, 2], 'Level 0 + 2'],
+    ];
+    foreach ($cases as [$values, $label]) {
+      $course = $this->createCourse([
+        'title' => 'Kurs ' . $label,
+        'field_difficulty' => $values,
+      ]);
+      $variables = [
+        'node' => $course,
+        'view_mode' => 'full',
+      ];
+      $this->hooks->preprocessNode($variables);
+      self::assertSame($label, $variables['course_level']);
+    }
   }
 
   /**

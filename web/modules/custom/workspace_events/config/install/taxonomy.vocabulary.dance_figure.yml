@@ -1,0 +1,8 @@
+langcode: de
+status: true
+dependencies: {  }
+name: Tanzfiguren
+vid: dance_figure
+description: 'Figuren und Kombinationen aus dem Salsa'
+weight: 0
+new_revision: false

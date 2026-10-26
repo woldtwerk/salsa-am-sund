@@ -4,7 +4,7 @@ status: true
 dependencies:
   config:
     - field.field.node.course.body
-    - field.field.node.course.field_level
+    - field.field.node.course.field_difficulty
     - field.field.node.course.field_link
     - field.field.node.course.field_location
     - field.field.node.course.field_when
@@ -13,6 +13,7 @@ dependencies:
   module:
     - content_moderation
     - link
+    - options
     - path
     - smart_date
     - smart_date_recur
@@ -40,13 +41,11 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
-  field_level:
-    type: string_textfield
+  field_difficulty:
+    type: options_buttons
     weight: -16
     region: content
-    settings:
-      size: 60
-      placeholder: ''
+    settings: {  }
     third_party_settings: {  }
   field_link:
     type: link_default

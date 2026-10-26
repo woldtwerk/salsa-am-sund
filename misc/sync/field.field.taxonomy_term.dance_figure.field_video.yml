@@ -1,0 +1,31 @@
+uuid: e288c927-a795-447b-8a40-a09e54f545be
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.taxonomy_term.field_video
+    - media.type.remote_video
+    - media.type.video
+    - taxonomy.vocabulary.dance_figure
+id: taxonomy_term.dance_figure.field_video
+field_name: field_video
+entity_type: taxonomy_term
+bundle: dance_figure
+label: Video
+description: ''
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:media'
+  handler_settings:
+    target_bundles:
+      remote_video: remote_video
+      video: video
+    sort:
+      field: _none
+      direction: ASC
+    auto_create: false
+    auto_create_bundle: ''
+field_type: entity_reference

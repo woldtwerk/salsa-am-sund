@@ -1,0 +1,21 @@
+uuid: 805d8be6-25ab-45b3-94c7-323d1ef5b5db
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.taxonomy_term.field_difficulty
+    - taxonomy.vocabulary.dance_figure
+  module:
+    - options
+id: taxonomy_term.dance_figure.field_difficulty
+field_name: field_difficulty
+entity_type: taxonomy_term
+bundle: dance_figure
+label: Level
+description: ''
+required: true
+translatable: true
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: list_integer

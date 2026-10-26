@@ -16,6 +16,7 @@ use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
 use Drupal\Tests\canvas\Kernel\CanvasKernelTestBase;
 use Drupal\Tests\user\Traits\UserCreationTrait;
+use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\OrganizerResolver;
 
 /**
@@ -41,6 +42,7 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     'canvas_test_sdc',
     'field',
     'node',
+    'options',
     'taxonomy',
     'content_moderation',
     'workflows',
@@ -213,13 +215,16 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     }
 
     FieldStorageConfig::create([
-      'field_name' => 'field_level',
+      'field_name' => 'field_difficulty',
       'entity_type' => 'node',
-      'type' => 'string',
-      'cardinality' => 1,
-      'settings' => ['max_length' => 255, 'is_ascii' => FALSE, 'case_sensitive' => FALSE],
+      'type' => 'list_integer',
+      'cardinality' => FieldStorageConfig::CARDINALITY_UNLIMITED,
+      'settings' => [
+        'allowed_values' => [],
+        'allowed_values_function' => Difficulty::class . '::allowedValues',
+      ],
     ])->save();
-    $this->createFieldConfig('field_level', 'course', 'Level');
+    $this->createFieldConfig('field_difficulty', 'course', 'Level');
 
     FieldStorageConfig::create([
       'field_name' => 'field_link',

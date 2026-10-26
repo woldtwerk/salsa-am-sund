@@ -1,0 +1,9 @@
+uuid: 4a52392f-cc24-4faa-acb1-03c3a52cdf3f
+langcode: de
+status: true
+dependencies: {  }
+name: Tanzfiguren
+vid: dance_figure
+description: 'Figuren und Kombinationen aus dem Salsa'
+weight: 0
+new_revision: false

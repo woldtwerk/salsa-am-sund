@@ -1,0 +1,14 @@
+uuid: 0ece9006-16b9-462e-95bf-d68eef69a6ab
+langcode: de
+status: true
+dependencies:
+  config:
+    - user.role.member
+  module:
+    - user
+id: user_add_role_action.member
+label: 'Den ausgewählten Benutzern die Rolle Mitglied zuweisen'
+type: user
+plugin: user_add_role_action
+configuration:
+  rid: member

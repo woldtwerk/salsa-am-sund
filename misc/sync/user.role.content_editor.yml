@@ -16,6 +16,7 @@ dependencies:
     - node.type.event
     - node.type.gallery
     - node.type.page
+    - taxonomy.vocabulary.dance_figure
     - taxonomy.vocabulary.location
     - taxonomy.vocabulary.organizer
     - workflows.workflow.basic_editorial
@@ -35,6 +36,7 @@ dependencies:
     - system
     - taxonomy
     - trash
+    - workspace_events
 _core:
   default_config_hash: g-zSnaBXJnH7VoimReFb6KcLjIgHCU-hisiShtZ9hjQ
 id: content_editor
@@ -61,6 +63,7 @@ permissions:
   - 'create page content'
   - 'create remote_video media'
   - 'create svg_image media'
+  - 'create terms in dance_figure'
   - 'create terms in location'
   - 'create terms in organizer'
   - 'create url aliases'
@@ -76,6 +79,7 @@ permissions:
   - 'delete any video media'
   - 'delete canvas_page'
   - 'delete page revisions'
+  - 'delete terms in dance_figure'
   - 'delete terms in location'
   - 'delete terms in organizer'
   - 'edit any course content'
@@ -88,6 +92,7 @@ permissions:
   - 'edit any svg_image media'
   - 'edit any video media'
   - 'edit canvas_page'
+  - 'edit terms in dance_figure'
   - 'edit terms in location'
   - 'edit terms in organizer'
   - 'make smart dates recur'
@@ -109,6 +114,7 @@ permissions:
   - 'use text format content_format'
   - 'view all revisions'
   - 'view any unpublished content'
+  - 'view dance figures'
   - 'view own unpublished content'
   - 'view own unpublished media'
   - 'view scheduled content'

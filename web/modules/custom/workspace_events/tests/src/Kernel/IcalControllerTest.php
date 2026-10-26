@@ -8,6 +8,7 @@ use Drupal\node\NodeInterface;
 use Drupal\Core\Cache\CacheableResponse;
 use Drupal\Component\Transliteration\TransliterationInterface;
 use Drupal\workspace_events\Controller\IcalController;
+use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
@@ -93,6 +94,8 @@ final class IcalControllerTest extends EventKernelTestBase {
     \assert($description_formatter instanceof EventDescriptionFormatter);
     $filter_factory = $this->container->get(EventFilterFactory::class);
     \assert($filter_factory instanceof EventFilterFactory);
+    $detail_field_resolver = $this->container->get(DetailFieldResolver::class);
+    \assert($detail_field_resolver instanceof DetailFieldResolver);
     $transliteration = $this->container->get('transliteration');
     \assert($transliteration instanceof TransliterationInterface);
     $this->controller = new IcalController(
@@ -100,6 +103,7 @@ final class IcalControllerTest extends EventKernelTestBase {
       $this->container->get('entity_type.manager'),
       $description_formatter,
       $filter_factory,
+      $detail_field_resolver,
       $transliteration,
     );
 
@@ -116,7 +120,7 @@ final class IcalControllerTest extends EventKernelTestBase {
     $weekdays = [1 => 'MO', 2 => 'TU', 3 => 'WE', 4 => 'TH', 5 => 'FR', 6 => 'SA', 7 => 'SU'];
     $course = $this->createCourse([
       'title' => 'Anfänger',
-      'field_level' => 'Level 0',
+      'field_difficulty' => [0],
       'field_location' => $this->locationA,
       'body' => [
         'value' => '<p>Ein Kurs für <strong>Einsteiger</strong>.</p>',
