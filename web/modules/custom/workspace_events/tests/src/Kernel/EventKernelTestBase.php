@@ -88,6 +88,8 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     $this->installEntitySchema('path_alias');
     $this->installEntitySchema('smart_date_rule');
     $this->installEntitySchema('smart_date_override');
+    $this->installEntitySchema('flagging');
+    $this->installSchema('flag', ['flag_counts']);
     $this->installConfig(['node', 'taxonomy', 'filter', 'smart_date', 'smart_date_recur']);
 
     $this->createContentModel();
