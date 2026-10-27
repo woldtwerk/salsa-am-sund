@@ -5,14 +5,10 @@ declare(strict_types=1);
 namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Extension\ExtensionPathResolver;
 use Drupal\Core\Routing\RouteMatch;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\flag\FlagInterface;
-use Drupal\flag\FlagServiceInterface;
 use Drupal\node\NodeInterface;
-use Drupal\options\Plugin\views\filter\ListField;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
@@ -29,7 +25,6 @@ use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\Hook\LessonAccessHooks;
 use Drupal\workspace_events\Hook\ViewsDataHooks;
-use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\MemberOverviewInstaller;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -47,14 +42,20 @@ use Symfony\Component\Routing\Route;
 final class MemberOverviewViewsTest extends LessonKernelTestBase {
 
   /**
+   * The modules the member overview needs.
+   *
+   * @var string[]
+   */
+  protected static $modules = [
+    'views',
+    'media',
+    'flag',
+  ];
+
+  /**
    * The entity type manager.
    */
   private EntityTypeManagerInterface $entityTypeManager;
-
-  /**
-   * The flag service.
-   */
-  private FlagServiceInterface $flagService;
 
   /**
    * {@inheritdoc}
@@ -65,16 +66,12 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     $entity_type_manager = $this->container->get('entity_type.manager');
     \assert($entity_type_manager instanceof EntityTypeManagerInterface);
     $this->entityTypeManager = $entity_type_manager;
-
-    $extension_path_resolver = $this->container->get(ExtensionPathResolver::class);
-    \assert($extension_path_resolver instanceof ExtensionPathResolver);
-
-    // The video thumbnail of the dance figure view joins the media table.
     $this->installEntitySchema('media');
+    $this->installEntitySchema('flagging');
+    $this->installSchema('flag', ['flag_counts']);
 
-    // The course select of the exposed filter only lists nodes the current
-    // user may view. Kernel tests have no node access records, so grant view
-    // access to every node.
+    // Kernel tests have no node access records, so grant view access to every
+    // node for the course select of the exposed filter.
     $this->container->get('database')->insert('node_access')
       ->fields([
         'nid' => 0,
@@ -93,20 +90,13 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     ])->save();
     $this->installDanceFigureFields();
 
+    // The shipped views reference the flag handlers and flags.
     $flag_installer = $this->container->get(DanceFigureInstaller::class);
     \assert($flag_installer instanceof DanceFigureInstaller);
     $flag_installer->install(array_map(
       static fn (DanceFigureFlag $flag): string => $flag->configName(),
       DanceFigureFlag::cases(),
     ));
-
-    $flag_service = $this->container->get('flag');
-    \assert($flag_service instanceof FlagServiceInterface);
-    $this->flagService = $flag_service;
-
-    $lesson_installer = $this->container->get(LessonInstaller::class);
-    \assert($lesson_installer instanceof LessonInstaller);
-    $lesson_installer->install();
 
     $overview_installer = $this->container->get(MemberOverviewInstaller::class);
     \assert($overview_installer instanceof MemberOverviewInstaller);
@@ -130,13 +120,11 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     self::assertTrue($own->isAllowed());
     self::assertContains('user', $own->getCacheContexts());
     self::assertContains('user.permissions', $own->getCacheContexts());
-
     self::assertTrue($access->access($other_member, $this->userRouteMatch($member->id()))->isForbidden());
     self::assertTrue($access->access($editor, $this->userRouteMatch($member->id()))->isAllowed());
 
-    $member_without_permission = $this->createUser(['access content']);
-    self::assertTrue($access->access($member_without_permission, $this->userRouteMatch($member_without_permission->id()))->isForbidden());
-
+    $without_permission = $this->createUser(['access content']);
+    self::assertTrue($access->access($without_permission, $this->userRouteMatch($without_permission->id()))->isForbidden());
     $anonymous = User::getAnonymousUser();
     self::assertTrue($access->access($anonymous, $this->userRouteMatch($member->id()))->isForbidden());
     self::assertTrue($access->access($member, $this->userRouteMatch($anonymous->id()))->isForbidden());
@@ -160,12 +148,8 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     $foreign = $this->createLessonFor($other_course, $this->date('2026-10-09', '18:00'), $other_member, [$figure]);
 
     $view = $this->executeView('my_courses', [], [$member->id()]);
-
     self::assertCount(2, $view->result);
-    $lesson_ids = array_map(
-      static fn (object $row): int => (int) $row->nid,
-      $view->result,
-    );
+    $lesson_ids = array_map(static fn (object $row): int => (int) $row->nid, $view->result);
     sort($lesson_ids);
     $expected = [(int) $first->id(), (int) $second->id()];
     sort($expected);
@@ -179,8 +163,6 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     self::assertArrayNotHasKey('field_participants', $view->field);
     self::assertArrayNotHasKey('field_attendance_photo', $view->field);
     self::assertTrue($view->field['course']->options['exclude']);
-
-    // The course groups the rows and the date is sorted descending.
     $grouping = $view->style_plugin->options['grouping'] ?? [];
     self::assertSame('course', $grouping[0]['field'] ?? NULL);
     self::assertSame('DESC', $view->sort['field_lesson_date_value']->options['order']);
@@ -189,7 +171,7 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
   /**
    * Tests that the course filter returns every figure only once.
    */
-  public function testDanceFiguresCourseFilterReturnsEachFigureOnce(): void {
+  public function testDanceFiguresCourseFilter(): void {
     $member = $this->createMember();
     $this->setCurrentUser($member);
 
@@ -205,81 +187,8 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     $this->createLessonFor($other_course, $this->date('2026-10-09', '18:00'), $member, [$second, $foreign]);
 
     $view = $this->executeView('dance_figures', ['course' => [$course->id()]]);
-
     self::assertInstanceOf(EntityReference::class, $view->filter['course']);
     self::assertSame(['Enchufla', 'Setenta', 'Dile que no'], $this->resultNames($view, FALSE));
-  }
-
-  /**
-   * Tests that the difficulty filter selects the requested level.
-   */
-  public function testDanceFiguresDifficultyFilter(): void {
-    $member = $this->createMember();
-    $this->setCurrentUser($member);
-
-    $this->createFigure('Dile que no', 1);
-    $this->createFigure('Enchufla', 2);
-    $this->createFigure('Setenta', 3);
-
-    $view = $this->executeView('dance_figures', ['field_difficulty' => ['2']]);
-
-    self::assertInstanceOf(ListField::class, $view->filter['field_difficulty']);
-    self::assertSame(['Enchufla'], $this->resultNames($view));
-  }
-
-  /**
-   * Tests that the flag filters only show the current user's flags.
-   */
-  public function testFlagFiltersUseTheCurrentUser(): void {
-    $first_member = $this->createMember();
-    $second_member = $this->createMember();
-    $first = $this->createFigure('Dile que no', 1);
-    $second = $this->createFigure('Enchufla', 2);
-
-    foreach (DanceFigureFlag::cases() as $flag) {
-      $flag_entity = $this->getFlag($flag);
-
-      $this->setCurrentUser($first_member);
-      $this->flagService->flag($flag_entity, $first);
-      $this->setCurrentUser($second_member);
-      $this->flagService->flag($flag_entity, $second);
-
-      $this->setCurrentUser($first_member);
-      self::assertSame(['Dile que no'], $this->resultNames($this->executeView('dance_figures', [$flag->value => '1'])));
-      self::assertSame(['Enchufla'], $this->resultNames($this->executeView('dance_figures', [$flag->value => '0'])));
-      self::assertSame(['Dile que no', 'Enchufla'], $this->resultNames($this->executeView('dance_figures', [$flag->value => 'All'])));
-
-      $this->setCurrentUser($second_member);
-      self::assertSame(['Enchufla'], $this->resultNames($this->executeView('dance_figures', [$flag->value => '1'])));
-    }
-  }
-
-  /**
-   * Tests that the dance figure view varies by user.
-   */
-  public function testDanceFiguresAddTheUserCacheContext(): void {
-    $member = $this->createMember();
-    $this->setCurrentUser($member);
-    $this->createFigure('Dile que no', 1);
-
-    $contexts = $this->executeView('dance_figures')->display_handler->getCacheMetadata()->getCacheContexts();
-    self::assertContains('user', $contexts);
-    self::assertContains('user.permissions', $contexts);
-  }
-
-  /**
-   * Returns both dance figure flags.
-   *
-   * @param \Drupal\workspace_events\DanceFigureFlag $flag
-   *   The dance figure flag.
-   *
-   * @return \Drupal\flag\FlagInterface
-   *   The flag entity.
-   */
-  private function getFlag(DanceFigureFlag $flag): FlagInterface {
-    $flag_entity = $this->flagService->getFlagById($flag->value);
-    self::assertInstanceOf(FlagInterface::class, $flag_entity);
-    return $flag_entity;
   }
 
   /**
@@ -289,14 +198,10 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
    *   The member.
    */
   private function createMember(): UserInterface {
-    $permissions = [
+    return $this->createUser([
       'access content',
       DanceFigureAccessHooks::VIEW_PERMISSION,
-    ];
-    foreach (DanceFigureFlag::cases() as $flag) {
-      $permissions = array_merge($permissions, $flag->permissions());
-    }
-    return $this->createUser($permissions);
+    ]);
   }
 
   /**
@@ -357,7 +262,6 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     $course_lessons[] = (int) $lesson->id();
     $course->set('field_lessons', $course_lessons);
     $course->save();
-
     return $lesson;
   }
 

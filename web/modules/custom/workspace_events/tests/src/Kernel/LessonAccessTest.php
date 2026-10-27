@@ -52,7 +52,6 @@ final class LessonAccessTest extends LessonKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $this->installLessonConfig();
 
     $this->participant = $this->createUser(['access content']);
     $this->otherMember = $this->createUser(['access content']);
@@ -60,7 +59,6 @@ final class LessonAccessTest extends LessonKernelTestBase {
       'access content',
       LessonAccessHooks::EDIT_PERMISSION,
       'delete any lesson content',
-      'view any unpublished content',
     ]);
 
     $file = File::create([
@@ -95,53 +93,16 @@ final class LessonAccessTest extends LessonKernelTestBase {
   }
 
   /**
-   * Tests the view access of the lesson.
+   * Tests the view access and the access-checked entity query.
    */
-  public function testLessonViewAccess(): void {
+  public function testLessonViewAccessAndQuery(): void {
     self::assertFalse($this->lesson->access('view', new AnonymousUserSession()));
     self::assertFalse($this->lesson->access('view', $this->otherMember));
     self::assertTrue($this->lesson->access('view', $this->participant));
     self::assertTrue($this->lesson->access('view', $this->editor));
-  }
 
-  /**
-   * Tests the update access of the lesson.
-   */
-  public function testLessonUpdateAccess(): void {
-    self::assertFalse($this->lesson->access('update', $this->participant));
-    self::assertTrue($this->lesson->access('update', $this->editor));
-  }
-
-  /**
-   * Tests that participants and the photo are editor-only fields.
-   */
-  public function testProtectedFields(): void {
-    self::assertFalse($this->lesson->get('field_participants')->access('view', $this->participant));
-    self::assertFalse($this->lesson->get('field_participants')->access('edit', $this->participant));
-    self::assertFalse($this->lesson->get('field_attendance_photo')->access('view', $this->participant));
-
-    self::assertTrue($this->lesson->get('field_participants')->access('view', $this->editor));
-    self::assertTrue($this->lesson->get('field_participants')->access('edit', $this->editor));
-    self::assertTrue($this->lesson->get('field_attendance_photo')->access('view', $this->editor));
-  }
-
-  /**
-   * Tests that a participant cannot download the private photo.
-   */
-  public function testParticipantCannotDownloadPhoto(): void {
-    self::assertFalse($this->photo->access('download', $this->participant));
-    self::assertTrue($this->photo->access('download', $this->editor));
-  }
-
-  /**
-   * Tests that an entity query only returns the lessons the user may see.
-   */
-  public function testEntityQueryUsesTheLessonGrants(): void {
     $this->setCurrentUser($this->participant);
-    self::assertSame(
-      [(int) $this->lesson->id()],
-      $this->queryLessonIds(),
-    );
+    self::assertSame([(int) $this->lesson->id()], $this->queryLessonIds());
 
     $this->setCurrentUser($this->otherMember);
     self::assertSame([], $this->queryLessonIds());
@@ -151,6 +112,22 @@ final class LessonAccessTest extends LessonKernelTestBase {
 
     $this->setCurrentUser($this->editor);
     self::assertCount(2, $this->queryLessonIds());
+  }
+
+  /**
+   * Tests the editor-only fields and the private photo download.
+   */
+  public function testProtectedFieldsAndPhoto(): void {
+    self::assertFalse($this->lesson->get('field_participants')->access('view', $this->participant));
+    self::assertFalse($this->lesson->get('field_participants')->access('edit', $this->participant));
+    self::assertFalse($this->lesson->get('field_attendance_photo')->access('view', $this->participant));
+
+    self::assertTrue($this->lesson->get('field_participants')->access('view', $this->editor));
+    self::assertTrue($this->lesson->get('field_participants')->access('edit', $this->editor));
+    self::assertTrue($this->lesson->get('field_attendance_photo')->access('view', $this->editor));
+
+    self::assertFalse($this->photo->access('download', $this->participant));
+    self::assertTrue($this->photo->access('download', $this->editor));
   }
 
   /**

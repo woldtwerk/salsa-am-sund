@@ -19,13 +19,14 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 #[CoversClass(ScheduleMigrator::class)]
 #[Group('workspace_events')]
 #[RunTestsInSeparateProcesses]
-final class ScheduleMigratorTest extends EventKernelTestBase {
+final class ScheduleMigratorTest extends LessonKernelTestBase {
 
   /**
-   * {@inheritdoc}
+   * The modules the legacy schedule test needs.
+   *
+   * @var string[]
    */
   protected static $modules = [
-    ...EventKernelTestBase::MODULES,
     'smart_date',
     'smart_date_recur',
   ];
@@ -40,7 +41,10 @@ final class ScheduleMigratorTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $this->installLessonConfig();
+
+    $this->installEntitySchema('smart_date_rule');
+    $this->installEntitySchema('smart_date_override');
+    $this->installConfig(['smart_date', 'smart_date_recur']);
 
     $this->createLegacyScheduleField();
 
@@ -63,30 +67,24 @@ final class ScheduleMigratorTest extends EventKernelTestBase {
       'field_when' => $deltas,
     ]);
 
-    $message = $this->migrator->migrate();
-    self::assertSame('', $message);
+    self::assertSame('', $this->migrator->migrate());
 
-    $course = $this->nodeStorage->load((int) $course->id());
-    self::assertInstanceOf(NodeInterface::class, $course);
-
-    $first = $course->get('field_course_first')->first();
-    self::assertNotNull($first);
+    $course_id = (int) $course->id();
     $utc = new \DateTimeZone('UTC');
-    self::assertSame($start->setTimezone($utc)->format('Y-m-d\TH:i:s'), $first->get('value')->getString());
-    self::assertSame($end->setTimezone($utc)->format('Y-m-d\TH:i:s'), $first->get('end_value')->getString());
-    self::assertSame($start->modify('+6 weeks')->format('Y-m-d'), $course->get('field_course_last')->getString());
-    self::assertSame('2', $course->get('field_course_interval')->getString());
+    self::assertSame($start->setTimezone($utc)->format('Y-m-d\TH:i:s'), $this->fieldColumn('field_course_first', $course_id));
+    self::assertSame($end->setTimezone($utc)->format('Y-m-d\TH:i:s'), $this->fieldColumn('field_course_first', $course_id, 'end_value'));
+    self::assertSame($start->modify('+6 weeks')->format('Y-m-d'), $this->fieldColumn('field_course_last', $course_id));
+    self::assertSame('2', $this->fieldColumn('field_course_interval', $course_id));
 
-    $lessons = $this->loadReferencedLessons($course);
+    $lessons = $this->loadLessons($course_id);
     self::assertCount(4, $lessons);
-    $expected_dates = [
+    self::assertSame([
       $start->format('Y-m-d'),
       $start->modify('+2 weeks')->format('Y-m-d'),
       $start->modify('+4 weeks')->format('Y-m-d'),
       $start->modify('+6 weeks')->format('Y-m-d'),
-    ];
-    self::assertSame($expected_dates, array_map(
-      static function (NodeInterface $lesson): string {
+    ], array_map(
+      function (NodeInterface $lesson): string {
         $item = $lesson->get('field_lesson_date')->first();
         self::assertNotNull($item);
         return (new \DateTimeImmutable(
@@ -99,68 +97,51 @@ final class ScheduleMigratorTest extends EventKernelTestBase {
   }
 
   /**
-   * Tests that an event keeps its next upcoming date.
+   * Tests the upcoming and the last past date of event series.
    */
-  public function testMigratesEventToNextUpcomingDate(): void {
+  public function testMigratesEvents(): void {
     $timezone = new \DateTimeZone(self::TIMEZONE);
-    $start = (new \DateTimeImmutable('now', $timezone))
+    $upcoming_start = (new \DateTimeImmutable('now', $timezone))
       ->modify('first day of -2 months')
       ->setTime(19, 0);
-    $deltas = $this->recurringDeltas($start, $start->modify('+3 hours'), 'MONTHLY', 'COUNT=4');
-
-    $event = $this->createEvent([
+    $upcoming_deltas = $this->recurringDeltas(
+      $upcoming_start,
+      $upcoming_start->modify('+3 hours'),
+      'MONTHLY',
+      'COUNT=4',
+    );
+    $upcoming = $this->createEvent([
       'title' => 'Monatliche Party',
-      'field_when' => $deltas,
+      'field_when' => $upcoming_deltas,
     ]);
 
-    $message = $this->migrator->migrate();
-
-    self::assertStringContainsString('Monatliche Party', $message);
-    self::assertStringContainsString('4 dates collapsed', $message);
-
-    $event = $this->nodeStorage->load((int) $event->id());
-    self::assertInstanceOf(NodeInterface::class, $event);
-    $expected = $this->firstUpcomingDelta($deltas);
-    self::assertNotNull($expected);
-    self::assertSame($expected['value'], $this->fieldTimestamp($event, 'field_event_date'));
-    self::assertSame($expected['end_value'], $this->fieldEndTimestamp($event, 'field_event_date'));
-  }
-
-  /**
-   * Tests that an event without a future date keeps its last past date.
-   */
-  public function testMigratesPastEventToLastDate(): void {
-    $timezone = new \DateTimeZone(self::TIMEZONE);
-    $start = (new \DateTimeImmutable('now', $timezone))
+    $past_start = (new \DateTimeImmutable('now', $timezone))
       ->modify('first day of -4 months')
       ->setTime(19, 0);
-    $deltas = $this->recurringDeltas($start, $start->modify('+3 hours'), 'MONTHLY', 'COUNT=3');
-
-    $event = $this->createEvent([
+    $past_deltas = $this->recurringDeltas(
+      $past_start,
+      $past_start->modify('+3 hours'),
+      'MONTHLY',
+      'COUNT=3',
+    );
+    $past = $this->createEvent([
       'title' => 'Vergangene Party',
-      'field_when' => $deltas,
+      'field_when' => $past_deltas,
     ]);
 
     $message = $this->migrator->migrate();
-
+    self::assertStringContainsString('Monatliche Party', $message);
+    self::assertStringContainsString('4 dates collapsed', $message);
     self::assertStringContainsString('Vergangene Party', $message);
 
-    $event = $this->nodeStorage->load((int) $event->id());
-    self::assertInstanceOf(NodeInterface::class, $event);
-    $expected = $deltas[count($deltas) - 1];
-    self::assertSame($expected['value'], $this->fieldTimestamp($event, 'field_event_date'));
-    self::assertSame($expected['end_value'], $this->fieldEndTimestamp($event, 'field_event_date'));
-  }
+    $expected = $this->firstUpcomingDelta($upcoming_deltas);
+    self::assertNotNull($expected);
+    self::assertSame($expected['value'], $this->fieldTimestamp('field_event_date', (int) $upcoming->id()));
+    self::assertSame($expected['end_value'], $this->fieldTimestamp('field_event_date', (int) $upcoming->id(), 'end_value'));
 
-  /**
-   * Tests that the migrator does nothing without the legacy field.
-   */
-  public function testDoesNothingWithoutLegacyField(): void {
-    FieldConfig::load('node.course.field_when')?->delete();
-    FieldConfig::load('node.event.field_when')?->delete();
-    FieldStorageConfig::loadByName('node', 'field_when')?->delete();
-
-    self::assertSame('', $this->migrator->migrate());
+    $expected = $past_deltas[count($past_deltas) - 1];
+    self::assertSame($expected['value'], $this->fieldTimestamp('field_event_date', (int) $past->id()));
+    self::assertSame($expected['end_value'], $this->fieldTimestamp('field_event_date', (int) $past->id(), 'end_value'));
   }
 
   /**
@@ -171,6 +152,7 @@ final class ScheduleMigratorTest extends EventKernelTestBase {
       'field_name' => 'field_when',
       'entity_type' => 'node',
       'type' => 'smartdate',
+      'module' => 'smart_date',
       'cardinality' => FieldStorageConfig::CARDINALITY_UNLIMITED,
     ])->save();
     foreach (['event' => 'Datum & Uhrzeit', 'course' => 'Wann'] as $bundle => $label) {
@@ -259,50 +241,72 @@ final class ScheduleMigratorTest extends EventKernelTestBase {
   }
 
   /**
-   * Returns the start timestamp of a date range field.
+   * Loads the lessons of a course from their stored references.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The node.
-   * @param string $field_name
-   *   The field name.
-   *
-   * @return int
-   *   The timestamp.
-   */
-  private function fieldTimestamp(NodeInterface $node, string $field_name): int {
-    $item = $node->get($field_name)->first();
-    self::assertNotNull($item);
-    return (new \DateTimeImmutable($item->get('value')->getString(), new \DateTimeZone('UTC')))->getTimestamp();
-  }
-
-  /**
-   * Returns the end timestamp of a date range field.
-   *
-   * @param \Drupal\node\NodeInterface $node
-   *   The node.
-   * @param string $field_name
-   *   The field name.
-   *
-   * @return int
-   *   The timestamp.
-   */
-  private function fieldEndTimestamp(NodeInterface $node, string $field_name): int {
-    $item = $node->get($field_name)->first();
-    self::assertNotNull($item);
-    return (new \DateTimeImmutable($item->get('end_value')->getString(), new \DateTimeZone('UTC')))->getTimestamp();
-  }
-
-  /**
-   * Loads the referenced lessons of a course.
-   *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course.
+   * @param int $course_id
+   *   The course node ID.
    *
    * @return \Drupal\node\NodeInterface[]
    *   The lessons, in the stored order.
    */
-  private function loadReferencedLessons(NodeInterface $course): array {
-    return $this->loadCourseLessons($course);
+  private function loadLessons(int $course_id): array {
+    $ids = $this->container->get('database')->select('node__field_lessons', 't')
+      ->fields('t', ['field_lessons_target_id'])
+      ->condition('entity_id', $course_id)
+      ->orderBy('delta')
+      ->execute()
+      ->fetchCol();
+    $ids = array_map(static fn (mixed $id): int => (int) $id, $ids);
+    $this->nodeStorage->resetCache($ids);
+    $lessons = [];
+    foreach ($ids as $id) {
+      $lesson = $this->nodeStorage->load($id);
+      self::assertInstanceOf(NodeInterface::class, $lesson);
+      $lessons[] = $lesson;
+    }
+    return $lessons;
+  }
+
+  /**
+   * Returns a stored date field as a timestamp.
+   *
+   * @param string $field_name
+   *   The field name.
+   * @param int $entity_id
+   *   The node ID.
+   * @param string $property
+   *   The field property.
+   *
+   * @return int
+   *   The stored timestamp.
+   */
+  private function fieldTimestamp(string $field_name, int $entity_id, string $property = 'value'): int {
+    $value = $this->fieldColumn($field_name, $entity_id, $property);
+    self::assertNotNull($value);
+    return (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))->getTimestamp();
+  }
+
+  /**
+   * Returns a stored field property of a node.
+   *
+   * @param string $field_name
+   *   The field name.
+   * @param int $entity_id
+   *   The node ID.
+   * @param string $property
+   *   The field property.
+   *
+   * @return string|null
+   *   The stored value.
+   */
+  private function fieldColumn(string $field_name, int $entity_id, string $property = 'value'): ?string {
+    $value = $this->container->get('database')->select('node__' . $field_name, 't')
+      ->fields('t', [$field_name . '_' . $property])
+      ->condition('entity_id', $entity_id)
+      ->condition('delta', 0)
+      ->execute()
+      ->fetchField();
+    return $value === FALSE ? NULL : (string) $value;
   }
 
 }
