@@ -6,7 +6,6 @@ core_version_requirement: ^11.3
 'interface translation project': workspace_gallery
 'interface translation server pattern': modules/custom/workspace_gallery/translations/%language.po
 dependencies:
-  - drupal:content_moderation
   - drupal:media
   - drupal:node
   - drupal:path

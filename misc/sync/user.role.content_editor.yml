@@ -20,11 +20,9 @@ dependencies:
     - taxonomy.vocabulary.dance_figure
     - taxonomy.vocabulary.location
     - taxonomy.vocabulary.organizer
-    - workflows.workflow.basic_editorial
   module:
     - canvas
     - comment
-    - content_moderation
     - dashboard
     - filter
     - media
@@ -103,9 +101,6 @@ permissions:
   - 'schedule publishing of nodes'
   - 'skip comment approval'
   - 'use attendance recognition'
-  - 'use basic_editorial transition create_new_draft'
-  - 'use basic_editorial transition publish'
-  - 'use basic_editorial transition unpublish'
   - 'use media document bulk upload form'
   - 'use media image bulk upload form'
   - 'use media remote_video bulk upload form'
@@ -115,7 +110,6 @@ permissions:
   - 'use text format canvas_html_inline'
   - 'use text format content_format'
   - 'view all revisions'
-  - 'view any unpublished content'
   - 'view dance figures'
   - 'view own unpublished content'
   - 'view own unpublished media'

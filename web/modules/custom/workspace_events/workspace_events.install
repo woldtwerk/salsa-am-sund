@@ -17,7 +17,6 @@ use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
 use Drupal\views\ViewsData;
-use Drupal\workflows\Entity\Workflow;
 use Drupal\workspace_events\AttendanceRecognition;
 use Drupal\workspace_events\AttendanceRecognitionInstaller;
 use Drupal\workspace_events\CourseDifficultyMigrator;
@@ -33,14 +32,6 @@ use Drupal\workspace_events\ScheduleMigrator;
  * Implements hook_install().
  */
 function workspace_events_install(bool $is_syncing = FALSE): void {
-  // The site's ECA model adds every new content type to the editorial
-  // workflow. Courses, events and lessons are not moderated and are published
-  // by Scheduler.
-  foreach (workspace_events_node_bundles() as $bundle) {
-    workspace_events_set_bundle_in_workflow($bundle, FALSE);
-  }
-  workspace_events_set_bundle_in_workflow('lesson', FALSE);
-
   workspace_events_ensure_organizer_vocabulary();
   if (!$is_syncing) {
     // While modules are being installed from configuration (site install,
@@ -55,9 +46,6 @@ function workspace_events_install(bool $is_syncing = FALSE): void {
  * Implements hook_uninstall().
  */
 function workspace_events_uninstall(): void {
-  foreach (workspace_events_node_bundles() as $bundle) {
-    workspace_events_set_bundle_in_workflow($bundle, FALSE);
-  }
   workspace_events_revoke_editor_permissions();
   workspace_events_revoke_flag_permissions();
 }
@@ -277,8 +265,8 @@ function workspace_events_update_10010(): void {
   // date fields, so the leftover rule and override entities can go. They are
   // deleted before the uninstall, because the module installer refuses to
   // uninstall a module that still owns content.
-  workspace_events_delete_smart_date_entities('smart_date_override');
-  workspace_events_delete_smart_date_entities('smart_date_rule');
+  workspace_events_delete_entities('smart_date_override');
+  workspace_events_delete_entities('smart_date_rule');
 
   $installed = array_values(array_filter(
     ['smart_date_recur', 'smart_date'],
@@ -319,15 +307,58 @@ function workspace_events_update_10012(): void {
 }
 
 /**
+ * Implements hook_update_N().
+ *
+ * Removes content moderation from the site.
+ *
+ * The editorial workflow only moderated the page content type and none of the
+ * pages has an unpublished draft, so no draft revision is lost. The ECA model
+ * that added new content types to the workflow, the moderation state entities
+ * and the workflow itself have to go before the modules can be uninstalled.
+ */
+function workspace_events_update_10013(): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  if ($entity_type_manager->hasDefinition('eca')) {
+    $model = $entity_type_manager->getStorage('eca')->load('auto_enable_moderation');
+    if ($model !== NULL) {
+      $model->delete();
+    }
+  }
+
+  // Content moderation cannot be uninstalled while moderation state entities
+  // exist.
+  workspace_events_delete_entities('content_moderation_state');
+
+  if ($entity_type_manager->hasDefinition('workflow')) {
+    $workflow = $entity_type_manager->getStorage('workflow')->load('basic_editorial');
+    if ($workflow !== NULL) {
+      $workflow->delete();
+    }
+  }
+
+  $installed = array_values(array_filter(
+    ['scheduler_content_moderation_integration', 'content_moderation', 'workflows'],
+    static fn (string $module): bool => \Drupal::moduleHandler()->moduleExists($module),
+  ));
+  if ($installed !== []) {
+    $uninstalled = \Drupal::service('module_installer')->uninstall($installed);
+    if ($uninstalled === FALSE) {
+      throw new UpdateException(sprintf('The modules %s could not be uninstalled.', implode(', ', $installed)));
+    }
+  }
+}
+
+/**
  * Deletes all content entities of an entity type in chunks.
  *
- * Used by update 10010 to remove the Smart Date entities before the modules
- * that provide them are uninstalled.
+ * Used by the update hooks to remove entities before the module that provides
+ * them is uninstalled.
  *
  * @param string $entity_type_id
- *   The entity type ID, for example "smart_date_rule".
+ *   The entity type ID, for example "content_moderation_state".
  */
-function workspace_events_delete_smart_date_entities(string $entity_type_id): void {
+function workspace_events_delete_entities(string $entity_type_id): void {
   $entity_type_manager = \Drupal::entityTypeManager();
   if (!$entity_type_manager->hasDefinition($entity_type_id)) {
     return;
@@ -471,8 +502,9 @@ function workspace_events_node_bundles(): array {
 /**
  * Adds or removes a node bundle from the basic editorial workflow.
  *
- * Idempotent: nothing is saved when the workflow is missing or already has the
- * requested state.
+ * Does nothing when the Workflows module has been uninstalled. Idempotent:
+ * nothing is saved when the workflow is missing or already has the requested
+ * state.
  *
  * @param string $bundle
  *   The node bundle machine name.
@@ -480,7 +512,14 @@ function workspace_events_node_bundles(): array {
  *   TRUE to add the bundle to the workflow, FALSE to remove it.
  */
 function workspace_events_set_bundle_in_workflow(string $bundle, bool $include): void {
-  $workflow = Workflow::load('basic_editorial');
+  if (!\Drupal::moduleHandler()->moduleExists('workflows')) {
+    return;
+  }
+  $entity_type_manager = \Drupal::entityTypeManager();
+  if (!$entity_type_manager->hasDefinition('workflow')) {
+    return;
+  }
+  $workflow = $entity_type_manager->getStorage('workflow')->load('basic_editorial');
   if ($workflow === NULL) {
     return;
   }
