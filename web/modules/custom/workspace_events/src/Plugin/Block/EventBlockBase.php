@@ -553,9 +553,14 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
    *   The render array.
    * @param \Drupal\workspace_events\EventOccurrence[] $occurrences
    *   The rendered occurrences.
+   * @param \Drupal\Core\Cache\CacheableMetadata|null $extraCacheability
+   *   Additional cacheability of the block output, e.g. of generated URLs.
    */
-  protected function applyOccurrenceCache(array &$build, array $occurrences): void {
+  protected function applyOccurrenceCache(array &$build, array $occurrences, ?CacheableMetadata $extraCacheability = NULL): void {
     $cacheability = new CacheableMetadata();
+    if ($extraCacheability !== NULL) {
+      $cacheability->addCacheableDependency($extraCacheability);
+    }
     $cacheability->addCacheTags([
       'node_list:event',
       'node_list:course',

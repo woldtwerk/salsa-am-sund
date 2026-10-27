@@ -197,7 +197,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
       'Friedrich-Naumann-Straße 5',
       'https://www.openstreetmap.org/search?query=Friedrich-Naumann-Stra%C3%9Fe%205',
     );
-    $this->createCourse([
+    $course = $this->createCourse([
       'title' => 'Anfänger',
       'field_difficulty' => [0],
       'field_location' => $location->id(),
@@ -234,6 +234,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     self::assertSame('montag', $courses[0]['#props']['day']);
     self::assertSame('18:15 – 19:15 Uhr', $courses[0]['#props']['time']);
     self::assertSame('Anfänger', $courses[0]['#props']['title']);
+    self::assertSame($course->toUrl()->toString(), $courses[0]['#props']['href']);
     self::assertSame('Level 0', $courses[0]['#props']['level']);
     self::assertSame('Bootshaus Stralsund', $courses[0]['#props']['location']);
     self::assertSame('https://www.openstreetmap.org/search?query=Friedrich-Naumann-Stra%C3%9Fe%205', $courses[0]['#props']['location_href']);
