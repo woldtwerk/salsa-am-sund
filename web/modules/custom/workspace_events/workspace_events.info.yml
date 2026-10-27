@@ -18,8 +18,14 @@ dependencies:
   - drupal:taxonomy
   - drupal:text
   - drupal:user
+  - drupal:views
+  - ai:ai
+  - ai:ai_automators
+  - ai_provider_mistral:ai_provider_mistral
   - canvas:canvas
+  - field_widget_actions:field_widget_actions
   - flag:flag
+  - key:key
   - pathauto:pathauto
   - scheduler:scheduler
   - smart_date:smart_date

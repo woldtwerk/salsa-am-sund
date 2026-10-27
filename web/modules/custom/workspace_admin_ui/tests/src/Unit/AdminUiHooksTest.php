@@ -98,6 +98,7 @@ class AdminUiHooksTest extends UnitTestCase {
       'entity.taxonomy_vocabulary.collection',
       'entity.path_alias.collection',
       'entity.menu.collection',
+      'workspace_events.lesson_collection',
     ];
   }
 

@@ -161,7 +161,7 @@ class AdminUiHooks {
    * rather than tucked under the admin menu.
    *
    * Navigation takes an item's icon from its URL options, and falls back to an
-   * icon of the same name in the `navigation` pack. These three have no icon
+   * icon of the same name in the `navigation` pack. These links have no icon
    * there, so they point at the module's pack, which discovers `icons/`.
    *
    * @param array<string, array<string, mixed>> $links
@@ -205,6 +205,7 @@ class AdminUiHooks {
       'entity.taxonomy_vocabulary.collection' => ['icon' => 'taxonomy', 'weight' => 10],
       'entity.path_alias.collection' => ['icon' => 'url-aliases', 'weight' => 11],
       'entity.menu.collection' => ['icon' => 'menus', 'weight' => 12],
+      'workspace_events.lesson_collection' => ['icon' => 'lessons', 'weight' => 13],
     ];
   }
 

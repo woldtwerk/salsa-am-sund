@@ -51,3 +51,7 @@ block.settings.salsa_course_schedule:
         constraints:
           Range:
             min: 1
+
+field_widget_action.plugin.attendance_from_photo_participants:
+  type: field_widget_action_automator_base
+  label: 'Attendance from photo field widget action'
