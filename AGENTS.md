@@ -76,6 +76,13 @@ Only test what matters: the custom logic in this repo.
 
 - Don't test Drupal core, contributed modules or other third-party code.
 - Don't write UI tests (no browser, rendering or markup tests).
+- Test risks, not config. Worth a test: date and schedule calculation, data migrations, access and
+  privacy rules, parsing/matching logic, output of public interfaces (iCal, JSON, structured data).
+  Not worth a test: that shipped config exists or has certain values (fields, displays, labels,
+  permissions in role YAML), behaviour of Drupal or contrib (Flag storing a flagging per user, a
+  permission check of core), or that a service is wired in the container.
+- Installers and update hooks: one test for the risky part (e.g. UUIDs from the sync storage are
+  kept, data is migrated correctly), not one per config item.
 - During development, run only the tests you created or changed. Run the whole suite
   (`ddev composer test`) once, when the feature is done.
 - Run single test files with `--file` (`--class` fails here, because test discovery trips over a contrib test):
