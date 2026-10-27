@@ -33,12 +33,12 @@ use Drupal\workspace_events\ScheduleMigrator;
  * Implements hook_install().
  */
 function workspace_events_install(bool $is_syncing = FALSE): void {
-  foreach (workspace_events_node_bundles() as $bundle) {
-    workspace_events_set_bundle_in_workflow($bundle, TRUE);
-  }
-
   // The site's ECA model adds every new content type to the editorial
-  // workflow. Lessons are not moderated and are published by Scheduler.
+  // workflow. Courses, events and lessons are not moderated and are published
+  // by Scheduler.
+  foreach (workspace_events_node_bundles() as $bundle) {
+    workspace_events_set_bundle_in_workflow($bundle, FALSE);
+  }
   workspace_events_set_bundle_in_workflow('lesson', FALSE);
 
   workspace_events_ensure_organizer_vocabulary();
@@ -303,6 +303,18 @@ function workspace_events_update_10011(): void {
   $field = FieldConfig::loadByName('node', 'course', 'field_link');
   if ($field !== NULL) {
     $field->delete();
+  }
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Removes the course and event bundles from the editorial workflow, so only
+ * pages stay moderated.
+ */
+function workspace_events_update_10012(): void {
+  foreach (workspace_events_node_bundles() as $bundle) {
+    workspace_events_set_bundle_in_workflow($bundle, FALSE);
   }
 }
 

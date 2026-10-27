@@ -3,9 +3,6 @@ langcode: de
 status: true
 dependencies:
   config:
-    - node.type.course
-    - node.type.event
-    - node.type.gallery
     - node.type.page
   module:
     - content_moderation
@@ -56,8 +53,5 @@ type_settings:
       weight: 1
   entity_types:
     node:
-      - course
-      - event
-      - gallery
       - page
   default_moderation_state: published
