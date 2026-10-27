@@ -14,7 +14,9 @@ use Drupal\workflows\Entity\Workflow;
  * Implements hook_install().
  */
 function workspace_gallery_install(bool $is_syncing = FALSE): void {
-  workspace_gallery_add_gallery_to_workflow();
+  // The site's ECA model adds every new content type to the editorial
+  // workflow. Galleries are not moderated.
+  workspace_gallery_remove_gallery_from_workflow();
   workspace_gallery_grant_editor_permissions();
 }
 
@@ -27,25 +29,13 @@ function workspace_gallery_uninstall(): void {
 }
 
 /**
- * Adds the gallery bundle to the basic editorial workflow.
+ * Implements hook_update_N().
+ *
+ * Removes the gallery bundle from the editorial workflow, so only pages stay
+ * moderated.
  */
-function workspace_gallery_add_gallery_to_workflow(): void {
-  $workflow = Workflow::load('basic_editorial');
-  if ($workflow === NULL) {
-    return;
-  }
-  $plugin = $workflow->getTypePlugin();
-  $configuration = $plugin->getConfiguration();
-  $entity_types = (array) ($configuration['entity_types'] ?? []);
-  $bundles = isset($entity_types['node']) && is_array($entity_types['node']) ? $entity_types['node'] : [];
-  if (in_array('gallery', $bundles, TRUE)) {
-    return;
-  }
-  $bundles[] = 'gallery';
-  $entity_types['node'] = array_values($bundles);
-  $configuration['entity_types'] = $entity_types;
-  $plugin->setConfiguration($configuration);
-  $workflow->save();
+function workspace_gallery_update_11001(): void {
+  workspace_gallery_remove_gallery_from_workflow();
 }
 
 /**

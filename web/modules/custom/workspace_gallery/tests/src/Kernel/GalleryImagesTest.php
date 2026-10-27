@@ -36,8 +36,6 @@ final class GalleryImagesTest extends CanvasKernelTestBase {
     ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
     'field',
     'node',
-    'content_moderation',
-    'workflows',
     'pathauto',
     'token',
     'workspace_gallery',
