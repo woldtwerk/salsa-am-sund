@@ -1,0 +1,20 @@
+uuid: c0a71177-4cb2-472d-b2ef-8ff59a9c201b
+langcode: de
+status: true
+dependencies:
+  module:
+    - datetime_range
+    - node
+id: node.field_lesson_date
+field_name: field_lesson_date
+entity_type: node
+type: daterange
+settings:
+  datetime_type: datetime
+module: datetime_range
+locked: false
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

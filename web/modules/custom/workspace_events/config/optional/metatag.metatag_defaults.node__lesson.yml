@@ -1,0 +1,11 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - node.type.lesson
+  module:
+    - metatag
+id: node__lesson
+label: 'Inhalt: Unterrichtsstunde'
+tags:
+  robots: noindex

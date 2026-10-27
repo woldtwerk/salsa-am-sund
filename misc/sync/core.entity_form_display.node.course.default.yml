@@ -4,7 +4,11 @@ status: true
 dependencies:
   config:
     - field.field.node.course.body
+    - field.field.node.course.field_course_first
+    - field.field.node.course.field_course_last
+    - field.field.node.course.field_course_interval
     - field.field.node.course.field_difficulty
+    - field.field.node.course.field_lessons
     - field.field.node.course.field_link
     - field.field.node.course.field_location
     - field.field.node.course.field_when
@@ -12,6 +16,8 @@ dependencies:
     - workflows.workflow.basic_editorial
   module:
     - content_moderation
+    - datetime
+    - datetime_range
     - link
     - options
     - path
@@ -41,11 +47,39 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
+  field_course_first:
+    type: daterange_default
+    weight: -21
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_course_interval:
+    type: options_select
+    weight: -19
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_course_last:
+    type: datetime_default
+    weight: -20
+    region: content
+    settings: {  }
+    third_party_settings: {  }
   field_difficulty:
     type: options_buttons
     weight: -16
     region: content
     settings: {  }
+    third_party_settings: {  }
+  field_lessons:
+    type: entity_reference_autocomplete
+    weight: -12
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
     third_party_settings: {  }
   field_link:
     type: link_default

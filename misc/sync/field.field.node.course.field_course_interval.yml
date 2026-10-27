@@ -1,0 +1,23 @@
+uuid: c7dfad1a-f41e-464b-b467-7343b30a35e3
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_course_interval
+    - node.type.course
+  module:
+    - options
+id: node.course.field_course_interval
+field_name: field_course_interval
+entity_type: node
+bundle: course
+label: Rhythmus
+description: 'In welchem Abstand die Kursstunden stattfinden.'
+required: true
+translatable: false
+default_value:
+  -
+    value: 1
+default_value_callback: ''
+settings: {  }
+field_type: list_integer

@@ -7,6 +7,8 @@ core_version_requirement: ^11.3
 'interface translation server pattern': modules/custom/workspace_events/translations/%language.po
 dependencies:
   - drupal:content_moderation
+  - drupal:datetime_range
+  - drupal:image
   - drupal:link
   - drupal:media
   - drupal:media_library
@@ -15,8 +17,10 @@ dependencies:
   - drupal:path
   - drupal:taxonomy
   - drupal:text
+  - drupal:user
   - canvas:canvas
   - flag:flag
   - pathauto:pathauto
+  - scheduler:scheduler
   - smart_date:smart_date
   - smart_date:smart_date_recur
