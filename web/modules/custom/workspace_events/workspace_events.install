@@ -7,6 +7,8 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Field\DeletedFieldsRepositoryInterface;
+use Drupal\Core\Field\FieldPurger;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\NodeAccessRebuild;
@@ -227,6 +229,59 @@ function workspace_events_update_10007(): ?string {
 }
 
 /**
+ * Implements hook_update_N().
+ *
+ * Removes the legacy Smart Date field and uninstalls the Smart Date modules.
+ *
+ * The schedule migration of update 10007 runs first because update hooks run
+ * in number order.
+ */
+function workspace_events_update_10010(): void {
+  foreach (['node.course.field_when', 'node.event.field_when'] as $name) {
+    $field = FieldConfig::load($name);
+    if ($field !== NULL) {
+      $field->delete();
+    }
+  }
+
+  $storage = FieldStorageConfig::loadByName('node', 'field_when');
+  if ($storage !== NULL) {
+    $storage->delete();
+  }
+
+  // The field data is deleted in batches, so a large site does not run out of
+  // memory. field_purge_batch() is deprecated in Drupal 11.4; the purger is the
+  // same operation without the deprecation.
+  $purger = \Drupal::service(FieldPurger::class);
+  \assert($purger instanceof FieldPurger);
+  $repository = \Drupal::service('entity_field.deleted_fields_repository');
+  \assert($repository instanceof DeletedFieldsRepositoryInterface);
+  for ($i = 0; $i < 100; $i++) {
+    if ($repository->getFieldDefinitions() === [] && $repository->getFieldStorageDefinitions() === []) {
+      break;
+    }
+    $purger->purgeBatch(50);
+  }
+
+  // The permission is provided by smart_date_recur, so it is revoked before
+  // the module disappears.
+  foreach (Role::loadMultiple() as $role) {
+    if ($role->hasPermission('make smart dates recur')) {
+      $role->revokePermission('make smart dates recur');
+      $role->save();
+    }
+  }
+
+  $installed = array_values(array_filter(
+    ['smart_date_recur', 'smart_date'],
+    static fn (string $module): bool => \Drupal::moduleHandler()->moduleExists($module),
+  ));
+  if ($installed !== []) {
+    \Drupal::service('module_installer')->uninstall($installed);
+  }
+}
+
+/**
  * Renames the fixed "Sonstige" organizer term if it still has the old label.
  *
  * Older sites created the term as "Extern". The label is only changed while it
@@ -405,7 +460,6 @@ function workspace_events_editor_permissions(): array {
     'edit terms in dance_figure',
     'delete terms in dance_figure',
     'access taxonomy overview',
-    'make smart dates recur',
     'edit any lesson content',
     'delete any lesson content',
     DanceFigureAccessHooks::VIEW_PERMISSION,

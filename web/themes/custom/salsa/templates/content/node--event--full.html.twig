@@ -13,8 +13,8 @@
  * - event_organizer: The organizer label of the event.
  * - event_next_date: The next date with date, date_iso, weekday, time and iCal
  *   URL.
- * - event_next_dates: Upcoming dates with date, date_iso, weekday, time and
- *   iCal URL.
+ * - event_next_dates: Upcoming dates with date, date_iso, weekday, time, iCal
+ *   URL and cancellation flag.
  * - event_location: Location name, address and map URL.
  * - event_link: Optional external link with label and href.
  * - event_ical_url: The webcal subscription URL of this event's organizer
@@ -100,6 +100,11 @@
                     <span class="font-body text-sm font-semibold uppercase tracking-wide text-flame-gold">
                       {{ item.time ?: 'Ganztägig'|t }}
                     </span>
+                    {% if item.cancelled %}
+                      <span class="font-body text-sm font-semibold uppercase tracking-wide text-flame-orange">
+                        {{ 'Fällt aus'|t }}
+                      </span>
+                    {% endif %}
                     <a href="{{ item.ical_url }}" download class="inline-flex items-center gap-1.5 text-sm font-semibold text-mist no-underline hover:text-flame-gold">
                       {{ icon('salsa', 'calendar', {size: 16}) }}
                       <span>{{ 'Zum Kalender'|t }}</span>

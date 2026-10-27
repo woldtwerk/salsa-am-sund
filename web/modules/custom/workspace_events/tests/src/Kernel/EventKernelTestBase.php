@@ -10,20 +10,21 @@ use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
 use Drupal\node\NodeInterface;
-use Drupal\smart_date_recur\Entity\SmartDateRule;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
 use Drupal\Tests\canvas\Kernel\CanvasKernelTestBase;
 use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\workspace_events\Difficulty;
+use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\OrganizerResolver;
 
 /**
  * Base class for workspace_events kernel tests.
  *
  * Builds the event content model programmatically, so the tests only cover
- * this module's logic and not the site's configuration.
+ * this module's logic and not the site's configuration. Courses carry a
+ * schedule and reference their generated lessons; events carry one date range.
  */
 abstract class EventKernelTestBase extends CanvasKernelTestBase {
 
@@ -35,9 +36,9 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
   protected const string TIMEZONE = 'Europe/Berlin';
 
   /**
-   * {@inheritdoc}
+   * The modules every test of this module needs.
    */
-  protected static $modules = [
+  public const array MODULES = [
     ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
     'canvas_test_sdc',
     'field',
@@ -54,10 +55,16 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     'ai_automators',
     'ai_provider_mistral',
     'field_widget_actions',
-    'smart_date',
-    'smart_date_recur',
+    'datetime_range',
+    'image',
+    'scheduler',
     'workspace_events',
   ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = self::MODULES;
 
   /**
    * The taxonomy term storage.
@@ -91,11 +98,21 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     $this->installSchema('node', ['node_access']);
     $this->installEntitySchema('taxonomy_term');
     $this->installEntitySchema('path_alias');
-    $this->installEntitySchema('smart_date_rule');
-    $this->installEntitySchema('smart_date_override');
     $this->installEntitySchema('flagging');
     $this->installSchema('flag', ['flag_counts']);
-    $this->installConfig(['node', 'taxonomy', 'filter', 'smart_date', 'smart_date_recur']);
+    $this->installEntitySchema('file');
+    $this->installSchema('file', ['file_usage']);
+    $this->installConfig(['node', 'taxonomy', 'filter', 'scheduler']);
+    if (\Drupal::moduleHandler()->moduleExists('smart_date')) {
+      // Only the legacy schedule migration test needs the removed modules.
+      $this->installEntitySchema('smart_date_rule');
+      $this->installEntitySchema('smart_date_override');
+      $this->installConfig(['smart_date', 'smart_date_recur']);
+    }
+    $this->config('system.date')
+      ->set('timezone.default', self::TIMEZONE)
+      ->save();
+    date_default_timezone_set(self::TIMEZONE);
 
     $this->createContentModel();
     $this->setUpCurrentUser([], ['access content']);
@@ -108,6 +125,19 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     self::assertInstanceOf(TermInterface::class, $external);
     $this->salsaAmSund = (int) $salsa->id();
     $this->externalOrganizer = (int) $external->id();
+  }
+
+  /**
+   * Installs the lesson bundle, its fields and the course and event fields.
+   */
+  protected function installLessonConfig(): void {
+    $installer = $this->container->get(LessonInstaller::class);
+    \assert($installer instanceof LessonInstaller);
+    $installer->install();
+
+    // Creating the fields can rebuild the container. Refresh the storage so
+    // the tests use the field definitions of the new configuration.
+    $this->nodeStorage = $this->container->get('entity_type.manager')->getStorage('node');
   }
 
   /**
@@ -173,19 +203,6 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
       'new_revision' => TRUE,
       'display_submitted' => FALSE,
     ])->save();
-
-    FieldStorageConfig::create([
-      'field_name' => 'field_when',
-      'entity_type' => 'node',
-      'type' => 'smartdate',
-      'cardinality' => FieldStorageConfig::CARDINALITY_UNLIMITED,
-    ])->save();
-    foreach (['event' => 'Datum & Uhrzeit', 'course' => 'Wann'] as $bundle => $label) {
-      $when = $this->createFieldConfig('field_when', $bundle, $label, [], TRUE);
-      $when->setThirdPartySetting('smart_date_recur', 'allow_recurring', TRUE);
-      $when->setThirdPartySetting('smart_date_recur', 'month_limit', 12);
-      $when->save();
-    }
 
     FieldStorageConfig::create([
       'field_name' => 'field_organizer',
@@ -293,6 +310,31 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
   }
 
   /**
+   * Loads the referenced lessons of a course.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course.
+   *
+   * @return \Drupal\node\NodeInterface[]
+   *   The lessons, in the stored order.
+   */
+  protected function loadCourseLessons(NodeInterface $course): array {
+    $ids = [];
+    foreach ($course->get('field_lessons') as $item) {
+      $ids[] = (int) $item->get('target_id')->getString();
+    }
+    $this->nodeStorage->resetCache($ids);
+
+    $lessons = [];
+    foreach ($ids as $id) {
+      $lesson = $this->nodeStorage->load($id);
+      self::assertInstanceOf(NodeInterface::class, $lesson);
+      $lessons[] = $lesson;
+    }
+    return $lessons;
+  }
+
+  /**
    * Creates a location term.
    *
    * @param string $name
@@ -332,97 +374,54 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
   }
 
   /**
-   * Creates a single date delta for a smart date field.
+   * Formats a date for a date range field, which stores dates in UTC.
+   *
+   * @param \DateTimeImmutable $date
+   *   The date in the test timezone.
+   *
+   * @return string
+   *   The stored value.
+   */
+  protected function storageDate(\DateTimeImmutable $date): string {
+    return $date
+      ->setTimezone(new \DateTimeZone('UTC'))
+      ->format('Y-m-d\TH:i:s');
+  }
+
+  /**
+   * Builds a date range field value.
    *
    * @param \DateTimeImmutable $start
    *   The start.
    * @param \DateTimeImmutable|null $end
-   *   The end, or NULL for an event without a known end.
+   *   The end, or NULL for the start.
    *
-   * @return array<string, mixed>
-   *   The field delta.
+   * @return array<string, string>
+   *   The field value.
    */
-  protected function dateDelta(\DateTimeImmutable $start, ?\DateTimeImmutable $end): array {
-    $end ??= $start;
+  protected function dateRange(\DateTimeImmutable $start, ?\DateTimeImmutable $end = NULL): array {
     return [
-      'value' => $start->getTimestamp(),
-      'end_value' => $end->getTimestamp(),
-      'duration' => (int) (($end->getTimestamp() - $start->getTimestamp()) / 60),
-      'timezone' => self::TIMEZONE,
+      'value' => $this->storageDate($start),
+      'end_value' => $this->storageDate($end ?? $start),
     ];
   }
 
   /**
-   * Creates an all-day date delta.
+   * Builds an all-day date range field value.
    *
    * @param \DateTimeImmutable $day
    *   The first day.
    * @param \DateTimeImmutable|null $lastDay
    *   The last day of a multi-day range, or NULL for a single day.
    *
-   * @return array<string, mixed>
-   *   The field delta.
+   * @return array<string, string>
+   *   The field value.
    */
-  protected function allDayDelta(\DateTimeImmutable $day, ?\DateTimeImmutable $lastDay = NULL): array {
-    $start = $day->setTime(0, 0);
-    $end = ($lastDay ?? $day)->setTime(23, 59);
-    return [
-      'value' => $start->getTimestamp(),
-      'end_value' => $end->getTimestamp(),
-      'duration' => (int) (($end->getTimestamp() - $start->getTimestamp()) / 60),
-      'timezone' => self::TIMEZONE,
-    ];
-  }
-
-  /**
-   * Creates a recurrence rule and returns its materialized date deltas.
-   *
-   * @param \DateTimeImmutable $start
-   *   The first occurrence start.
-   * @param \DateTimeImmutable $end
-   *   The first occurrence end.
-   * @param string $frequency
-   *   The recurrence frequency.
-   * @param string $parameters
-   *   The recurrence parameters.
-   * @param string $limit
-   *   The recurrence limit, for example COUNT=4. Empty for unlimited.
-   * @param string $bundle
-   *   The node bundle the rule belongs to.
-   *
-   * @return array<int, array<string, mixed>>
-   *   The date deltas.
-   */
-  protected function recurringDeltas(\DateTimeImmutable $start, \DateTimeImmutable $end, string $frequency, string $parameters, string $limit = '', string $bundle = 'event'): array {
-    $rule = SmartDateRule::create([
-      'freq' => $frequency,
-      'limit' => $limit,
-      'unlimited' => $limit === '',
-      'entity_type' => 'node',
-      'bundle' => $bundle,
-      'field_name' => 'field_when',
-      'start' => $start->getTimestamp(),
-      'end' => $end->getTimestamp(),
-      'parameters' => $parameters,
-    ]);
-    $rule->setTimezone(self::TIMEZONE);
-    $instances = $rule->getRuleInstances(strtotime('+12 months'));
-    self::assertIsArray($instances);
-    $rule->set('instances', ['data' => $instances]);
-    $rule->save();
-
-    $deltas = [];
-    foreach ($rule->getStoredInstances() as $index => $instance) {
-      $deltas[] = [
-        'value' => $instance['value'],
-        'end_value' => $instance['end_value'],
-        'duration' => (int) (($instance['end_value'] - $instance['value']) / 60),
-        'timezone' => self::TIMEZONE,
-        'rrule' => $rule->id(),
-        'rrule_index' => $index,
-      ];
-    }
-    return $deltas;
+  protected function allDayRange(\DateTimeImmutable $day, ?\DateTimeImmutable $lastDay = NULL): array {
+    return $this->dateRange(
+      $day->setTime(0, 0),
+      ($lastDay ?? $day)->setTime(23, 59),
+    );
   }
 
   /**
@@ -447,7 +446,7 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
   }
 
   /**
-   * Creates a course node.
+   * Creates a course node and generates its lessons.
    *
    * @param array<string, mixed> $values
    *   The node values.
@@ -464,6 +463,29 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     $node = Node::create($values);
     $node->save();
     return $node;
+  }
+
+  /**
+   * Creates a course schedule with weekly lessons.
+   *
+   * @param \DateTimeImmutable $first
+   *   The start of the first lesson.
+   * @param \DateTimeImmutable $last
+   *   The date of the last lesson.
+   * @param int $interval
+   *   The interval in weeks.
+   * @param \DateTimeImmutable|null $end
+   *   The end of the first lesson, or NULL to use one hour after the start.
+   *
+   * @return array<string, mixed>
+   *   The node values.
+   */
+  protected function courseSchedule(\DateTimeImmutable $first, \DateTimeImmutable $last, int $interval = 1, ?\DateTimeImmutable $end = NULL): array {
+    return [
+      'field_course_first' => $this->dateRange($first, $end ?? $first->modify('+1 hour')),
+      'field_course_last' => ['value' => $last->format('Y-m-d')],
+      'field_course_interval' => ['value' => $interval],
+    ];
   }
 
 }

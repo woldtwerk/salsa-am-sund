@@ -37,6 +37,7 @@ final class EventBlocksTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    $this->installLessonConfig();
     $this->blockManager = $this->container->get('plugin.manager.block');
   }
 
@@ -49,16 +50,16 @@ final class EventBlocksTest extends EventKernelTestBase {
       'title' => 'Salsa im ballhaus goldfisch',
       'field_organizer' => $this->externalOrganizer,
       'field_location' => $location->id(),
-      'field_when' => [
-        $this->dateDelta($this->date('now +1 day', '20:00'), NULL),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +1 day', '20:00'),
+        $this->date('now +1 day', '23:00'),
+      ),
     ]);
+    $start = $this->date('now +2 days', '18:15');
     $course = $this->createCourse([
       'title' => 'Anfänger',
       'field_location' => $location->id(),
-      'field_when' => [
-        $this->dateDelta($this->date('now +2 days', '18:15'), $this->date('now +2 days', '19:15')),
-      ],
+      ...$this->courseSchedule($start, $start),
     ]);
     $party = $this->createEvent([
       'title' => 'Tanzabend',
@@ -67,15 +68,17 @@ final class EventBlocksTest extends EventKernelTestBase {
         'value' => '<p>Tanzabschluss-Abend für alle.</p>',
         'format' => 'plain_text',
       ],
-      'field_when' => [
-        $this->dateDelta($this->date('now +3 days', '18:00'), $this->date('now +3 days', '22:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +3 days', '18:00'),
+        $this->date('now +3 days', '22:00'),
+      ),
     ]);
     $this->createEvent([
       'title' => 'Später Termin',
-      'field_when' => [
-        $this->dateDelta($this->date('now +40 days', '18:00'), $this->date('now +40 days', '20:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +40 days', '18:00'),
+        $this->date('now +40 days', '20:00'),
+      ),
     ]);
 
     $block = $this->blockManager->createInstance('salsa_events', [
@@ -91,7 +94,7 @@ final class EventBlocksTest extends EventKernelTestBase {
     $items = $build['events']['#slots']['items'];
     self::assertCount(2, $items);
     self::assertSame('Salsa im ballhaus goldfisch', $items[0]['#props']['title']);
-    self::assertSame('ab 20:00 Uhr', $items[0]['#props']['time']);
+    self::assertSame('20:00 – 23:00 Uhr', $items[0]['#props']['time']);
     self::assertSame('Tanzabend', $items[1]['#props']['title']);
     self::assertSame('18:00 – 22:00 Uhr', $items[1]['#props']['time']);
     self::assertSame('Bootshaus Stralsund', $items[1]['#props']['location']);
@@ -100,7 +103,7 @@ final class EventBlocksTest extends EventKernelTestBase {
     self::assertStringNotContainsString('content_format', (string) $items[1]['#props']['text']);
     self::assertSame($party->toUrl()->toString(), $items[1]['#props']['href']);
     self::assertSame(
-      '/termine/' . $party->id() . '/0/ical',
+      '/termine/' . $party->id() . '/ical',
       $items[1]['#props']['ical_href'],
     );
 
@@ -136,6 +139,7 @@ final class EventBlocksTest extends EventKernelTestBase {
 
     self::assertContains('node_list:event', $build['#cache']['tags']);
     self::assertContains('node_list:course', $build['#cache']['tags']);
+    self::assertContains('node_list:lesson', $build['#cache']['tags']);
     self::assertContains('taxonomy_term_list:location', $build['#cache']['tags']);
     self::assertContains('taxonomy_term_list:organizer', $build['#cache']['tags']);
     self::assertLessThanOrEqual(86400, $build['#cache']['max-age']);
@@ -147,15 +151,11 @@ final class EventBlocksTest extends EventKernelTestBase {
   public function testUpcomingEventsCalendarSubscription(): void {
     $location = $this->createLocation('Bootshaus Stralsund');
     foreach (['Anfänger', 'Fortgeschrittene'] as $index => $title) {
+      $start = $this->date('now +' . ($index + 2) . ' days', '18:15');
       $this->createCourse([
         'title' => $title,
         'field_location' => $location->id(),
-        'field_when' => [
-          $this->dateDelta(
-            $this->date('now +' . ($index + 2) . ' days', '18:15'),
-            $this->date('now +' . ($index + 2) . ' days', '19:15'),
-          ),
-        ],
+        ...$this->courseSchedule($start, $start),
       ]);
     }
 
@@ -193,25 +193,26 @@ final class EventBlocksTest extends EventKernelTestBase {
    */
   public function testUpcomingEventsFiltering(): void {
     $location = $this->createLocation('Bootshaus Stralsund');
+    $start = $this->date('now +2 days', '18:15');
     $this->createCourse([
       'title' => 'Anfänger',
       'field_location' => $location->id(),
-      'field_when' => [
-        $this->dateDelta($this->date('now +2 days', '18:15'), $this->date('now +2 days', '19:15')),
-      ],
+      ...$this->courseSchedule($start, $start),
     ]);
     $this->createEvent([
       'title' => 'Salsa am Sund Party',
-      'field_when' => [
-        $this->dateDelta($this->date('now +3 days', '18:00'), $this->date('now +3 days', '22:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +3 days', '18:00'),
+        $this->date('now +3 days', '22:00'),
+      ),
     ]);
     $this->createEvent([
       'title' => 'Externe Party',
       'field_organizer' => $this->externalOrganizer,
-      'field_when' => [
-        $this->dateDelta($this->date('now +4 days', '18:00'), $this->date('now +4 days', '22:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +4 days', '18:00'),
+        $this->date('now +4 days', '22:00'),
+      ),
     ]);
 
     $block = $this->blockManager->createInstance('salsa_events', [
@@ -285,28 +286,26 @@ final class EventBlocksTest extends EventKernelTestBase {
       'title' => 'Anfänger',
       'field_difficulty' => [0],
       'field_location' => $location->id(),
-      'field_when' => $this->recurringDeltas(
+      ...$this->courseSchedule(
         $this->date('next monday', '18:15'),
-        $this->date('next monday', '19:15'),
-        'WEEKLY',
-        'INTERVAL=1;BYDAY=MO',
-        'COUNT=4',
-        'course',
+        $this->date('next monday', '18:15')->modify('+3 weeks'),
       ),
     ]);
     $this->createCourse([
       'title' => 'Tanzfeeling u. mehr',
       'field_difficulty' => [1],
       'field_location' => $location->id(),
-      'field_when' => [
-        $this->dateDelta($this->date('next tuesday', '19:30'), $this->date('next tuesday', '20:30')),
-      ],
+      ...$this->courseSchedule(
+        $this->date('next tuesday', '19:30'),
+        $this->date('next tuesday', '19:30'),
+      ),
     ]);
     $this->createCourse([
       'title' => 'Zu weit in der Zukunft',
-      'field_when' => [
-        $this->dateDelta($this->date('now +200 days', '18:00'), $this->date('now +200 days', '19:00')),
-      ],
+      ...$this->courseSchedule(
+        $this->date('now +200 days', '18:00'),
+        $this->date('now +200 days', '18:00'),
+      ),
     ]);
 
     $block = $this->blockManager->createInstance('salsa_course_schedule', [
@@ -330,6 +329,7 @@ final class EventBlocksTest extends EventKernelTestBase {
 
     self::assertContains('node_list:event', $build['#cache']['tags']);
     self::assertContains('node_list:course', $build['#cache']['tags']);
+    self::assertContains('node_list:lesson', $build['#cache']['tags']);
     self::assertContains('taxonomy_term_list:location', $build['#cache']['tags']);
     self::assertContains('taxonomy_term_list:organizer', $build['#cache']['tags']);
 
@@ -371,9 +371,10 @@ final class EventBlocksTest extends EventKernelTestBase {
         'summary' => 'Kurzbeschreibung für die Karte.',
         'format' => 'plain_text',
       ],
-      'field_when' => [
-        $this->dateDelta($this->date('now +1 day', '18:00'), $this->date('now +1 day', '22:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +1 day', '18:00'),
+        $this->date('now +1 day', '22:00'),
+      ),
     ]);
 
     $block = $this->blockManager->createInstance('salsa_events', [
@@ -397,12 +398,11 @@ final class EventBlocksTest extends EventKernelTestBase {
     $location_a = $this->createLocation('Bootshaus Stralsund');
     $location_b = $this->createLocation('Treff ZuverSICht');
     foreach (['A' => $location_a->id(), 'B' => $location_b->id()] as $suffix => $tid) {
+      $start = $this->date('next monday', '18:00');
       $this->createCourse([
         'title' => 'Kurs ' . $suffix,
         'field_location' => $tid,
-        'field_when' => [
-          $this->dateDelta($this->date('next monday', '18:00'), $this->date('next monday', '19:00')),
-        ],
+        ...$this->courseSchedule($start, $start),
       ]);
     }
 
@@ -424,15 +424,16 @@ final class EventBlocksTest extends EventKernelTestBase {
   public function testOccurrenceCacheExpiresWithEarliestEnd(): void {
     $node = $this->createEvent([
       'title' => 'Cache test',
-      'field_when' => [
-        $this->dateDelta($this->date('now +1 day', '18:00'), $this->date('now +1 day', '19:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +1 day', '18:00'),
+        $this->date('now +1 day', '19:00'),
+      ),
     ]);
     $now = time();
     $start = new \DateTimeImmutable('@' . ($now + 3600));
     $occurrences = [
-      new EventOccurrence($node, 0, $start, new \DateTimeImmutable('@' . ($now + 7200)), FALSE, NULL, NULL),
-      new EventOccurrence($node, 1, $start, new \DateTimeImmutable('@' . ($now + 14400)), FALSE, NULL, NULL),
+      new EventOccurrence($node, NULL, $start, new \DateTimeImmutable('@' . ($now + 7200)), FALSE, NULL, NULL),
+      new EventOccurrence($node, NULL, $start, new \DateTimeImmutable('@' . ($now + 14400)), FALSE, NULL, NULL),
     ];
 
     $block = $this->cacheBlock();
@@ -454,13 +455,14 @@ final class EventBlocksTest extends EventKernelTestBase {
   public function testOccurrenceCacheOpenEndFallsBackToEndOfDay(): void {
     $node = $this->createEvent([
       'title' => 'Cache test',
-      'field_when' => [
-        $this->dateDelta($this->date('now +1 day', '18:00'), $this->date('now +1 day', '19:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +1 day', '18:00'),
+        $this->date('now +1 day', '19:00'),
+      ),
     ]);
     $start = new \DateTimeImmutable('today 10:00');
     $occurrences = [
-      new EventOccurrence($node, 0, $start, NULL, FALSE, NULL, NULL),
+      new EventOccurrence($node, NULL, $start, NULL, FALSE, NULL, NULL),
     ];
 
     $block = $this->cacheBlock();

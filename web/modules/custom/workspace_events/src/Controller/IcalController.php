@@ -138,10 +138,12 @@ final class IcalController implements ContainerInjectionInterface {
     $cacheability->addCacheTags([
       'node_list:event',
       'node_list:course',
+      'node_list:lesson',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
     foreach ($occurrences as $occurrence) {
+      $cacheability->addCacheableDependency($occurrence->sourceNode());
       $cacheability->addCacheableDependency($occurrence->node);
       if ($occurrence->location !== NULL) {
         $cacheability->addCacheableDependency($occurrence->location);
@@ -171,18 +173,16 @@ final class IcalController implements ContainerInjectionInterface {
    * @param \Symfony\Component\HttpFoundation\Request $request
    *   The current request.
    * @param \Drupal\node\NodeInterface $node
-   *   The event or course node.
-   * @param int $delta
-   *   The delta of the smart date field value.
+   *   The event or lesson node.
    *
    * @return \Drupal\Core\Cache\CacheableResponse
    *   The iCal response.
    *
    * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
-   *   When the node has no such occurrence.
+   *   When the node has no occurrence.
    */
-  public function occurrence(Request $request, NodeInterface $node, int $delta): CacheableResponse {
-    $occurrence = $this->repository->findOccurrence($node, $delta);
+  public function occurrence(Request $request, NodeInterface $node): CacheableResponse {
+    $occurrence = $this->repository->findOccurrence($node);
     if ($occurrence === NULL) {
       throw new NotFoundHttpException();
     }
@@ -200,8 +200,10 @@ final class IcalController implements ContainerInjectionInterface {
       ),
     ]);
 
-    // The single event only depends on its node and its terms.
+    // The single event only depends on its date node, its display node and its
+    // terms.
     $cacheability = $response->getCacheableMetadata();
+    $cacheability->addCacheableDependency($occurrence->sourceNode());
     $cacheability->addCacheableDependency($occurrence->node);
     if ($occurrence->location !== NULL) {
       $cacheability->addCacheableDependency($occurrence->location);
@@ -310,18 +312,18 @@ final class IcalController implements ContainerInjectionInterface {
    */
   // @phpstan-ignore-next-line
   private function addEvent(VCalendar $calendar, EventOccurrence $occurrence, string $host, string $schemeAndHost): void {
-    $node = $occurrence->node;
+    $source = $occurrence->sourceNode();
     $event = $calendar->add('VEVENT');
     \assert($event instanceof VEvent);
     $event->remove('UID');
-    $event->add('UID', 'event-' . $node->id() . '-' . $occurrence->delta . '@' . $host);
+    $event->add('UID', 'event-' . $source->id() . '@' . $host);
 
-    $changed = (new \DateTimeImmutable('@' . $node->getChangedTime()))
+    $changed = (new \DateTimeImmutable('@' . $source->getChangedTime()))
       ->setTimezone(new \DateTimeZone('UTC'));
     $event->remove('DTSTAMP');
     $event->add('DTSTAMP', $changed);
     $event->add('LAST-MODIFIED', $changed);
-    $event->add('STATUS', 'CONFIRMED');
+    $event->add('STATUS', $occurrence->isCancelled() ? 'CANCELLED' : 'CONFIRMED');
 
     $event->add('SUMMARY', $this->getSummary($occurrence));
     $event->add('DESCRIPTION', $this->getDescription($occurrence, $schemeAndHost));

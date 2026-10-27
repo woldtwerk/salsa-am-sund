@@ -28,5 +28,3 @@ dependencies:
   - key:key
   - pathauto:pathauto
   - scheduler:scheduler
-  - smart_date:smart_date
-  - smart_date:smart_date_recur

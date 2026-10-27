@@ -311,9 +311,9 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
   /**
    * Returns the next occurrence of every course.
    *
-   * One entity query finds the candidate courses and their date deltas; the
-   * first upcoming occurrence per course is kept and the result is sorted by
-   * weekday and time, like the course schedule.
+   * The repository finds the lessons in the lookahead window; the first
+   * upcoming lesson per course is kept and the result is sorted by weekday and
+   * time, like the course schedule.
    *
    * @param int[] $locations
    *   The location term IDs to restrict to. Empty for all locations.
@@ -559,6 +559,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     $cacheability->addCacheTags([
       'node_list:event',
       'node_list:course',
+      'node_list:lesson',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
@@ -566,6 +567,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     $now = time();
     $max_age = 86400;
     foreach ($occurrences as $occurrence) {
+      $cacheability->addCacheableDependency($occurrence->sourceNode());
       $cacheability->addCacheableDependency($occurrence->node);
       if ($occurrence->organizer !== NULL) {
         $cacheability->addCacheableDependency($occurrence->organizer);

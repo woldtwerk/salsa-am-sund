@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Kernel;
 
+use Drupal\node\NodeInterface;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\TermInterface;
 use Drupal\workspace_events\EventOccurrence;
@@ -31,6 +32,7 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    $this->installLessonConfig();
 
     // The base class creates the fixed terms; guard against a configuration
     // where only the content model is reused without them.
@@ -51,7 +53,7 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
   }
 
   /**
-   * Tests the structured data of an event with multiple dates.
+   * Tests the structured data of an event.
    */
   public function testEvent(): void {
     $start = $this->date('next wednesday', '21:00');
@@ -73,10 +75,7 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
         'value' => '<p>Jeden Mittwoch Tanzen bis Mitternacht.</p>',
         'format' => 'plain_text',
       ],
-      'field_when' => [
-        $this->dateDelta($start, $end),
-        $this->dateDelta($start->modify('+1 week'), $end->modify('+1 week')),
-      ],
+      'field_event_date' => $this->dateRange($start, $end),
     ]);
 
     $organizer = $event->get('field_organizer')->entity;
@@ -84,8 +83,7 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
     $location_term = $event->get('field_location')->entity;
     \assert($location_term instanceof TermInterface);
     $occurrences = [
-      new EventOccurrence($event, 0, $start, $end, FALSE, $organizer, $location_term),
-      new EventOccurrence($event, 1, $start->modify('+1 week'), $end->modify('+1 week'), FALSE, $organizer, $location_term),
+      new EventOccurrence($event, NULL, $start, $end, FALSE, $organizer, $location_term),
     ];
 
     $data = $this->builder->buildEvent($event, $occurrences);
@@ -93,13 +91,13 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
 
     $events = $data['@graph'];
     \assert(is_array($events));
-    self::assertCount(2, $events);
+    self::assertCount(1, $events);
 
     $url = $event->toUrl('canonical', ['absolute' => TRUE])->toString();
     $first = $events[0];
     \assert(is_array($first));
     self::assertSame('Event', $first['@type']);
-    self::assertSame($url . '#event-0', $first['@id']);
+    self::assertSame($url . '#event-' . $event->id(), $first['@id']);
     self::assertSame('Salsa Night', $first['name']);
     self::assertSame($url, $first['url']);
     self::assertSame($start->format(\DateTimeInterface::ATOM), $first['startDate']);
@@ -127,14 +125,6 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
     self::assertSame('Organization', $event_organizer['@type']);
     self::assertSame('Sonstige', $event_organizer['name']);
     self::assertArrayNotHasKey('url', $event_organizer);
-
-    $second = $events[1];
-    \assert(is_array($second));
-    self::assertSame($url . '#event-1', $second['@id']);
-    self::assertSame(
-      $start->modify('+1 week')->format(\DateTimeInterface::ATOM),
-      $second['startDate'],
-    );
   }
 
   /**
@@ -144,11 +134,11 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
     $day = $this->date('next saturday', '00:00');
     $event = $this->createEvent([
       'title' => 'Tanzfest',
-      'field_when' => [$this->allDayDelta($day)],
+      'field_event_date' => $this->allDayRange($day),
     ]);
 
     $occurrences = [
-      new EventOccurrence($event, 0, $day, NULL, TRUE, NULL, NULL),
+      new EventOccurrence($event, NULL, $day, NULL, TRUE, NULL, NULL),
     ];
     $data = $this->builder->buildEvent($event, $occurrences);
 
@@ -172,7 +162,7 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
   }
 
   /**
-   * Tests the structured data of a course with multiple dates.
+   * Tests the structured data of a course with one instance per lesson.
    */
   public function testCourse(): void {
     $start = $this->date('next monday', '19:30');
@@ -189,18 +179,17 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
         'value' => '<p>Neue Figuren und Elemente für Fortgeschrittene.</p>',
         'format' => 'plain_text',
       ],
-      'field_when' => [
-        $this->dateDelta($start, $end),
-        $this->dateDelta($start->modify('+1 week'), $end->modify('+1 week')),
-      ],
+      ...$this->courseSchedule($start, $start->modify('+1 week'), 1, $end),
     ]);
+    $lessons = $this->loadCourseLessons($course);
+    self::assertCount(2, $lessons);
 
     $location_term = $course->get('field_location')->entity;
     \assert($location_term instanceof TermInterface);
-    $occurrences = [
-      new EventOccurrence($course, 0, $start, $end, FALSE, NULL, $location_term),
-      new EventOccurrence($course, 1, $start->modify('+1 week'), $end->modify('+1 week'), FALSE, NULL, $location_term),
-    ];
+    $occurrences = [];
+    foreach ($lessons as $lesson) {
+      $occurrences[] = $this->lessonOccurrence($course, $lesson, $location_term);
+    }
 
     $data = $this->builder->buildCourse($course, $occurrences);
     self::assertSame('https://schema.org', $data['@context']);
@@ -273,11 +262,11 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
     $event = $this->createEvent([
       'title' => 'Tanzabend',
       'field_location' => $location->id(),
-      'field_when' => [$this->dateDelta($start, NULL)],
+      'field_event_date' => $this->dateRange($start, $start->modify('+2 hours')),
     ]);
 
     $occurrences = [
-      new EventOccurrence($event, 0, $start, NULL, FALSE, NULL, $location),
+      new EventOccurrence($event, NULL, $start, $start->modify('+2 hours'), FALSE, NULL, $location),
     ];
     $data = $this->builder->buildEvent($event, $occurrences);
 
@@ -322,6 +311,30 @@ final class StructuredDataBuilderTest extends EventKernelTestBase {
     \assert($course->isNew());
 
     self::assertSame([], $this->builder->buildCourse($course, []));
+  }
+
+  /**
+   * Builds an occurrence from a generated lesson.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course.
+   * @param \Drupal\node\NodeInterface $lesson
+   *   The lesson.
+   * @param \Drupal\taxonomy\TermInterface|null $location
+   *   The location of the course.
+   *
+   * @return \Drupal\workspace_events\EventOccurrence
+   *   The occurrence.
+   */
+  private function lessonOccurrence(NodeInterface $course, NodeInterface $lesson, ?TermInterface $location): EventOccurrence {
+    $item = $lesson->get('field_lesson_date')->first();
+    self::assertNotNull($item);
+    $timezone = new \DateTimeZone(self::TIMEZONE);
+    $utc = new \DateTimeZone('UTC');
+    $start = (new \DateTimeImmutable($item->get('value')->getString(), $utc))->setTimezone($timezone);
+    $end = (new \DateTimeImmutable($item->get('end_value')->getString(), $utc))->setTimezone($timezone);
+
+    return new EventOccurrence($course, $lesson, $start, $end, FALSE, NULL, $location);
   }
 
 }
