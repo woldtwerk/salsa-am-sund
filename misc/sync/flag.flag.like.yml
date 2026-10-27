@@ -1,0 +1,29 @@
+langcode: de
+status: true
+dependencies:
+  module:
+    - taxonomy
+    - workspace_events
+id: like
+label: 'Gefällt mir'
+bundles:
+  - dance_figure
+entity_type: taxonomy_term
+global: false
+weight: 0
+flag_short: 'Gefällt mir'
+flag_long: 'Diese Figur zu den Favoriten hinzufügen'
+flag_message: 'Die Figur wurde zu den Favoriten hinzugefügt.'
+unflag_short: 'Gefällt mir nicht mehr'
+unflag_long: 'Die Figur aus den Favoriten entfernen'
+unflag_message: 'Die Figur wurde aus den Favoriten entfernt.'
+unflag_denied_text: ''
+flag_type: 'entity:taxonomy_term'
+link_type: htmx
+flagTypeConfig:
+  show_in_links: {  }
+  show_as_field: true
+  show_on_form: false
+  show_contextual_link: false
+  extra_permissions: {  }
+linkTypeConfig: {  }
