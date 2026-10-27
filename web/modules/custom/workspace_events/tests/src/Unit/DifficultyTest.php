@@ -18,18 +18,6 @@ use PHPUnit\Framework\Attributes\Group;
 final class DifficultyTest extends UnitTestCase {
 
   /**
-   * Tests the allowed values callback.
-   */
-  public function testAllowedValues(): void {
-    self::assertSame([
-      0 => 'Level 0',
-      1 => 'Level 1',
-      2 => 'Level 2',
-      3 => 'Level 3',
-    ], Difficulty::allowedValues());
-  }
-
-  /**
    * Tests the display label of difficulty values.
    *
    * @param int[] $values

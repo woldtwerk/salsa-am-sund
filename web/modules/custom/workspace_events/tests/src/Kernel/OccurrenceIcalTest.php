@@ -22,7 +22,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 #[CoversClass(IcalController::class)]
 #[Group('workspace_events')]
 #[RunTestsInSeparateProcesses]
-final class OccurrenceIcalTest extends EventKernelTestBase {
+final class OccurrenceIcalTest extends LessonKernelTestBase {
 
   /**
    * The iCal controller.
@@ -34,14 +34,13 @@ final class OccurrenceIcalTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $this->installLessonConfig();
     $this->controller = IcalController::create($this->container);
   }
 
   /**
-   * Tests the download of one lesson of a course.
+   * Tests lesson and event downloads and the cases without an occurrence.
    */
-  public function testLessonDownload(): void {
+  public function testOccurrenceDownload(): void {
     $start = $this->date('now +2 days', '20:00');
     $location = $this->createLocation('Kulturhaus Stralsund');
     $course = $this->createCourse([
@@ -49,86 +48,48 @@ final class OccurrenceIcalTest extends EventKernelTestBase {
       'field_location' => $location->id(),
       ...$this->courseSchedule($start, $start->modify('+2 weeks')),
     ]);
-    $lessons = $this->loadLessons($course);
+    $lessons = $this->loadCourseLessons($course);
     self::assertCount(3, $lessons);
 
-    $response = $this->controller->occurrence(
-      $this->request($lessons[1]),
-      $lessons[1],
-    );
-
+    $response = $this->controller->occurrence($this->request($lessons[1]), $lessons[1]);
     self::assertSame(200, $response->getStatusCode());
     $calendar = $this->readCalendar($response->getContent());
     $events = $calendar->select('VEVENT');
     self::assertCount(1, $events);
-
     $ical_event = array_values($events)[0];
     self::assertSame('event-' . $lessons[1]->id() . '@salsa-am-sund.localhost', $ical_event->UID?->getValue());
-    // The course title and level are the summary of a lesson occurrence.
     self::assertSame('Salsa-Nacht', $ical_event->SUMMARY?->getValue());
-
     $expected_start = $this->lessonStart($lessons[1]);
     self::assertSame($expected_start->format('Ymd\THis'), $ical_event->DTSTART?->getValue());
     self::assertSame(self::TIMEZONE, $ical_event->DTSTART['TZID']?->getValue());
-
     $disposition = $response->headers->get('Content-Disposition');
     \assert(is_string($disposition));
     self::assertStringStartsWith('attachment;', $disposition);
     self::assertStringContainsString('Salsa-Nacht-' . $expected_start->format('Y-m-d') . '.ics', $disposition);
-
     $cacheability = $response->getCacheableMetadata();
     self::assertContains('node:' . $course->id(), $cacheability->getCacheTags());
     self::assertContains('node:' . $lessons[1]->id(), $cacheability->getCacheTags());
     self::assertContains('taxonomy_term:' . $location->id(), $cacheability->getCacheTags());
-  }
 
-  /**
-   * Tests the download of an event.
-   */
-  public function testEventDownload(): void {
-    $start = $this->date('now +1 day', '20:00');
     $event = $this->createEvent([
       'title' => 'Tanzabend',
       'field_organizer' => $this->externalOrganizer,
       'field_event_date' => $this->dateRange($start, $start->setTime(23, 0)),
     ]);
-
     $response = $this->controller->occurrence($this->request($event), $event);
-    $calendar = $this->readCalendar($response->getContent());
-    $events = $calendar->select('VEVENT');
+    $events = $this->readCalendar($response->getContent())->select('VEVENT');
     self::assertCount(1, $events);
-
     $ical_event = array_values($events)[0];
     self::assertSame('event-' . $event->id() . '@salsa-am-sund.localhost', $ical_event->UID?->getValue());
     self::assertSame('Tanzabend', $ical_event->SUMMARY?->getValue());
     self::assertSame('Sonstige', $ical_event->CATEGORIES?->getValue());
     self::assertSame($start->format('Ymd\THis'), $ical_event->DTSTART?->getValue());
-
     $cacheability = $response->getCacheableMetadata();
     self::assertContains('node:' . $event->id(), $cacheability->getCacheTags());
     self::assertContains('taxonomy_term:' . $this->externalOrganizer, $cacheability->getCacheTags());
-  }
 
-  /**
-   * Tests that a course has no single occurrence anymore.
-   */
-  public function testCourseHasNoOccurrenceDownload(): void {
-    $start = $this->date('now +2 days', '20:00');
-    $course = $this->createCourse([
-      'title' => 'Salsa-Nacht',
-      ...$this->courseSchedule($start, $start->modify('+1 week')),
-    ]);
+    $this->assertNotFound(fn () => $this->controller->occurrence($this->request($course), $course));
 
-    // The old per-delta URL pointed at the course; the new route only accepts
-    // lessons and events.
-    $this->expectException(NotFoundHttpException::class);
-    $this->controller->occurrence($this->request($course), $course);
-  }
-
-  /**
-   * Tests that other bundles have no occurrence download.
-   */
-  public function testOtherBundle(): void {
     NodeType::create([
       'type' => 'page',
       'name' => 'Seite',
@@ -140,49 +101,31 @@ final class OccurrenceIcalTest extends EventKernelTestBase {
       'uid' => 1,
     ]);
     $page->save();
+    $this->assertNotFound(fn () => $this->controller->occurrence($this->request($page), $page));
 
-    $this->expectException(NotFoundHttpException::class);
-    $this->controller->occurrence($this->request($page), $page);
-  }
-
-  /**
-   * Tests that an unpublished event has no occurrence download.
-   */
-  public function testUnpublishedEvent(): void {
-    $start = $this->date('now +1 day', '20:00');
-    $event = $this->createEvent([
+    $unpublished = $this->createEvent([
       'title' => 'Entwurf',
       'status' => NodeInterface::NOT_PUBLISHED,
       'field_event_date' => $this->dateRange($start, $start->setTime(23, 0)),
     ]);
-
-    $this->expectException(NotFoundHttpException::class);
-    $this->controller->occurrence($this->request($event), $event);
+    $this->assertNotFound(fn () => $this->controller->occurrence($this->request($unpublished), $unpublished));
   }
 
   /**
-   * Loads the referenced lessons of a course.
+   * Asserts that an occurrence request returns 404.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course.
-   *
-   * @return \Drupal\node\NodeInterface[]
-   *   The lessons, in the stored order.
+   * @param callable(): mixed $request
+   *   The request call.
    */
-  private function loadLessons(NodeInterface $course): array {
-    $ids = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $ids[] = (int) $item->get('target_id')->getString();
+  private function assertNotFound(callable $request): void {
+    try {
+      $request();
     }
-    $this->nodeStorage->resetCache($ids);
-
-    $lessons = [];
-    foreach ($ids as $id) {
-      $lesson = $this->nodeStorage->load($id);
-      self::assertInstanceOf(NodeInterface::class, $lesson);
-      $lessons[] = $lesson;
+    catch (NotFoundHttpException) {
+      self::assertTrue(TRUE);
+      return;
     }
-    return $lessons;
+    self::fail('The occurrence request did not return 404.');
   }
 
   /**
@@ -213,9 +156,7 @@ final class OccurrenceIcalTest extends EventKernelTestBase {
    *   The request.
    */
   private function request(NodeInterface $node): Request {
-    return Request::create(
-      'https://salsa-am-sund.localhost/termine/' . $node->id() . '/ical',
-    );
+    return Request::create('https://salsa-am-sund.localhost/termine/' . $node->id() . '/ical');
   }
 
   /**

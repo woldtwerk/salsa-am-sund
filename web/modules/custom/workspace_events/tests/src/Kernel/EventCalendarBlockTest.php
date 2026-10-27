@@ -16,7 +16,7 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 #[CoversClass(EventCalendarBlock::class)]
 #[Group('workspace_events')]
 #[RunTestsInSeparateProcesses]
-final class EventCalendarBlockTest extends EventKernelTestBase {
+final class EventCalendarBlockTest extends LessonKernelTestBase {
 
   /**
    * The block plugin manager.
@@ -28,7 +28,6 @@ final class EventCalendarBlockTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $this->installLessonConfig();
     $this->blockManager = $this->container->get('plugin.manager.block');
   }
 

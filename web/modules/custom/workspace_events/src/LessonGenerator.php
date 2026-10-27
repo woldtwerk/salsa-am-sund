@@ -188,35 +188,28 @@ final class LessonGenerator {
   private function createLessons(NodeInterface $course, array $schedule): array {
     $storage = $this->entityTypeManager->getStorage('node');
     $now = $this->time->getRequestTime();
-    $interval_days = $schedule['interval'] * 7;
-    $first_day = $schedule['start']->setTime(0, 0);
-    $last_day = $schedule['last']->format('Y-m-d');
-    $start_time = $schedule['start']->format('H:i:s');
-    $end_time = $schedule['end']->format('H:i:s');
-    $timezone = $schedule['timezone'];
 
     $lesson_ids = [];
-    $offset = 0;
-    while (TRUE) {
-      $day = $first_day->modify(sprintf('+%d days', $offset));
-      if ($day->format('Y-m-d') > $last_day) {
-        break;
-      }
-
-      $start = new \DateTimeImmutable($day->format('Y-m-d') . ' ' . $start_time, $timezone);
-      $end = new \DateTimeImmutable($day->format('Y-m-d') . ' ' . $end_time, $timezone);
-      $end_timestamp = $end->getTimestamp();
+    $occurrences = LessonSchedule::occurrences(
+      $schedule['start'],
+      $schedule['end'],
+      $schedule['last'],
+      $schedule['interval'],
+      $schedule['timezone'],
+    );
+    foreach ($occurrences as $occurrence) {
+      $end_timestamp = $occurrence['end']->getTimestamp();
       $published = $end_timestamp <= $now;
 
       $lesson = $storage->create([
         'type' => self::LESSON_BUNDLE,
-        'title' => (string) $course->label() . ' – ' . $day->format('d.m.Y'),
+        'title' => (string) $course->label() . ' – ' . $occurrence['start']->format('d.m.Y'),
         'uid' => $course->getOwnerId(),
         'langcode' => $course->language()->getId(),
         'status' => $published ? NodeInterface::PUBLISHED : NodeInterface::NOT_PUBLISHED,
         'field_lesson_date' => [
-          'value' => $this->toStorageValue($start),
-          'end_value' => $this->toStorageValue($end),
+          'value' => $this->toStorageValue($occurrence['start']),
+          'end_value' => $this->toStorageValue($occurrence['end']),
         ],
         'field_cancelled' => FALSE,
       ]);
@@ -230,7 +223,6 @@ final class LessonGenerator {
       $lesson->setSyncing(TRUE);
       $lesson->save();
       $lesson_ids[] = (int) $lesson->id();
-      $offset += $interval_days;
     }
 
     return $lesson_ids;

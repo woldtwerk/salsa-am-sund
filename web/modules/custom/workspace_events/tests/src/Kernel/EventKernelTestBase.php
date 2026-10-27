@@ -13,7 +13,7 @@ use Drupal\node\NodeInterface;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
-use Drupal\Tests\canvas\Kernel\CanvasKernelTestBase;
+use Drupal\KernelTests\KernelTestBase;
 use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\LessonInstaller;
@@ -26,7 +26,7 @@ use Drupal\workspace_events\OrganizerResolver;
  * this module's logic and not the site's configuration. Courses carry a
  * schedule and reference their generated lessons; events carry one date range.
  */
-abstract class EventKernelTestBase extends CanvasKernelTestBase {
+abstract class EventKernelTestBase extends KernelTestBase {
 
   use UserCreationTrait;
 
@@ -36,35 +36,24 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
   protected const string TIMEZONE = 'Europe/Berlin';
 
   /**
-   * The modules every test of this module needs.
+   * The modules every event test of this module needs.
+   *
+   * @var string[]
    */
-  public const array MODULES = [
-    ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
-    'canvas_test_sdc',
+  protected static $modules = [
+    'system',
+    'user',
     'field',
+    'text',
+    'filter',
     'node',
-    'options',
     'taxonomy',
-    'content_moderation',
-    'workflows',
-    'pathauto',
-    'token',
-    'flag',
-    'key',
-    'ai',
-    'ai_automators',
-    'ai_provider_mistral',
-    'field_widget_actions',
+    'options',
+    'datetime',
     'datetime_range',
-    'image',
-    'scheduler',
+    'link',
     'workspace_events',
   ];
-
-  /**
-   * {@inheritdoc}
-   */
-  protected static $modules = self::MODULES;
 
   /**
    * The taxonomy term storage.
@@ -97,18 +86,7 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
     $this->installEntitySchema('node');
     $this->installSchema('node', ['node_access']);
     $this->installEntitySchema('taxonomy_term');
-    $this->installEntitySchema('path_alias');
-    $this->installEntitySchema('flagging');
-    $this->installSchema('flag', ['flag_counts']);
-    $this->installEntitySchema('file');
-    $this->installSchema('file', ['file_usage']);
-    $this->installConfig(['node', 'taxonomy', 'filter', 'scheduler']);
-    if (\Drupal::moduleHandler()->moduleExists('smart_date')) {
-      // Only the legacy schedule migration test needs the removed modules.
-      $this->installEntitySchema('smart_date_rule');
-      $this->installEntitySchema('smart_date_override');
-      $this->installConfig(['smart_date', 'smart_date_recur']);
-    }
+    $this->installConfig(['system', 'node', 'taxonomy', 'filter']);
     $this->config('system.date')
       ->set('timezone.default', self::TIMEZONE)
       ->save();
@@ -133,7 +111,12 @@ abstract class EventKernelTestBase extends CanvasKernelTestBase {
   protected function installLessonConfig(): void {
     $installer = $this->container->get(LessonInstaller::class);
     \assert($installer instanceof LessonInstaller);
-    $installer->install();
+    // The tests build their own render arrays, so they need the bundle and its
+    // fields but not the shipped form and view displays.
+    $installer->install(array_values(array_filter(
+      LessonInstaller::CONFIG_NAMES,
+      static fn (string $name): bool => !str_starts_with($name, 'core.entity_'),
+    )));
 
     // Creating the fields can rebuild the container. Refresh the storage so
     // the tests use the field definitions of the new configuration.

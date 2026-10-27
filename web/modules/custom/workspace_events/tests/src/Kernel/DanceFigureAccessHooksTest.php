@@ -24,97 +24,50 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 final class DanceFigureAccessHooksTest extends EventKernelTestBase {
 
   /**
-   * {@inheritdoc}
+   * Tests anonymous, member and other-vocabulary access in one scenario.
    */
-  protected function setUp(): void {
-    parent::setUp();
-
+  public function testDanceFigureAccess(): void {
     Vocabulary::create([
       'vid' => DanceFigureAccessHooks::VOCABULARY,
       'name' => 'Tanzfiguren',
     ])->save();
-  }
+    $figure = Term::create([
+      'vid' => DanceFigureAccessHooks::VOCABULARY,
+      'name' => 'Dile que no',
+      'status' => 1,
+    ]);
+    $figure->save();
 
-  /**
-   * Tests that anonymous users cannot view dance figures.
-   */
-  public function testAnonymousCannotViewDanceFigure(): void {
-    $this->setUpAnonymousWithAccessContent();
-    $term = $this->createDanceFigure('Dile que no');
+    $anonymous_role = Role::load('anonymous') ?? Role::create([
+      'id' => 'anonymous',
+      'label' => 'Gast',
+    ]);
+    $anonymous_role->grantPermission('access content');
+    $anonymous_role->save();
+    $this->setCurrentUser(User::getAnonymousUser());
+    $anonymous_access = $this->viewAccess($figure);
+    self::assertTrue($anonymous_access->isForbidden());
+    self::assertContains('user.permissions', $anonymous_access->getCacheContexts());
 
-    $access = $this->viewAccess($term);
-
-    self::assertTrue($access->isForbidden());
-    self::assertContains('user.permissions', $access->getCacheContexts());
-  }
-
-  /**
-   * Tests that members can view dance figures.
-   */
-  public function testMemberCanViewDanceFigure(): void {
     $role = Role::create([
       'id' => 'member',
       'label' => 'Mitglied',
       'permissions' => ['access content', DanceFigureAccessHooks::VIEW_PERMISSION],
     ]);
     $role->save();
-    $user = User::create([
+    $member = User::create([
       'name' => $this->randomMachineName(),
       'status' => 1,
       'roles' => ['member'],
     ]);
-    $user->save();
-    $this->setCurrentUser($user);
+    $member->save();
+    $this->setCurrentUser($member);
+    self::assertTrue($this->viewAccess($figure)->isAllowed());
 
-    $term = $this->createDanceFigure('Enchufla');
-
-    self::assertTrue($this->viewAccess($term)->isAllowed());
-  }
-
-  /**
-   * Tests that the access restriction only applies to dance figures.
-   */
-  public function testOtherVocabularyStaysViewableForAnonymous(): void {
-    $this->setUpAnonymousWithAccessContent();
-    $term = $this->createLocation('Salsa am Sund');
-
-    self::assertTrue($this->viewAccess($term)->isAllowed());
-  }
-
-  /**
-   * Sets the anonymous user up with the permission to view published terms.
-   */
-  private function setUpAnonymousWithAccessContent(): void {
-    $role = Role::load('anonymous');
-    if ($role === NULL) {
-      $role = Role::create([
-        'id' => 'anonymous',
-        'label' => 'Gast',
-      ]);
-    }
-    $role->grantPermission('access content');
-    $role->save();
-
+    // Other vocabularies are not restricted for anonymous users.
     $this->setCurrentUser(User::getAnonymousUser());
-  }
-
-  /**
-   * Creates a dance figure term.
-   *
-   * @param string $name
-   *   The term name.
-   *
-   * @return \Drupal\taxonomy\TermInterface
-   *   The term.
-   */
-  private function createDanceFigure(string $name): TermInterface {
-    $term = Term::create([
-      'vid' => DanceFigureAccessHooks::VOCABULARY,
-      'name' => $name,
-      'status' => 1,
-    ]);
-    $term->save();
-    return $term;
+    $location = $this->createLocation('Salsa am Sund');
+    self::assertTrue($this->viewAccess($location)->isAllowed());
   }
 
   /**

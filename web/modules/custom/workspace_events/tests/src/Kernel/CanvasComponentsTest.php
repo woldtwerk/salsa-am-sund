@@ -6,6 +6,7 @@ namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\canvas\ComponentSource\ComponentSourceManager;
 use Drupal\canvas\Entity\Component;
+use Drupal\Tests\canvas\Kernel\CanvasKernelTestBase;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -16,7 +17,16 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 #[CoversNothing]
 #[Group('workspace_events')]
 #[RunTestsInSeparateProcesses]
-final class CanvasComponentsTest extends EventKernelTestBase {
+final class CanvasComponentsTest extends CanvasKernelTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
+    ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
+    'canvas_test_sdc',
+    'workspace_events',
+  ];
 
   /**
    * Tests that both block plugins are discovered as enabled components.

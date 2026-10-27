@@ -16,6 +16,28 @@ use Drupal\node\NodeInterface;
 abstract class LessonKernelTestBase extends EventKernelTestBase {
 
   /**
+   * The modules the lesson tests need on top of the event modules.
+   *
+   * @var string[]
+   */
+  protected static $modules = [
+    'file',
+    'image',
+    'scheduler',
+  ];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+
+    $this->installEntitySchema('file');
+    $this->installSchema('file', ['file_usage']);
+    $this->installLessonConfig();
+  }
+
+  /**
    * Creates a lesson node.
    *
    * @param array<string, mixed> $values
