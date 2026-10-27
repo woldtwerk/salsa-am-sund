@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Unit;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\Context\CacheContextsManager;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
@@ -112,7 +113,7 @@ final class EventsJsonControllerTest extends UnitTestCase {
     $config->method('get')->with('timezone.default')->willReturn('UTC');
     $config_factory = $this->createMock(ConfigFactoryInterface::class);
     $config_factory->method('get')->with('system.date')->willReturn($config);
-    return new SiteTimeZone($config_factory);
+    return new SiteTimeZone($config_factory, $this->createMock(TimeInterface::class));
   }
 
   /**

@@ -1,0 +1,36 @@
+.lesson-table__wrapper {
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+.lesson-table__wrapper thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--gin-bg-header, #fff);
+}
+
+.lesson-table__row--current {
+  background: var(--gin-bg-item-hover, #f3f4f9);
+}
+
+.lesson-table__row--current > td {
+  background: var(--gin-bg-item-hover, #f3f4f9);
+}
+
+.lesson-table__row--current > td:first-child {
+  font-weight: 600;
+}
+
+.lesson-table__badge {
+  display: inline-block;
+  margin-inline-start: 0.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--gin-color-primary-light, #e6f0ff);
+  color: var(--gin-color-primary, #003ecc);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
