@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\workspace_events;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 
 /**
  * Returns the timezone of the site.
@@ -39,6 +40,22 @@ final class SiteTimeZone {
     catch (\Exception) {
       return new \DateTimeZone(date_default_timezone_get());
     }
+  }
+
+  /**
+   * Converts a stored date value to a date in the site timezone.
+   *
+   * Date and time fields store their values in UTC.
+   *
+   * @param string $value
+   *   The stored value.
+   *
+   * @return \DateTimeImmutable
+   *   The date in the site timezone.
+   */
+  public function fromStorageValue(string $value): \DateTimeImmutable {
+    return (new \DateTimeImmutable($value, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE)))
+      ->setTimezone($this->get());
   }
 
 }

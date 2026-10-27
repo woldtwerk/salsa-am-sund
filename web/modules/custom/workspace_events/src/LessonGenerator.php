@@ -149,8 +149,8 @@ final class LessonGenerator {
     }
 
     $timezone = $this->siteTimeZone->get();
-    $start = $this->fromStorageValue($start_value, $timezone);
-    $end = $end_value === '' ? $start : $this->fromStorageValue($end_value, $timezone);
+    $start = $this->siteTimeZone->fromStorageValue($start_value);
+    $end = $end_value === '' ? $start : $this->siteTimeZone->fromStorageValue($end_value);
     $last_day = \DateTimeImmutable::createFromFormat('!Y-m-d', $last_value, $timezone);
     if ($last_day === FALSE) {
       return NULL;
@@ -239,24 +239,6 @@ final class LessonGenerator {
    */
   private function toFieldValues(array $ids): array {
     return array_values(array_map(static fn (int $id): array => ['target_id' => $id], $ids));
-  }
-
-  /**
-   * Converts a stored date to the site timezone.
-   *
-   * Date fields store their values in UTC.
-   *
-   * @param string $value
-   *   The stored value.
-   * @param \DateTimeZone $timezone
-   *   The site timezone.
-   *
-   * @return \DateTimeImmutable
-   *   The date in the site timezone.
-   */
-  private function fromStorageValue(string $value, \DateTimeZone $timezone): \DateTimeImmutable {
-    return (new \DateTimeImmutable($value, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE)))
-      ->setTimezone($timezone);
   }
 
   /**
