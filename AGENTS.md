@@ -79,8 +79,13 @@ Only test what matters: the custom logic in this repo.
 - During development, run only the tests you created or changed. Run the whole suite
   (`ddev composer test`) once, when the feature is done.
 - Run single test files with `--file` (`--class` fails here, because test discovery trips over a contrib test):
-  `ddev exec -d /var/www/html/web php core/scripts/run-tests.sh --sqlite /tmp/rt.sqlite --dburl mysql://db:db@db/db --url http://localhost --suppress-deprecations --non-html --file modules/custom/<module>/tests/src/Kernel/FooTest.php`
-  (comma-separate several files).
+  `ddev exec -d /var/www/html/web php core/scripts/run-tests.sh --sqlite /tmp/rt.sqlite --dburl mysql://db:db@db/db --url http://localhost --suppress-deprecations --non-html --concurrency 4 --file modules/custom/<module>/tests/src/Kernel/FooTest.php,modules/custom/<module>/tests/src/Unit/BarTest.php`
+  Pass all changed test files comma-separated in one call with `--concurrency 4`, not one call per file.
+- Keep kernel tests cheap, because each test method installs its modules again:
+  - Pure logic (date calculation, parsing, matching, formatting) goes into unit tests.
+  - Kernel tests extend the lightest base class that covers them and install only the modules and
+    config they need. The full base with Canvas is only for tests of Canvas components.
+  - Group the assertions for one scenario into one test method instead of one method per assertion.
 
 ## Writing Drupal code: checklist
 
