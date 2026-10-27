@@ -1,0 +1,9 @@
+lesson_table:
+  css:
+    component:
+      css/lesson-table.css: {}
+  js:
+    js/lesson-table.js: {}
+  dependencies:
+    - core/drupal
+    - core/once

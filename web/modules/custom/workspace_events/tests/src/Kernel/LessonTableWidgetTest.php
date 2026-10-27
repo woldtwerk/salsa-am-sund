@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Kernel;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Entity\EntityFormInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Hook\LessonAccessHooks;
 use Drupal\workspace_events\Plugin\Field\FieldWidget\LessonTableWidget;
+use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -33,22 +35,29 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
    * Tests the table rows, the edit links and the unchanged references.
    */
   public function testLessonTable(): void {
+    $now = new \DateTimeImmutable('2026-11-03 12:00:00', new \DateTimeZone(self::TIMEZONE));
+    $time = $this->createMock(TimeInterface::class);
+    $time->method('getCurrentTime')->willReturn($now->getTimestamp());
+    $time->method('getRequestTime')->willReturn($now->getTimestamp());
+    $this->container->set('datetime.time', $time);
+    $this->container->set(SiteTimeZone::class, new SiteTimeZone($this->container->get('config.factory'), $time));
+
     $editor = $this->createUser(['access content', LessonAccessHooks::EDIT_PERMISSION]);
     $non_editor = $this->createUser(['access content']);
 
     $cancelled = $this->createLesson([
       'title' => 'Ausgefallen',
       'field_lesson_date' => $this->dateRange(
-        $this->date('now +1 week', '19:00'),
-        $this->date('now +1 week', '20:00'),
+        $now->modify('+1 week')->setTime(19, 0),
+        $now->modify('+1 week')->setTime(20, 0),
       ),
       'field_cancelled' => TRUE,
     ]);
     $published = $this->createLesson([
       'title' => 'Regulär',
       'field_lesson_date' => $this->dateRange(
-        $this->date('now +2 weeks', '19:00'),
-        $this->date('now +2 weeks', '20:00'),
+        $now->modify('+2 weeks')->setTime(19, 0),
+        $now->modify('+2 weeks')->setTime(20, 0),
       ),
     ]);
 
@@ -65,14 +74,21 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
     $this->setCurrentUser($editor);
     $rows = $this->buildRows($course);
     self::assertCount(2, $rows);
-    self::assertSame('Fällt aus', (string) $rows[0][2]);
-    self::assertSame('Veröffentlicht', (string) $rows[1][2]);
-    self::assertArrayHasKey('#url', $rows[0][5]['data']);
-    self::assertArrayHasKey('#url', $rows[1][5]['data']);
+    self::assertSame('Fällt aus', (string) $rows[0]['data'][2]);
+    self::assertSame('Veröffentlicht', (string) $rows[1]['data'][2]);
+    self::assertArrayHasKey('#url', $rows[0]['data'][5]['data']);
+    self::assertArrayHasKey('#url', $rows[1]['data'][5]['data']);
     self::assertSame(
       $course->toUrl('edit-form')->toString(),
-      $rows[0][5]['data']['#url']->getOption('query')['destination'],
+      $rows[0]['data'][5]['data']['#url']->getOption('query')['destination'],
     );
+
+    // The cancelled lesson is the next one, but the widget skips it.
+    $current_rows = array_keys(array_filter(
+      $rows,
+      static fn (array $row): bool => in_array('lesson-table__row--current', $row['class'] ?? [], TRUE),
+    ));
+    self::assertSame([1], $current_rows);
 
     // Rendering the table must not treat the link render array as attributes.
     $output = (string) \Drupal::service('renderer')->renderInIsolation($this->buildElement($course));
@@ -81,8 +97,8 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
     $this->setCurrentUser($non_editor);
     $rows = $this->buildRows($course);
     self::assertCount(2, $rows);
-    self::assertArrayNotHasKey('#url', $rows[0][5]['data']);
-    self::assertArrayNotHasKey('#url', $rows[1][5]['data']);
+    self::assertArrayNotHasKey('#url', $rows[0]['data'][5]['data']);
+    self::assertArrayNotHasKey('#url', $rows[1]['data'][5]['data']);
 
     // Submitting the widget must keep the generated references unchanged.
     $form = ['#parents' => []];

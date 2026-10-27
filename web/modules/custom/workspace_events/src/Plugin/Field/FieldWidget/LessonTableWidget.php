@@ -140,13 +140,18 @@ final class LessonTableWidget extends WidgetBase {
       '#suffix' => '</div>',
     ];
 
+    $relevant = $this->findRelevantLesson($lessons, $this->siteTimeZone->now());
+
     $rows = [];
     foreach ($lessons as $lesson) {
       $cacheability->addCacheableDependency($lesson);
-      $rows[] = $this->buildRow($lesson, $destination);
+      $rows[] = $this->buildRow($lesson, $destination, $relevant);
     }
+    $build['#attached'] = ['library' => ['workspace_events/lesson_table']];
     $build['table'] = [
       '#type' => 'table',
+      '#prefix' => '<div class="lesson-table__wrapper">',
+      '#suffix' => '</div>',
       '#header' => [
         $this->t('Datum'),
         $this->t('Zeit'),
@@ -226,19 +231,60 @@ final class LessonTableWidget extends WidgetBase {
   }
 
   /**
+   * Finds the most relevant lesson of the table.
+   *
+   * @param \Drupal\node\NodeInterface[] $lessons
+   *   The lessons, sorted by start.
+   * @param \DateTimeImmutable $now
+   *   The current time in the site timezone.
+   *
+   * @return array{id: int, today: bool}|null
+   *   The lesson ID and whether it runs today, or NULL when all are past.
+   */
+  private function findRelevantLesson(array $lessons, \DateTimeImmutable $now): ?array {
+    $today = $now->format('Y-m-d');
+    $today_lesson = NULL;
+    $next_lesson = NULL;
+
+    foreach ($lessons as $lesson) {
+      $start = $this->lessonStart($lesson);
+      if ($start === NULL) {
+        continue;
+      }
+      $end = $this->lessonEnd($lesson, $start);
+      $is_today = $start->format('Y-m-d') === $today;
+
+      if ($start <= $now && ($end === NULL || $end >= $now)) {
+        return ['id' => (int) $lesson->id(), 'today' => TRUE];
+      }
+      if ($is_today && $today_lesson === NULL) {
+        $today_lesson = ['id' => (int) $lesson->id(), 'today' => TRUE];
+      }
+      if (!$is_today && $start > $now && $next_lesson === NULL && !$this->isCancelled($lesson)) {
+        $next_lesson = ['id' => (int) $lesson->id(), 'today' => FALSE];
+      }
+    }
+
+    return $today_lesson ?? $next_lesson;
+  }
+
+  /**
    * Builds the table row of a lesson.
    *
    * @param \Drupal\node\NodeInterface $lesson
    *   The lesson.
    * @param string|null $destination
    *   The course edit URL used as link destination, or NULL when unknown.
+   * @param array{id: int, today: bool}|null $relevant
+   *   The most relevant lesson and whether it runs today, or NULL.
    *
-   * @return array<int, mixed>
-   *   The cells of the row.
+   * @return array<string, mixed>
+   *   The row with its cells and attributes.
    */
-  private function buildRow(NodeInterface $lesson, ?string $destination): array {
+  private function buildRow(NodeInterface $lesson, ?string $destination, ?array $relevant): array {
     $start = $this->lessonStart($lesson);
     $end = $this->lessonEnd($lesson, $start);
+    $is_relevant = $relevant !== NULL && $relevant['id'] === (int) $lesson->id();
 
     $date = '';
     $time = '';
@@ -255,6 +301,14 @@ final class LessonTableWidget extends WidgetBase {
       }
     }
 
+    $date_cell = $date;
+    if ($is_relevant) {
+      $badge = $relevant['today'] ? $this->t('Heute') : $this->t('Nächste Stunde');
+      $date_cell = [
+        '#markup' => $date . ' <span class="lesson-table__badge">' . $badge . '</span>',
+      ];
+    }
+
     $actions = ['#markup' => ''];
     if ($destination !== NULL && $lesson->access('update')) {
       $actions = [
@@ -265,14 +319,22 @@ final class LessonTableWidget extends WidgetBase {
       ];
     }
 
-    return [
-      $date,
-      $time,
-      $this->statusLabel($lesson),
-      $this->fieldCount($lesson, 'field_participants'),
-      $this->fieldCount($lesson, 'field_dance_figures'),
-      ['data' => $actions],
+    $row = [
+      'data' => [
+        $is_relevant ? ['data' => $date_cell] : $date,
+        $time,
+        $this->statusLabel($lesson),
+        $this->fieldCount($lesson, 'field_participants'),
+        $this->fieldCount($lesson, 'field_dance_figures'),
+        ['data' => $actions],
+      ],
+      'class' => $is_relevant ? ['lesson-table__row--current'] : [],
     ];
+    if ($is_relevant) {
+      $row['data-current'] = 'true';
+    }
+
+    return $row;
   }
 
   /**
@@ -339,10 +401,23 @@ final class LessonTableWidget extends WidgetBase {
    *   The status label.
    */
   private function statusLabel(NodeInterface $lesson): TranslatableMarkup {
-    if ($lesson->hasField('field_cancelled') && $lesson->get('field_cancelled')->getString() === '1') {
+    if ($this->isCancelled($lesson)) {
       return $this->t('Fällt aus');
     }
     return $lesson->isPublished() ? $this->t('Veröffentlicht') : $this->t('Geplant');
+  }
+
+  /**
+   * Returns whether a lesson is cancelled.
+   *
+   * @param \Drupal\node\NodeInterface $lesson
+   *   The lesson.
+   *
+   * @return bool
+   *   TRUE when the lesson is cancelled.
+   */
+  private function isCancelled(NodeInterface $lesson): bool {
+    return $lesson->hasField('field_cancelled') && $lesson->get('field_cancelled')->getString() === '1';
   }
 
   /**

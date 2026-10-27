@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events;
 
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 
@@ -17,9 +18,12 @@ final class SiteTimeZone {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The config factory.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The time service.
    */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
+    private readonly TimeInterface $time,
   ) {}
 
   /**
@@ -40,6 +44,17 @@ final class SiteTimeZone {
     catch (\Exception) {
       return new \DateTimeZone(date_default_timezone_get());
     }
+  }
+
+  /**
+   * Returns the current time in the site timezone.
+   *
+   * @return \DateTimeImmutable
+   *   The current time.
+   */
+  public function now(): \DateTimeImmutable {
+    return (new \DateTimeImmutable('@' . $this->time->getCurrentTime()))
+      ->setTimezone($this->get());
   }
 
   /**
