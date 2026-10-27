@@ -55,10 +55,6 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
       'title' => 'Leicht Fortgeschrittene',
       'field_difficulty' => [3, 1, 2],
       'field_location' => $location->id(),
-      'field_link' => [
-        'uri' => 'https://example.com/kurs',
-        'title' => 'Kurs buchen',
-      ],
       'body' => [
         'value' => '<p>Neue Figuren und Elemente für Fortgeschrittene.</p>',
         'format' => 'plain_text',
@@ -118,11 +114,6 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
       'https://www.openstreetmap.org/search?query=Friedrich-Naumann-Stra%C3%9Fe%205',
       $location_data['map_url'],
     );
-    $link = $variables['course_link'];
-    \assert(is_array($link));
-    self::assertSame('Kurs buchen', $link['label']);
-    self::assertSame('https://example.com/kurs', $link['href']);
-
     $cache = $variables['#cache'];
     \assert(is_array($cache));
     self::assertContains('node:' . $course->id(), $cache['tags']);

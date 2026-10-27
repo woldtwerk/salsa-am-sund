@@ -173,7 +173,6 @@ final class DetailPagePreprocessHooks {
     $variables['course_schedule'] = $this->buildCourseSchedule($node, $occurrences);
     $variables['course_next_dates'] = $this->buildNextDates($occurrences);
     $variables['course_location'] = $this->buildLocation($node);
-    $variables['course_link'] = $this->buildLink($node);
     $variables['course_ical_url'] = $this->buildIcalUrl(['course' => (int) $node->id()]);
     $variables['course_overview_url'] = Url::fromUserInput('/salsa-kurse')->toString();
 
