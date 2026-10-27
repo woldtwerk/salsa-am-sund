@@ -64,13 +64,13 @@ content:
     third_party_settings:
       field_widget_actions:
         5b2a6c1e-8f4d-4d2b-9a7e-3c1f0d9e8b6a:
-          enabled: '1'
+          plugin_id: attendance_from_photo_participants
+          enabled: true
           button_label: 'Teilnehmer aus Foto erkennen'
-          weight: '0'
           multiple: false
+          weight: 0
           settings:
             automator_id: node.lesson.field_participants.default
-          plugin_id: attendance_from_photo_participants
 hidden:
   created: true
   langcode: true
