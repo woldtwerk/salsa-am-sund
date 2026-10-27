@@ -1,3 +1,4 @@
+uuid: c124a4cb-8231-433e-9106-5d6baefa82ae
 langcode: de
 status: true
 dependencies:
@@ -20,6 +21,7 @@ edit_mode: false
 base_field: field_attendance_photo
 prompt: ''
 token: ''
+guardrail_set_id: null
 plugin_config:
   automator_enabled: 1
   automator_rule: attendance_from_photo
