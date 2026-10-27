@@ -156,12 +156,11 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     self::assertSame($expected, $lesson_ids);
     self::assertNotContains((int) $foreign->id(), $lesson_ids);
 
-    // The page must not expose participants, the photo or the course id.
+    // The page must not expose participants or the course id.
     self::assertArrayHasKey('title', $view->field);
     self::assertArrayHasKey('field_lesson_date', $view->field);
     self::assertArrayHasKey('field_dance_figures', $view->field);
     self::assertArrayNotHasKey('field_participants', $view->field);
-    self::assertArrayNotHasKey('field_attendance_photo', $view->field);
     self::assertTrue($view->field['course']->options['exclude']);
     $grouping = $view->style_plugin->options['grouping'] ?? [];
     self::assertSame('course', $grouping[0]['field'] ?? NULL);

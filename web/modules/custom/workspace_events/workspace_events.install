@@ -12,6 +12,8 @@ use Drupal\Core\Field\FieldPurger;
 use Drupal\Core\Utility\UpdateException;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\file\FileInterface;
+use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\node\NodeAccessRebuild;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
@@ -239,18 +241,8 @@ function workspace_events_update_10010(): void {
   }
 
   // The field data is deleted in batches, so a large site does not run out of
-  // memory. field_purge_batch() is deprecated in Drupal 11.4; the purger is the
-  // same operation without the deprecation.
-  $purger = \Drupal::service(FieldPurger::class);
-  \assert($purger instanceof FieldPurger);
-  $repository = \Drupal::service('entity_field.deleted_fields_repository');
-  \assert($repository instanceof DeletedFieldsRepositoryInterface);
-  for ($i = 0; $i < 100; $i++) {
-    if ($repository->getFieldDefinitions() === [] && $repository->getFieldStorageDefinitions() === []) {
-      break;
-    }
-    $purger->purgeBatch(50);
-  }
+  // memory.
+  workspace_events_purge_deleted_fields();
 
   // The permission is provided by smart_date_recur, so it is revoked before
   // the module disappears.
@@ -347,6 +339,129 @@ function workspace_events_update_10013(): void {
       throw new UpdateException(sprintf('The modules %s could not be uninstalled.', implode(', ', $installed)));
     }
   }
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Recognizes attendance from a temporary upload instead of a stored photo.
+ *
+ * Deletes the attendance photo field and its files, removes the participant
+ * automator and uninstalls ai_automators when no automator uses it anymore.
+ */
+function workspace_events_update_10014(): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  if ($entity_type_manager->hasDefinition('ai_automator')) {
+    $automator = $entity_type_manager->getStorage('ai_automator')->load('node.lesson.field_participants.default');
+    if ($automator !== NULL) {
+      $automator->delete();
+    }
+  }
+
+  // The file references have to be read before the field data is purged.
+  $references = workspace_events_attendance_photo_file_references();
+
+  $field = FieldConfig::loadByName('node', 'lesson', 'field_attendance_photo');
+  if ($field !== NULL) {
+    $field->delete();
+  }
+  $storage = FieldStorageConfig::loadByName('node', 'field_attendance_photo');
+  if ($storage !== NULL) {
+    $storage->delete();
+  }
+
+  workspace_events_purge_deleted_fields();
+
+  // Deleting a field does not delete the files that its entities referenced.
+  $usage = \Drupal::service('file.usage');
+  \assert($usage instanceof FileUsageInterface);
+  $file_storage = $entity_type_manager->getStorage('file');
+  foreach ($references as $file_id => $entity_ids) {
+    $file = $file_storage->load($file_id);
+    if (!$file instanceof FileInterface) {
+      continue;
+    }
+    foreach ($entity_ids as $entity_id) {
+      $usage->delete($file, 'file', 'node', (string) $entity_id, 0);
+    }
+    if ($usage->listUsage($file) === []) {
+      $file->delete();
+    }
+  }
+
+  if (!\Drupal::moduleHandler()->moduleExists('ai_automators')) {
+    return;
+  }
+  $remaining = $entity_type_manager->getStorage('ai_automator')->getQuery()
+    ->accessCheck(FALSE)
+    ->count()
+    ->execute();
+  if ((int) $remaining > 0) {
+    return;
+  }
+
+  $uninstalled = \Drupal::service('module_installer')->uninstall(['ai_automators']);
+  if ($uninstalled === FALSE) {
+    throw new UpdateException('The module ai_automators could not be uninstalled. Remove the remaining automator configuration and run the update again.');
+  }
+}
+
+/**
+ * Deletes and purges all removed field definitions.
+ *
+ * The field data is deleted in batches, so a large site does not run out of
+ * memory. field_purge_batch() is deprecated in Drupal 11.4; the purger is the
+ * same operation without the deprecation.
+ */
+function workspace_events_purge_deleted_fields(): void {
+  $purger = \Drupal::service(FieldPurger::class);
+  \assert($purger instanceof FieldPurger);
+  $repository = \Drupal::service('entity_field.deleted_fields_repository');
+  \assert($repository instanceof DeletedFieldsRepositoryInterface);
+  for ($i = 0; $i < 100; $i++) {
+    if ($repository->getFieldDefinitions() === [] && $repository->getFieldStorageDefinitions() === []) {
+      break;
+    }
+    $purger->purgeBatch(50);
+  }
+}
+
+/**
+ * Returns the files that the attendance photo field references.
+ *
+ * @return array<int, array<int, int>>
+ *   The file IDs, each mapped to the node IDs that reference it.
+ */
+function workspace_events_attendance_photo_file_references(): array {
+  $database = \Drupal::database();
+  $references = [];
+  foreach (['node__field_attendance_photo', 'node_revision__field_attendance_photo'] as $table) {
+    if (!$database->schema()->tableExists($table)) {
+      continue;
+    }
+    $result = $database->select($table, 'photo')
+      ->fields('photo', ['entity_id', 'field_attendance_photo_target_id'])
+      ->execute();
+    if ($result === NULL) {
+      continue;
+    }
+    foreach ($result as $row) {
+      $row = (array) $row;
+      $target = $row['field_attendance_photo_target_id'] ?? NULL;
+      $entity = $row['entity_id'] ?? NULL;
+      if (!is_numeric($target) || !is_numeric($entity)) {
+        continue;
+      }
+      $file_id = (int) $target;
+      $entity_id = (int) $entity;
+      if ($file_id <= 0 || $entity_id <= 0) {
+        continue;
+      }
+      $references[$file_id][$entity_id] = $entity_id;
+    }
+  }
+  return $references;
 }
 
 /**

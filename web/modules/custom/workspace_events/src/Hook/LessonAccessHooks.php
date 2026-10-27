@@ -43,7 +43,6 @@ final class LessonAccessHooks {
    */
   private const array EDITOR_FIELDS = [
     'field_participants',
-    'field_attendance_photo',
   ];
 
   /**

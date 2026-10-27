@@ -3,7 +3,6 @@ langcode: de
 status: true
 dependencies:
   config:
-    - field.field.node.lesson.field_attendance_photo
     - field.field.node.lesson.field_cancelled
     - field.field.node.lesson.field_dance_figures
     - field.field.node.lesson.field_lesson_date
@@ -19,17 +18,6 @@ targetEntityType: node
 bundle: lesson
 mode: default
 content:
-  field_attendance_photo:
-    type: image
-    label: inline
-    settings:
-      image_link: ''
-      image_style: large
-      image_loading:
-        attribute: lazy
-    third_party_settings: {  }
-    weight: 4
-    region: content
   field_cancelled:
     type: boolean
     label: inline

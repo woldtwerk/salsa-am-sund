@@ -3,7 +3,6 @@ langcode: de
 status: true
 dependencies:
   config:
-    - field.field.node.lesson.field_attendance_photo
     - field.field.node.lesson.field_cancelled
     - field.field.node.lesson.field_dance_figures
     - field.field.node.lesson.field_lesson_date
@@ -22,14 +21,6 @@ targetEntityType: node
 bundle: lesson
 mode: default
 content:
-  field_attendance_photo:
-    type: image_image
-    weight: 4
-    region: content
-    settings:
-      progress_indicator: throbber
-      preview_image_style: thumbnail
-    third_party_settings: {  }
   field_cancelled:
     type: boolean_checkbox
     weight: 1
@@ -70,8 +61,6 @@ content:
           button_label: 'Teilnehmer aus Foto erkennen'
           multiple: false
           weight: 0
-          settings:
-            automator_id: node.lesson.field_participants.default
   publish_on:
     type: datetime_timestamp_no_default
     weight: 6
