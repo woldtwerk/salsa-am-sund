@@ -13,6 +13,7 @@ dependencies:
     - datetime_range
     - field_widget_actions
     - image
+    - scheduler
     - taxonomy
     - user
     - workspace_events
@@ -71,16 +72,31 @@ content:
           weight: 0
           settings:
             automator_id: node.lesson.field_participants.default
+  publish_on:
+    type: datetime_timestamp_no_default
+    weight: 6
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  scheduler_settings:
+    weight: 7
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  status:
+    type: boolean_checkbox
+    weight: 5
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
 hidden:
   created: true
   langcode: true
   path: true
   promote: true
-  publish_on: true
   publish_state: true
-  scheduler_settings: true
   simple_sitemap: true
-  status: true
   sticky: true
   title: true
   uid: true
