@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 use Drupal\Core\Field\DeletedFieldsRepositoryInterface;
 use Drupal\Core\Field\FieldPurger;
+use Drupal\Core\Utility\UpdateException;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\NodeAccessRebuild;
@@ -272,13 +273,50 @@ function workspace_events_update_10010(): void {
     }
   }
 
+  // The migration of update 10007 copied the series to the lesson and event
+  // date fields, so the leftover rule and override entities can go. They are
+  // deleted before the uninstall, because the module installer refuses to
+  // uninstall a module that still owns content.
+  workspace_events_delete_smart_date_entities('smart_date_override');
+  workspace_events_delete_smart_date_entities('smart_date_rule');
+
   $installed = array_values(array_filter(
     ['smart_date_recur', 'smart_date'],
     static fn (string $module): bool => \Drupal::moduleHandler()->moduleExists($module),
   ));
   if ($installed !== []) {
-    \Drupal::service('module_installer')->uninstall($installed);
+    $uninstalled = \Drupal::service('module_installer')->uninstall($installed);
+    if ($uninstalled === FALSE) {
+      throw new UpdateException(sprintf('The modules %s could not be uninstalled. Remove the remaining Smart Date content and run the update again.', implode(', ', $installed)));
+    }
   }
+}
+
+/**
+ * Deletes all content entities of an entity type in chunks.
+ *
+ * Used by update 10010 to remove the Smart Date entities before the modules
+ * that provide them are uninstalled.
+ *
+ * @param string $entity_type_id
+ *   The entity type ID, for example "smart_date_rule".
+ */
+function workspace_events_delete_smart_date_entities(string $entity_type_id): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+  if (!$entity_type_manager->hasDefinition($entity_type_id)) {
+    return;
+  }
+  $storage = $entity_type_manager->getStorage($entity_type_id);
+  do {
+    $ids = $storage->getQuery()
+      ->accessCheck(FALSE)
+      ->range(0, 50)
+      ->execute();
+    if ($ids === []) {
+      break;
+    }
+    $storage->delete($storage->loadMultiple($ids));
+  } while (TRUE);
 }
 
 /**
