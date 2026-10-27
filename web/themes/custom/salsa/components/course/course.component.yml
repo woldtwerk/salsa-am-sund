@@ -56,3 +56,8 @@ props:
       type: string
       title: Ortslink
       format: uri-reference
+    href:
+      type: string
+      title: Link zur Kursseite
+      examples:
+        - '/salsa-kurse/anfaenger'

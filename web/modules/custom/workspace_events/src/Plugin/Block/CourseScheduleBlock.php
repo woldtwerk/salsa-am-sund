@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Plugin\Block;
 
 use Drupal\Core\Block\Attribute\Block;
+use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 
@@ -72,6 +73,7 @@ final class CourseScheduleBlock extends EventBlockBase {
 
     /** @var array<string, mixed> $build */
     $build = [];
+    $url_cacheability = new CacheableMetadata();
     if ($courses !== []) {
       $items = [];
       foreach ($courses as $occurrence) {
@@ -81,6 +83,12 @@ final class CourseScheduleBlock extends EventBlockBase {
           'time' => $this->formatTime($occurrence) ?? '',
           'title' => (string) $node->label(),
         ];
+        // Unsaved nodes have no URL yet, and their alias can still change.
+        if (!$node->isNew()) {
+          $generated_url = $node->toUrl()->toString(TRUE);
+          $props['href'] = $generated_url->getGeneratedUrl();
+          $url_cacheability->addCacheableDependency($generated_url);
+        }
         $level = $this->detailFieldResolver->getDifficultyLabel($node);
         if ($level !== '') {
           $props['level'] = $level;
@@ -112,7 +120,7 @@ final class CourseScheduleBlock extends EventBlockBase {
       $build['ical'] = $this->buildIcalLinks([], $this->getConfiguredLocations(), $courses, FALSE, TRUE);
     }
 
-    $this->applyOccurrenceCache($build, $courses);
+    $this->applyOccurrenceCache($build, $courses, $url_cacheability);
 
     return $build;
   }
