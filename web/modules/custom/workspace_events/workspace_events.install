@@ -15,10 +15,10 @@ use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
 use Drupal\workflows\Entity\Workflow;
 use Drupal\workspace_events\CourseDifficultyMigrator;
+use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\LessonInstaller;
-use Drupal\workspace_events\MasteredFlag;
 use Drupal\workspace_events\OrganizerResolver;
 use Drupal\workspace_events\ScheduleMigrator;
 
@@ -52,7 +52,7 @@ function workspace_events_uninstall(): void {
     workspace_events_set_bundle_in_workflow($bundle, FALSE);
   }
   workspace_events_revoke_editor_permissions();
-  workspace_events_revoke_mastered_flag_permissions();
+  workspace_events_revoke_flag_permissions();
 }
 
 /**
@@ -129,9 +129,26 @@ function workspace_events_update_10006(): void {
 
   $installer = \Drupal::service(DanceFigureInstaller::class);
   \assert($installer instanceof DanceFigureInstaller);
-  $installer->install([MasteredFlag::CONFIG_NAME]);
+  $installer->install([DanceFigureFlag::Mastered->configName()]);
 
-  workspace_events_grant_mastered_flag_permissions();
+  workspace_events_grant_flag_permissions(DanceFigureFlag::Mastered);
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Adds the "like" flag for dance figures and grants the flag permissions to the
+ * member role.
+ *
+ * The member views for the liked dance figures are added to this update hook
+ * later, so a site updates the flag and the views in one run.
+ */
+function workspace_events_update_10009(): void {
+  $installer = \Drupal::service(DanceFigureInstaller::class);
+  \assert($installer instanceof DanceFigureInstaller);
+  $installer->install([DanceFigureFlag::Like->configName()]);
+
+  workspace_events_grant_flag_permissions(DanceFigureFlag::Like);
 }
 
 /**
@@ -383,14 +400,17 @@ function workspace_events_grant_member_permissions(): void {
 }
 
 /**
- * Grants the mastered flag permissions to the member role.
+ * Grants the flag permissions of a dance figure flag to the member role.
+ *
+ * @param \Drupal\workspace_events\DanceFigureFlag $flag
+ *   The dance figure flag.
  */
-function workspace_events_grant_mastered_flag_permissions(): void {
+function workspace_events_grant_flag_permissions(DanceFigureFlag $flag): void {
   $role = Role::load('member');
   if ($role === NULL) {
     return;
   }
-  foreach (MasteredFlag::PERMISSIONS as $permission) {
+  foreach ($flag->permissions() as $permission) {
     $role->grantPermission($permission);
   }
   $role->save();
@@ -411,15 +431,17 @@ function workspace_events_revoke_editor_permissions(): void {
 }
 
 /**
- * Revokes the mastered flag permissions from the member role.
+ * Revokes the dance figure flag permissions from the member role.
  */
-function workspace_events_revoke_mastered_flag_permissions(): void {
+function workspace_events_revoke_flag_permissions(): void {
   $role = Role::load('member');
   if ($role === NULL) {
     return;
   }
-  foreach (MasteredFlag::PERMISSIONS as $permission) {
-    $role->revokePermission($permission);
+  foreach (DanceFigureFlag::cases() as $flag) {
+    foreach ($flag->permissions() as $permission) {
+      $role->revokePermission($permission);
+    }
   }
   $role->save();
 }

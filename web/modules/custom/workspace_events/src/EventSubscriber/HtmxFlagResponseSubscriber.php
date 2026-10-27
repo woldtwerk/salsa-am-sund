@@ -9,6 +9,8 @@ use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Htmx\HtmxRequestInfoTrait;
 use Drupal\Core\Render\HtmlResponse;
 use Drupal\Core\Routing\RouteObjectInterface;
+use Drupal\flag\FlagInterface;
+use Drupal\workspace_events\DanceFigureFlag;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -21,7 +23,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
  * Flag's controller re-renders the link after flagging or unflagging. HTMX
  * swaps that link into the page, so it needs the HTML of the link instead of
  * the AJAX command list. The controller and its flagging logic are reused;
- * only the response type changes.
+ * only the response type changes. The subscriber only handles the dance figure
+ * flags, so other flags keep their normal AJAX response.
  */
 final class HtmxFlagResponseSubscriber implements EventSubscriberInterface {
 
@@ -66,8 +69,13 @@ final class HtmxFlagResponseSubscriber implements EventSubscriberInterface {
     if (!$this->isHtmxRequest()) {
       return;
     }
-    $route_name = $event->getRequest()->attributes->get(RouteObjectInterface::ROUTE_NAME);
+    $request = $event->getRequest();
+    $route_name = $request->attributes->get(RouteObjectInterface::ROUTE_NAME);
     if (!in_array($route_name, self::ROUTES, TRUE)) {
+      return;
+    }
+    $flag = $request->attributes->get('flag');
+    if (!$flag instanceof FlagInterface || !in_array($flag->id(), DanceFigureFlag::ids(), TRUE)) {
       return;
     }
     $response = $event->getResponse();
