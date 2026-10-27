@@ -34,3 +34,19 @@ services:
   Drupal\workspace_events\EventFilterFactory:
     arguments:
       - '@Drupal\workspace_events\OrganizerResolver'
+  Drupal\workspace_events\Attendance\AttendancePhotoTextParser:
+    autowire: true
+  Drupal\workspace_events\Attendance\MemberNameLoader:
+    autowire: true
+  Drupal\workspace_events\Attendance\MemberNameLoaderInterface:
+    alias: Drupal\workspace_events\Attendance\MemberNameLoader
+  Drupal\workspace_events\Attendance\MemberMatcher:
+    autowire: true
+  Drupal\workspace_events\Attendance\MistralOcrClientFactory:
+    arguments:
+      - '@?ai.provider'
+      - '@http_client_factory'
+  Drupal\workspace_events\Attendance\MistralOcrClientFactoryInterface:
+    alias: Drupal\workspace_events\Attendance\MistralOcrClientFactory
+  Drupal\workspace_events\Attendance\AttendanceRecognizer:
+    autowire: true
