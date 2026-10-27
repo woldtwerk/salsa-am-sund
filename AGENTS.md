@@ -72,7 +72,15 @@ or data structure and propose a better solution.
 
 ## Testing
 
-Only test what matters: the custom logic in this repo.
+Only test what matters: the custom logic in this repo. Write few tests.
+
+- Before adding a test, name the bug it would catch that no existing test catches. If you can't,
+  don't write it.
+- Prefer one test that covers a scenario end to end over several small ones. A feature usually
+  needs a handful of test methods, not dozens.
+- Don't add a test per edge case by default; cover an edge case only where your code branches on it
+  and getting it wrong would hurt (privacy, data loss, wrong dates).
+- When you touch existing tests, delete the ones that no longer catch anything.
 
 - Don't test Drupal core, contributed modules or other third-party code.
 - Don't write UI tests (no browser, rendering or markup tests).
@@ -125,8 +133,8 @@ Efficiency:
   Memoize lookups per request in the service.
 - Don't branch on the same condition in both caller and callee; call the specific method directly.
 
-Tests: cover each edge case above that applies to your change (unsaved entity, other route, missing
-referenced entity), not only the happy path.
+Tests: cover an edge case above (unsaved entity, other route, missing referenced entity) only where
+your code branches on it, following the "Write few tests" rules under Testing.
 
 Before you open the PR, re-read your whole diff as a reviewer and fix what this checklist finds. In the
 PR body, list the edge cases you handled and the design decisions you made (e.g. contrib vs. custom).
