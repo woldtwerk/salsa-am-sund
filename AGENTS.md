@@ -76,6 +76,11 @@ Only test what matters: the custom logic in this repo.
 
 - Don't test Drupal core, contributed modules or other third-party code.
 - Don't write UI tests (no browser, rendering or markup tests).
+- During development, run only the tests you created or changed. Run the whole suite
+  (`ddev composer test`) once, when the feature is done.
+- Run single test files with `--file` (`--class` fails here, because test discovery trips over a contrib test):
+  `ddev exec -d /var/www/html/web php core/scripts/run-tests.sh --sqlite /tmp/rt.sqlite --dburl mysql://db:db@db/db --url http://localhost --suppress-deprecations --non-html --file modules/custom/<module>/tests/src/Kernel/FooTest.php`
+  (comma-separate several files).
 
 ## Writing Drupal code: checklist
 
