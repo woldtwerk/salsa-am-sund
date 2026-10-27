@@ -47,8 +47,8 @@ DDEV project config lives in `.ddev/config.yaml`. Use `.ddev/config.local.yaml` 
 
 - Start every feature that changes data or config with a database snapshot, e.g.
   `ddev snapshot --name <feature>`, so you can roll back with `ddev snapshot restore <feature>`.
-  A restore leaves FrankenPHP stopped (the site answers 502 Bad Gateway); start it again with
-  `ddev exec supervisorctl start webextradaemons:frankenphp` or run `ddev restart`.
+  A `post-restore-snapshot` hook in `.ddev/config.yaml` starts FrankenPHP again after a restore. If the
+  site still answers 502 Bad Gateway, run `ddev exec supervisorctl start webextradaemons:frankenphp`.
 - Add a module with `ddev composer require drupal/<project>`, then `ddev drush pm:enable --yes <module_machine_name>`, then `ddev drush cache:rebuild`.
 - Apply database updates after code changes with `ddev drush updatedb --yes`.
 - Import repository configuration into the site with `ddev drush config:import --yes`.

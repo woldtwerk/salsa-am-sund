@@ -21,3 +21,7 @@ hooks:
         fi
     - composer: install
     - composer: drupal:recipe-unpack
+  post-restore-snapshot:
+    # A snapshot restore restarts the web container, but FrankenPHP is not started
+    # automatically, so the site would answer 502 Bad Gateway.
+    - exec: supervisorctl start webextradaemons:frankenphp || true
