@@ -15,6 +15,7 @@ dependencies:
     - node.type.course
     - node.type.event
     - node.type.gallery
+    - node.type.lesson
     - node.type.page
     - taxonomy.vocabulary.dance_figure
     - taxonomy.vocabulary.location
@@ -73,6 +74,7 @@ permissions:
   - 'delete any event content'
   - 'delete any gallery content'
   - 'delete any image media'
+  - 'delete any lesson content'
   - 'delete any page content'
   - 'delete any remote_video media'
   - 'delete any svg_image media'
@@ -87,6 +89,7 @@ permissions:
   - 'edit any event content'
   - 'edit any gallery content'
   - 'edit any image media'
+  - 'edit any lesson content'
   - 'edit any page content'
   - 'edit any remote_video media'
   - 'edit any svg_image media'

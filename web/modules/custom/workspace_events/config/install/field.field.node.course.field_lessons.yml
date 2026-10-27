@@ -1,0 +1,30 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_lessons
+    - node.type.course
+    - node.type.lesson
+  module:
+    - node
+id: node.course.field_lessons
+field_name: field_lessons
+entity_type: node
+bundle: course
+label: Stunden
+description: 'Die einzelnen Stunden des Kurses, nach Datum sortiert.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:node'
+  handler_settings:
+    target_bundles:
+      lesson: lesson
+    sort:
+      field: field_lesson_date.value
+      direction: ASC
+    auto_create: false
+    auto_create_bundle: ''
+field_type: entity_reference

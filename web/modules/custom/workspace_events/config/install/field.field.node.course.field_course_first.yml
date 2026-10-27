@@ -1,0 +1,20 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_course_first
+    - node.type.course
+  module:
+    - datetime_range
+id: node.course.field_course_first
+field_name: field_course_first
+entity_type: node
+bundle: course
+label: 'Erste Stunde'
+description: 'Datum, Beginn und Ende der ersten Kursstunde.'
+required: true
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: daterange

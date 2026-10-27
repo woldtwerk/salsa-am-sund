@@ -1,0 +1,27 @@
+uuid: 163983a2-e367-4eaa-af7c-74e275d45599
+langcode: de
+status: true
+dependencies:
+  module:
+    - node
+    - options
+id: node.field_course_interval
+field_name: field_course_interval
+entity_type: node
+type: list_integer
+settings:
+  allowed_values:
+    -
+      value: 1
+      label: Wöchentlich
+    -
+      value: 2
+      label: 'Alle 2 Wochen'
+  allowed_values_function: ''
+module: options
+locked: false
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\node\NodeAccessRebuild;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
@@ -16,8 +17,10 @@ use Drupal\workflows\Entity\Workflow;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
+use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\MasteredFlag;
 use Drupal\workspace_events\OrganizerResolver;
+use Drupal\workspace_events\ScheduleMigrator;
 
 /**
  * Implements hook_install().
@@ -26,6 +29,11 @@ function workspace_events_install(bool $is_syncing = FALSE): void {
   foreach (workspace_events_node_bundles() as $bundle) {
     workspace_events_set_bundle_in_workflow($bundle, TRUE);
   }
+
+  // The site's ECA model adds every new content type to the editorial
+  // workflow. Lessons are not moderated and are published by Scheduler.
+  workspace_events_set_bundle_in_workflow('lesson', FALSE);
+
   workspace_events_ensure_organizer_vocabulary();
   if (!$is_syncing) {
     // While modules are being installed from configuration (site install,
@@ -124,6 +132,42 @@ function workspace_events_update_10006(): void {
   $installer->install([MasteredFlag::CONFIG_NAME]);
 
   workspace_events_grant_mastered_flag_permissions();
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Adds the lesson bundle, the course and event date fields and the lesson
+ * fields, migrates the existing Smart Date series and generates the lessons.
+ *
+ * Events only keep their next upcoming date; every collapsed event series is
+ * reported in the update message and in the watchdog.
+ */
+function workspace_events_update_10007(): ?string {
+  if (!\Drupal::moduleHandler()->moduleExists('datetime_range')) {
+    \Drupal::service('module_installer')->install(['datetime_range']);
+  }
+
+  $installer = \Drupal::service(LessonInstaller::class);
+  \assert($installer instanceof LessonInstaller);
+  $installer->install();
+
+  // The site's ECA model adds every new content type to the editorial
+  // workflow. Lessons are not moderated, so remove the new bundle again
+  // before the lessons are generated.
+  workspace_events_set_bundle_in_workflow('lesson', FALSE);
+
+  workspace_events_grant_editor_permissions();
+
+  $migrator = \Drupal::service(ScheduleMigrator::class);
+  \assert($migrator instanceof ScheduleMigrator);
+  $message = $migrator->migrate();
+
+  // The module now implements node grants, so every node needs its grant
+  // records: the lessons get theirs, all other bundles get the default grant.
+  \Drupal::service(NodeAccessRebuild::class)->rebuild();
+
+  return $message === '' ? NULL : $message;
 }
 
 /**
@@ -306,6 +350,8 @@ function workspace_events_editor_permissions(): array {
     'delete terms in dance_figure',
     'access taxonomy overview',
     'make smart dates recur',
+    'edit any lesson content',
+    'delete any lesson content',
     DanceFigureAccessHooks::VIEW_PERMISSION,
   ];
 }

@@ -1,0 +1,20 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_course_last
+    - node.type.course
+  module:
+    - datetime
+id: node.course.field_course_last
+field_name: field_course_last
+entity_type: node
+bundle: course
+label: 'Letzte Stunde'
+description: 'Datum der letzten Kursstunde. Die letzte Stunde ist eingeschlossen.'
+required: true
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: datetime

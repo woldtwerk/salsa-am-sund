@@ -5,6 +5,7 @@ dependencies:
   config:
     - field.field.node.course.body
     - field.field.node.course.field_difficulty
+    - field.field.node.course.field_lessons
     - field.field.node.course.field_link
     - field.field.node.course.field_location
     - field.field.node.course.field_when
@@ -38,6 +39,14 @@ content:
     settings: {  }
     third_party_settings: {  }
     weight: 3
+    region: content
+  field_lessons:
+    type: entity_reference_label
+    label: inline
+    settings:
+      link: true
+    third_party_settings: {  }
+    weight: 6
     region: content
   field_link:
     type: link
@@ -87,4 +96,7 @@ content:
     weight: 100
     region: content
 hidden:
+  field_course_first: true
+  field_course_interval: true
+  field_course_last: true
   langcode: true

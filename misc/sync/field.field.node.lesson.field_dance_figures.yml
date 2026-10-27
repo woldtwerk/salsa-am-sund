@@ -1,0 +1,31 @@
+uuid: 8ac28d35-23ab-4126-8d72-6fa489ae4fd5
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_dance_figures
+    - node.type.lesson
+    - taxonomy.vocabulary.dance_figure
+  module:
+    - taxonomy
+id: node.lesson.field_dance_figures
+field_name: field_dance_figures
+entity_type: node
+bundle: lesson
+label: Tanzfiguren
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:taxonomy_term'
+  handler_settings:
+    target_bundles:
+      dance_figure: dance_figure
+    sort:
+      field: name
+      direction: ASC
+    auto_create: false
+    auto_create_bundle: ''
+field_type: entity_reference

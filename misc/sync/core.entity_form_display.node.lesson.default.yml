@@ -1,0 +1,79 @@
+uuid: 458d5789-ab7a-4423-9ffa-d7dbaadaa73a
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.field.node.lesson.field_attendance_photo
+    - field.field.node.lesson.field_cancelled
+    - field.field.node.lesson.field_dance_figures
+    - field.field.node.lesson.field_lesson_date
+    - field.field.node.lesson.field_participants
+    - node.type.lesson
+  module:
+    - datetime_range
+    - image
+    - taxonomy
+    - user
+id: node.lesson.default
+targetEntityType: node
+bundle: lesson
+mode: default
+content:
+  field_attendance_photo:
+    type: image_image
+    weight: 4
+    region: content
+    settings:
+      progress_indicator: throbber
+      preview_image_style: thumbnail
+    third_party_settings: {  }
+  field_cancelled:
+    type: boolean_checkbox
+    weight: 1
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
+  field_dance_figures:
+    type: entity_reference_autocomplete_tags
+    weight: 2
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  field_lesson_date:
+    type: daterange_default
+    weight: 0
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_participants:
+    type: entity_reference_autocomplete_tags
+    weight: 3
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+hidden:
+  created: true
+  langcode: true
+  moderation_state: true
+  path: true
+  promote: true
+  publish_on: true
+  publish_state: true
+  scheduler_settings: true
+  simple_sitemap: true
+  status: true
+  sticky: true
+  title: true
+  uid: true
+  unpublish_on: true
+  unpublish_state: true
+  url_redirects: true

@@ -1,0 +1,12 @@
+uuid: ebfde13d-507b-466b-a05e-fc5a4d56dcce
+langcode: de
+status: true
+dependencies:
+  config:
+    - node.type.lesson
+  module:
+    - metatag
+id: node__lesson
+label: 'Inhalt: Unterrichtsstunde'
+tags:
+  robots: noindex

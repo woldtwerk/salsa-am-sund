@@ -9,6 +9,14 @@ services:
     arguments:
       - '@config.storage.sync'
       - '@extension.path.resolver'
+  Drupal\workspace_events\SiteTimeZone:
+    autowire: true
+  Drupal\workspace_events\LessonGenerator:
+    autowire: true
+  Drupal\workspace_events\ScheduleMigrator:
+    autowire: true
+  Drupal\workspace_events\LessonInstaller:
+    autowire: true
   Drupal\workspace_events\CourseDifficultyMigrator:
     arguments:
       - '@entity_type.manager'

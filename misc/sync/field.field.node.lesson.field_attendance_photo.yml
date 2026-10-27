@@ -1,0 +1,39 @@
+uuid: 44be1650-daed-432e-b965-31ab82b6456a
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_attendance_photo
+    - node.type.lesson
+  module:
+    - file
+    - image
+id: node.lesson.field_attendance_photo
+field_name: field_attendance_photo
+entity_type: node
+bundle: lesson
+label: Anwesenheitsfoto
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: default
+  handler_settings: {  }
+  file_directory: 'lessons/[date:custom:Y]-[date:custom:m]'
+  file_extensions: 'png gif jpg jpeg webp'
+  max_filesize: ''
+  max_resolution: ''
+  min_resolution: ''
+  alt_field: false
+  alt_field_required: false
+  title_field: false
+  title_field_required: false
+  default_image:
+    uuid: null
+    alt: ''
+    title: ''
+    width: null
+    height: null
+field_type: image
