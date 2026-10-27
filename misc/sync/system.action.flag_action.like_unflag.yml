@@ -1,0 +1,15 @@
+uuid: b76c2166-cbcf-4745-9979-6bee05d514a4
+langcode: de
+status: true
+dependencies:
+  config:
+    - flag.flag.like
+  module:
+    - flag
+id: flag_action.like_unflag
+label: 'Gefällt mir nicht mehr'
+type: taxonomy_term
+plugin: 'flag_action:like_unflag'
+configuration:
+  flag_id: like
+  flag_action: unflag
