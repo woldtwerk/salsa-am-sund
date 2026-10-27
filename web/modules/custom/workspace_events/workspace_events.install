@@ -116,7 +116,7 @@ function workspace_events_update_10005(): void {
  * Installs the Flag module, adds the "mastered" flag for dance figures and
  * grants the flag permissions to the member role.
  */
-function workspace_events_update_10009(): void {
+function workspace_events_update_10006(): void {
   \Drupal::service('module_installer')->install(['flag']);
 
   $installer = \Drupal::service(DanceFigureInstaller::class);
