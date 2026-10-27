@@ -1,0 +1,15 @@
+uuid: 8951901b-9ef3-489e-b3b1-4696f9aa680e
+langcode: de
+status: true
+dependencies:
+  config:
+    - flag.flag.like
+  module:
+    - flag
+id: flag_action.like_flag
+label: 'Gefällt mir'
+type: taxonomy_term
+plugin: 'flag_action:like_flag'
+configuration:
+  flag_id: like
+  flag_action: flag

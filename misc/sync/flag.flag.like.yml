@@ -1,3 +1,4 @@
+uuid: d20e309b-ed0c-4372-8747-458d834fcf6f
 langcode: de
 status: true
 dependencies:
@@ -10,7 +11,6 @@ bundles:
   - dance_figure
 entity_type: taxonomy_term
 global: false
-weight: 0
 flag_short: 'Gefällt mir'
 flag_long: 'Diese Figur zu den Favoriten hinzufügen'
 flag_message: 'Die Figur wurde zu den Favoriten hinzugefügt.'
@@ -18,6 +18,7 @@ unflag_short: 'Gefällt mir nicht mehr'
 unflag_long: 'Die Figur aus den Favoriten entfernen'
 unflag_message: 'Die Figur wurde aus den Favoriten entfernt.'
 unflag_denied_text: ''
+weight: 0
 flag_type: 'entity:taxonomy_term'
 link_type: htmx
 flagTypeConfig:
