@@ -67,23 +67,41 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
     self::assertCount(2, $rows);
     self::assertSame('Fällt aus', (string) $rows[0][2]);
     self::assertSame('Veröffentlicht', (string) $rows[1][2]);
-    self::assertArrayHasKey('#url', $rows[0][5]);
-    self::assertArrayHasKey('#url', $rows[1][5]);
+    self::assertArrayHasKey('#url', $rows[0][5]['data']);
+    self::assertArrayHasKey('#url', $rows[1][5]['data']);
     self::assertSame(
       $course->toUrl('edit-form')->toString(),
-      $rows[0][5]['#url']->getOption('query')['destination'],
+      $rows[0][5]['data']['#url']->getOption('query')['destination'],
     );
+
+    // Rendering the table must not treat the link render array as attributes.
+    $output = (string) \Drupal::service('renderer')->renderInIsolation($this->buildElement($course));
+    self::assertStringContainsString($cancelled->toUrl('edit-form')->toString(), $output);
 
     $this->setCurrentUser($non_editor);
     $rows = $this->buildRows($course);
     self::assertCount(2, $rows);
-    self::assertArrayNotHasKey('#url', $rows[0][5]);
-    self::assertArrayNotHasKey('#url', $rows[1][5]);
+    self::assertArrayNotHasKey('#url', $rows[0][5]['data']);
+    self::assertArrayNotHasKey('#url', $rows[1][5]['data']);
 
     // Submitting the widget must keep the generated references unchanged.
     $form = ['#parents' => []];
     $this->widget($course)->extractFormValues($course->get('field_lessons'), $form, new FormState());
     self::assertSame($original_ids, $this->referencedLessonIds($course));
+  }
+
+  /**
+   * Builds the widget element of a course.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course.
+   *
+   * @return array<string, mixed>
+   *   The widget element.
+   */
+  private function buildElement(NodeInterface $course): array {
+    $form = ['#parents' => []];
+    return $this->widget($course)->form($course->get('field_lessons'), $form, $this->formState($course));
   }
 
   /**
@@ -96,9 +114,7 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
    *   The table rows.
    */
   private function buildRows(NodeInterface $course): array {
-    $form = ['#parents' => []];
-    $element = $this->widget($course)->form($course->get('field_lessons'), $form, $this->formState($course));
-    $rows = $element['widget']['table']['#rows'] ?? NULL;
+    $rows = $this->buildElement($course)['widget']['table']['#rows'] ?? NULL;
     self::assertIsArray($rows);
     return $rows;
   }

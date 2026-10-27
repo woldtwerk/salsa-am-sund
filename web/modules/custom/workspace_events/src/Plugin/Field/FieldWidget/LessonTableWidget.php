@@ -271,7 +271,7 @@ final class LessonTableWidget extends WidgetBase {
       $this->statusLabel($lesson),
       $this->fieldCount($lesson, 'field_participants'),
       $this->fieldCount($lesson, 'field_dance_figures'),
-      $actions,
+      ['data' => $actions],
     ];
   }
 
