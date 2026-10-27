@@ -39,11 +39,11 @@ content:
     weight: 0
     region: content
 hidden:
-  content_moderation_control: true
   field_content: true
   field_seo_analysis: true
   field_seo_description: true
   field_seo_image: true
   field_seo_title: true
   field_tags: true
+  langcode: true
   links: true

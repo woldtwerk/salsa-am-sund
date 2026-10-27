@@ -8,15 +8,11 @@
 declare(strict_types=1);
 
 use Drupal\user\Entity\Role;
-use Drupal\workflows\Entity\Workflow;
 
 /**
  * Implements hook_install().
  */
 function workspace_gallery_install(bool $is_syncing = FALSE): void {
-  // The site's ECA model adds every new content type to the editorial
-  // workflow. Galleries are not moderated.
-  workspace_gallery_remove_gallery_from_workflow();
   workspace_gallery_grant_editor_permissions();
 }
 
@@ -24,7 +20,6 @@ function workspace_gallery_install(bool $is_syncing = FALSE): void {
  * Implements hook_uninstall().
  */
 function workspace_gallery_uninstall(): void {
-  workspace_gallery_remove_gallery_from_workflow();
   workspace_gallery_revoke_editor_permissions();
 }
 
@@ -33,6 +28,8 @@ function workspace_gallery_uninstall(): void {
  *
  * Removes the gallery bundle from the editorial workflow, so only pages stay
  * moderated.
+ *
+ * Does nothing when the Workflows module has been uninstalled.
  */
 function workspace_gallery_update_11001(): void {
   workspace_gallery_remove_gallery_from_workflow();
@@ -40,9 +37,18 @@ function workspace_gallery_update_11001(): void {
 
 /**
  * Removes the gallery bundle from the basic editorial workflow.
+ *
+ * Does nothing when the Workflows module has been uninstalled.
  */
 function workspace_gallery_remove_gallery_from_workflow(): void {
-  $workflow = Workflow::load('basic_editorial');
+  if (!\Drupal::moduleHandler()->moduleExists('workflows')) {
+    return;
+  }
+  $entity_type_manager = \Drupal::entityTypeManager();
+  if (!$entity_type_manager->hasDefinition('workflow')) {
+    return;
+  }
+  $workflow = $entity_type_manager->getStorage('workflow')->load('basic_editorial');
   if ($workflow === NULL) {
     return;
   }

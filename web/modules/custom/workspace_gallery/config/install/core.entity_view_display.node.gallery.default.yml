@@ -7,7 +7,6 @@ dependencies:
     - field.field.node.gallery.field_gallery_images
     - node.type.gallery
   module:
-    - content_moderation
     - media
     - text
     - user
@@ -22,11 +21,6 @@ content:
     settings: {  }
     third_party_settings: {  }
     weight: 0
-    region: content
-  content_moderation_control:
-    settings: {  }
-    third_party_settings: {  }
-    weight: -20
     region: content
   field_gallery_images:
     type: entity_reference_entity_view

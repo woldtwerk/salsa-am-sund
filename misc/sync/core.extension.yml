@@ -21,7 +21,6 @@ module:
   config_language_lock: 0
   config_translation: 0
   contact: 0
-  content_moderation: 0
   contextual: 0
   crop: 0
   cva: 0
@@ -99,7 +98,6 @@ module:
   responsive_image: 0
   sam: 0
   scheduler: 0
-  scheduler_content_moderation_integration: 0
   seo_checklist: 0
   simple_sitemap: 0
   svg_image: 0
@@ -118,7 +116,6 @@ module:
   user: 0
   view_password: 0
   views_ui: 0
-  workflows: 0
   workspace_admin_ui: 0
   workspace_events: 0
   workspace_gallery: 0

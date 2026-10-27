@@ -6,7 +6,6 @@ core_version_requirement: ^11.3
 'interface translation project': workspace_events
 'interface translation server pattern': modules/custom/workspace_events/translations/%language.po
 dependencies:
-  - drupal:content_moderation
   - drupal:datetime_range
   - drupal:image
   - drupal:link
