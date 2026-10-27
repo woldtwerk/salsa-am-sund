@@ -241,9 +241,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
       'cardinality' => 1,
     ])->save();
     $link_settings = ['title' => 1, 'link_type' => 17];
-    foreach (['event' => 'Weitere Infos (Link)', 'course' => 'Link'] as $bundle => $label) {
-      $this->createFieldConfig('field_link', $bundle, $label, $link_settings);
-    }
+    $this->createFieldConfig('field_link', 'event', 'Weitere Infos (Link)', $link_settings);
 
     if (FieldStorageConfig::loadByName('node', 'body') === NULL) {
       FieldStorageConfig::create([

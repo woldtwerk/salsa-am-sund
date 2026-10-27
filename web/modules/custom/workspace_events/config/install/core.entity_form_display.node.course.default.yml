@@ -8,7 +8,6 @@ dependencies:
     - field.field.node.course.field_course_interval
     - field.field.node.course.field_difficulty
     - field.field.node.course.field_lessons
-    - field.field.node.course.field_link
     - field.field.node.course.field_location
     - node.type.course
     - workflows.workflow.basic_editorial
@@ -16,7 +15,6 @@ dependencies:
     - content_moderation
     - datetime
     - datetime_range
-    - link
     - options
     - path
     - text
@@ -71,14 +69,6 @@ content:
     weight: -12
     region: content
     settings: {  }
-    third_party_settings: {  }
-  field_link:
-    type: link_default
-    weight: -15
-    region: content
-    settings:
-      placeholder_url: ''
-      placeholder_title: ''
     third_party_settings: {  }
   field_location:
     type: options_select

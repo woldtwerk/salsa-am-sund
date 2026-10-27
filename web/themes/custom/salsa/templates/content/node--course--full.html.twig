@@ -15,7 +15,6 @@
  * - course_next_dates: Upcoming dates with date, date_iso, weekday, time,
  *   iCal URL and cancellation flag.
  * - course_location: Location name, address and map URL.
- * - course_link: Optional external link with label and href.
  * - course_ical_url: The webcal subscription URL of this course's feed.
  * - course_overview_url: The URL of the course overview.
  */
@@ -25,7 +24,6 @@
 {% set schedule = course_schedule|default('') %}
 {% set next_dates = course_next_dates|default([]) %}
 {% set location = course_location|default(null) %}
-{% set link = course_link|default(null) %}
 
 <article{{ attributes }}>
   <header class="salsa-surface-flame relative isolate overflow-hidden bg-flame-deep">
@@ -58,18 +56,6 @@
               {{ schedule }}
             </span>
           {% endif %}
-        </div>
-      {% endif %}
-
-      {% if link %}
-        <div class="mt-8 flex flex-wrap items-center gap-3">
-          {% include 'salsa:button' with {
-            label: link.label,
-            href: link.href,
-            variant: 'light',
-            size: 'md',
-            icon: 'external-link',
-          } only %}
         </div>
       {% endif %}
     </div>

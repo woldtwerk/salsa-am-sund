@@ -293,6 +293,20 @@ function workspace_events_update_10010(): void {
 }
 
 /**
+ * Implements hook_update_N().
+ *
+ * Removes the external link field from the course bundle.
+ *
+ * The storage of the field stays, because events still use it.
+ */
+function workspace_events_update_10011(): void {
+  $field = FieldConfig::loadByName('node', 'course', 'field_link');
+  if ($field !== NULL) {
+    $field->delete();
+  }
+}
+
+/**
  * Deletes all content entities of an entity type in chunks.
  *
  * Used by update 10010 to remove the Smart Date entities before the modules
