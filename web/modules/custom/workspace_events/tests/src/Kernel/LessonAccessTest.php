@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\Core\Session\AnonymousUserSession;
-use Drupal\file\Entity\File;
-use Drupal\file\FileInterface;
 use Drupal\node\NodeInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\Hook\LessonAccessHooks;
@@ -43,11 +41,6 @@ final class LessonAccessTest extends LessonKernelTestBase {
   private NodeInterface $lesson;
 
   /**
-   * The attendance photo.
-   */
-  private FileInterface $photo;
-
-  /**
    * {@inheritdoc}
    */
   protected function setUp(): void {
@@ -61,26 +54,14 @@ final class LessonAccessTest extends LessonKernelTestBase {
       'delete any lesson content',
     ]);
 
-    $file = File::create([
-      'uri' => 'private://lessons/2026-10/photo.jpg',
-      'filename' => 'photo.jpg',
-      'filemime' => 'image/jpeg',
-      'filesize' => 1024,
-      'uid' => 1,
-      'status' => 1,
-    ]);
-    $file->save();
-    $this->photo = $file;
-
     $date = new \DateTimeImmutable('now +1 week 18:00', new \DateTimeZone(self::TIMEZONE));
     $this->lesson = $this->createLesson([
-      'title' => 'Stunde mit Foto',
+      'title' => 'Stunde mit Teilnehmer',
       'field_lesson_date' => [
         'value' => $date->format('Y-m-d\TH:i:s'),
         'end_value' => $date->modify('+1 hour')->format('Y-m-d\TH:i:s'),
       ],
       'field_participants' => [['target_id' => $this->participant->id()]],
-      'field_attendance_photo' => [['target_id' => $file->id(), 'alt' => '']],
     ]);
 
     $this->createLesson([
@@ -115,19 +96,14 @@ final class LessonAccessTest extends LessonKernelTestBase {
   }
 
   /**
-   * Tests the editor-only fields and the private photo download.
+   * Tests the editor-only fields.
    */
-  public function testProtectedFieldsAndPhoto(): void {
+  public function testProtectedFields(): void {
     self::assertFalse($this->lesson->get('field_participants')->access('view', $this->participant));
     self::assertFalse($this->lesson->get('field_participants')->access('edit', $this->participant));
-    self::assertFalse($this->lesson->get('field_attendance_photo')->access('view', $this->participant));
 
     self::assertTrue($this->lesson->get('field_participants')->access('view', $this->editor));
     self::assertTrue($this->lesson->get('field_participants')->access('edit', $this->editor));
-    self::assertTrue($this->lesson->get('field_attendance_photo')->access('view', $this->editor));
-
-    self::assertFalse($this->photo->access('download', $this->participant));
-    self::assertTrue($this->photo->access('download', $this->editor));
   }
 
   /**

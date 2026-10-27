@@ -19,7 +19,6 @@ final class AttendanceRecognitionInstaller extends ConfigRecordInstaller {
    */
   public const array CONFIG_NAMES = [
     'key.key.mistral_api_key',
-    'ai_automators.ai_automator.node.lesson.field_participants.default',
   ];
 
   /**

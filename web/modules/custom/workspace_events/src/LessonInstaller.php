@@ -35,8 +35,6 @@ final class LessonInstaller extends ConfigRecordInstaller {
     'field.field.node.lesson.field_dance_figures',
     'field.storage.node.field_participants',
     'field.field.node.lesson.field_participants',
-    'field.storage.node.field_attendance_photo',
-    'field.field.node.lesson.field_attendance_photo',
     'core.entity_form_display.node.course.default',
     'core.entity_view_display.node.course.default',
     'core.entity_form_display.node.event.default',

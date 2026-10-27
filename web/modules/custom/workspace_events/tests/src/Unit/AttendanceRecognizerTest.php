@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Unit;
 
-use Drupal\Core\File\FileSystemInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\file\FileInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\workspace_events\Attendance\AttendancePhotoTextParser;
 use Drupal\workspace_events\Attendance\AttendanceRecognitionException;
@@ -32,30 +30,6 @@ use PHPUnit\Framework\Attributes\Group;
 final class AttendanceRecognizerTest extends UnitTestCase {
 
   /**
-   * The path of the fake attendance photo.
-   */
-  private string $photoPath;
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
-    parent::setUp();
-    $this->photoPath = tempnam(sys_get_temp_dir(), 'attendance-photo-') ?: '';
-    file_put_contents($this->photoPath, 'fake-image-bytes');
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function tearDown(): void {
-    if ($this->photoPath !== '' && file_exists($this->photoPath)) {
-      unlink($this->photoPath);
-    }
-    parent::tearDown();
-  }
-
-  /**
    * Tests a successful OCR response.
    */
   public function testRecognizeSuccess(): void {
@@ -71,7 +45,7 @@ final class AttendanceRecognizerTest extends UnitTestCase {
     ]);
 
     $recognizer = $this->createRecognizer($mock);
-    $names = $recognizer->recognize($this->createPhoto());
+    $names = $recognizer->recognizeImage('fake-image-bytes', 'image/jpeg');
 
     self::assertSame(['Max Mustermann', 'Erika Musterfrau'], $names);
 
@@ -95,7 +69,7 @@ final class AttendanceRecognizerTest extends UnitTestCase {
     ]);
 
     $this->expectException(AttendanceRecognitionException::class);
-    $this->createRecognizer($mock)->recognize($this->createPhoto());
+    $this->createRecognizer($mock)->recognizeImage('fake-image-bytes', 'image/jpeg');
   }
 
   /**
@@ -107,7 +81,7 @@ final class AttendanceRecognizerTest extends UnitTestCase {
     ]);
 
     $this->expectException(AttendanceRecognitionException::class);
-    $this->createRecognizer($mock)->recognize($this->createPhoto());
+    $this->createRecognizer($mock)->recognizeImage('fake-image-bytes', 'image/jpeg');
   }
 
   /**
@@ -118,31 +92,17 @@ final class AttendanceRecognizerTest extends UnitTestCase {
       new Response(200, [], json_encode(['pages' => []], JSON_THROW_ON_ERROR)),
     ]);
 
-    self::assertSame([], $this->createRecognizer($mock)->recognize($this->createPhoto()));
+    self::assertSame([], $this->createRecognizer($mock)->recognizeImage('fake-image-bytes', 'image/jpeg'));
   }
 
   /**
-   * Tests that a missing photo becomes a clean recognition error.
+   * Tests that empty image bytes become a clean recognition error.
    */
-  public function testRecognizeMissingPhoto(): void {
+  public function testRecognizeEmptyImage(): void {
     $mock = new MockHandler([]);
 
-    $photo = $this->createMock(FileInterface::class);
-    $photo->method('getFileUri')->willReturn('private://missing.jpg');
-    $photo->method('getMimeType')->willReturn('image/jpeg');
-
-    $fileSystem = $this->createMock(FileSystemInterface::class);
-    $fileSystem->method('realpath')->willReturn(FALSE);
-
-    $recognizer = new AttendanceRecognizer(
-      $this->createClientFactory($mock),
-      new AttendancePhotoTextParser(),
-      $fileSystem,
-      $this->createLoggerFactory(),
-    );
-
     $this->expectException(AttendanceRecognitionException::class);
-    $recognizer->recognize($photo);
+    $this->createRecognizer($mock)->recognizeImage('', 'image/jpeg');
   }
 
   /**
@@ -155,13 +115,9 @@ final class AttendanceRecognizerTest extends UnitTestCase {
    *   The recognizer.
    */
   private function createRecognizer(MockHandler $mock): AttendanceRecognizer {
-    $fileSystem = $this->createMock(FileSystemInterface::class);
-    $fileSystem->method('realpath')->willReturn($this->photoPath);
-
     return new AttendanceRecognizer(
       $this->createClientFactory($mock),
       new AttendancePhotoTextParser(),
-      $fileSystem,
       $this->createLoggerFactory(),
     );
   }
@@ -212,19 +168,6 @@ final class AttendanceRecognizerTest extends UnitTestCase {
     $factory = $this->createMock(LoggerChannelFactoryInterface::class);
     $factory->method('get')->willReturn($logger);
     return $factory;
-  }
-
-  /**
-   * Creates the fake photo entity.
-   *
-   * @return \Drupal\file\FileInterface
-   *   The photo.
-   */
-  private function createPhoto(): FileInterface {
-    $photo = $this->createMock(FileInterface::class);
-    $photo->method('getFileUri')->willReturn('private://photo.jpg');
-    $photo->method('getMimeType')->willReturn('image/jpeg');
-    return $photo;
   }
 
 }

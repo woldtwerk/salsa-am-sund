@@ -4,18 +4,32 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events\Plugin\FieldWidgetAction;
 
+use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\ai_automators\Plugin\FieldWidgetAction\AutomatorBaseAction;
 use Drupal\field_widget_actions\Attribute\FieldWidgetAction;
+use Drupal\field_widget_actions\FieldWidgetActionBase;
 use Drupal\user\UserInterface;
+use Drupal\workspace_events\Attendance\AttendanceRecognitionException;
+use Drupal\workspace_events\Attendance\AttendanceRecognizer;
+use Drupal\workspace_events\Attendance\MemberMatcher;
 use Drupal\workspace_events\AttendanceRecognition;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Adds the attendance recognition button to the participant field.
+ *
+ * The photo only lives in the PHP upload of the request: it is read here,
+ * sent to the OCR service and never written to the file system, so no file
+ * entity is created and no image stays on the site.
  */
 #[FieldWidgetAction(
   id: 'attendance_from_photo_participants',
@@ -27,17 +41,79 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
   field_types: ['entity_reference'],
   category: new TranslatableMarkup('Anwesenheit'),
 )]
-final class AttendanceFromPhotoParticipants extends AutomatorBaseAction {
+final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
 
   /**
    * The property of the autocomplete element that holds the reference.
    */
-  public const FORM_ELEMENT_PROPERTY = 'target_id';
+  public const string FORM_ELEMENT_PROPERTY = 'target_id';
 
   /**
-   * The current user.
+   * The name of the upload form element and of its entry in the files bag.
    */
-  protected ?AccountProxyInterface $currentUser = NULL;
+  private const string UPLOAD_ELEMENT = 'attendance_photo_upload';
+
+  /**
+   * The largest accepted upload in bytes.
+   */
+  private const int MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+  /**
+   * The accepted MIME types.
+   *
+   * @var string[]
+   */
+  private const array ALLOWED_MIME_TYPES = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ];
+
+  /**
+   * The accepted file extensions.
+   *
+   * @var string[]
+   */
+  private const array ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
+  /**
+   * The messenger.
+   */
+  protected readonly MessengerInterface $messengerService;
+
+  /**
+   * Constructs an AttendanceFromPhotoParticipants action.
+   *
+   * @param array<string, mixed> $configuration
+   *   The plugin configuration.
+   * @param string $plugin_id
+   *   The plugin ID.
+   * @param mixed $plugin_definition
+   *   The plugin definition.
+   * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+   *   The messenger.
+   * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
+   *   The current user.
+   * @param \Drupal\workspace_events\Attendance\AttendanceRecognizer $recognizer
+   *   The attendance photo recognizer.
+   * @param \Drupal\workspace_events\Attendance\MemberMatcher $memberMatcher
+   *   The member matcher.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+   *   The request stack.
+   */
+  public function __construct(
+    array $configuration,
+    $plugin_id,
+    $plugin_definition,
+    MessengerInterface $messenger,
+    protected readonly AccountProxyInterface $currentUser,
+    protected readonly AttendanceRecognizer $recognizer,
+    protected readonly MemberMatcher $memberMatcher,
+    protected readonly RequestStack $requestStack,
+  ) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition, $messenger);
+    $this->messengerService = $messenger;
+  }
 
   /**
    * {@inheritdoc}
@@ -52,27 +128,30 @@ final class AttendanceFromPhotoParticipants extends AutomatorBaseAction {
    *   The plugin definition.
    */
   public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
-    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
-    \assert($instance instanceof self);
-    $instance->currentUser = $container->get('current_user');
-    return $instance;
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('messenger'),
+      $container->get('current_user'),
+      $container->get(AttendanceRecognizer::class),
+      $container->get(MemberMatcher::class),
+      $container->get('request_stack'),
+    );
   }
 
   /**
    * {@inheritdoc}
    */
   public function isAvailable(): bool {
-    if ($this->currentUser === NULL || !$this->currentUser->hasPermission(AttendanceRecognition::PERMISSION)) {
-      return FALSE;
-    }
-    return parent::isAvailable();
+    return $this->currentUser->hasPermission(AttendanceRecognition::PERMISSION);
   }
 
   /**
    * {@inheritdoc}
    *
-   * The recognition fills the whole field from one photo, so the button is
-   * shown once per field instead of once per delta.
+   * The recognition fills the whole field from one photo, so the button and
+   * the upload are shown once per field instead of once per delta.
    */
   public function getMultiple(): bool {
     return FALSE;
@@ -80,33 +159,311 @@ final class AttendanceFromPhotoParticipants extends AutomatorBaseAction {
 
   /**
    * {@inheritdoc}
-   *
-   * The tags widget renders one text input for all values and expects the
-   * comma separated "Name (ID)" format instead of one element per delta.
    */
-  protected function setFormInput(FieldableEntityInterface $entity, FormStateInterface $form_state, $form_key): void {
-    if (!$this->widgetHandlesMultipleValues($form_state, $form_key)) {
-      parent::setFormInput($entity, $form_state, $form_key);
+  public function getAjaxCallback(): string {
+    return 'recognizeAjax';
+  }
+
+  /**
+   * {@inheritdoc}
+   *
+   * @param array<mixed> $form
+   *   The field widget form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param array<string, mixed> $context
+   *   The widget form element context.
+   */
+  protected function actionButton(array &$form, FormStateInterface $form_state, array $context = []): void {
+    parent::actionButton($form, $form_state, $context);
+
+    $items = $context['items'] ?? NULL;
+    if (!$items instanceof FieldItemListInterface) {
+      return;
+    }
+    $fieldName = $items->getFieldDefinition()->getName();
+    $widgetId = $this->getActionButtonWidgetId($fieldName, $context);
+
+    $button = $form[$widgetId] ?? NULL;
+    if (!is_array($button)) {
+      return;
+    }
+    $submit = $button['#submit'] ?? [];
+    if (!is_array($submit)) {
+      $submit = [];
+    }
+    $submit[] = [$this, 'recognizeSubmit'];
+    $button['#submit'] = $submit;
+    $button['#executes_submit_callback'] = TRUE;
+    $form[$widgetId] = $button;
+
+    $weight = $this->configuration['weight'] ?? 0;
+    $form[self::UPLOAD_ELEMENT] = [
+      '#type' => 'file',
+      '#title' => $this->t('Anwesenheitsfoto'),
+      '#description' => $this->t('JPEG, PNG oder WebP, höchstens 10 MB. Das Foto wird nur zur Erkennung übertragen und nicht gespeichert.'),
+      '#weight' => (is_numeric($weight) ? (int) $weight : 0) + 9,
+      '#parents' => [self::UPLOAD_ELEMENT],
+      '#attributes' => [
+        'accept' => 'image/jpeg,image/png,image/webp',
+      ],
+    ];
+  }
+
+  /**
+   * Ajax callback returning the rebuilt participant widget.
+   *
+   * @param array<mixed> $form
+   *   The rebuilt form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   *
+   * @return array<mixed>
+   *   The participant field subtree.
+   */
+  public function recognizeAjax(array &$form, FormStateInterface $form_state): array {
+    $fieldName = $this->getTargetElementFieldName($form, $form_state);
+    if (!is_string($fieldName) || $fieldName === '') {
+      return [];
+    }
+    $element = $form[$fieldName] ?? [];
+    return is_array($element) ? $element : [];
+  }
+
+  /**
+   * Reads the uploaded photo, recognizes the names and fills the field.
+   *
+   * @param array<mixed> $form
+   *   The form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   */
+  public function recognizeSubmit(array &$form, FormStateInterface $form_state): void {
+    $triggeringElement = $form_state->getTriggeringElement();
+    $fieldName = $triggeringElement['#field_widget_action_field_name'] ?? NULL;
+    if (!is_string($fieldName) || $fieldName === '' || !isset($form[$fieldName])) {
       return;
     }
 
-    $tags = [];
-    foreach ($entity->get($form_key) as $item) {
-      $user = $item->get('entity')->getValue();
-      if (!$user instanceof UserInterface) {
-        continue;
-      }
-      $tags[] = $user->getDisplayName() . ' (' . $user->id() . ')';
+    $photo = $this->uploadedPhoto();
+    if ($photo === NULL) {
+      $this->messengerService->addError($this->t('Bitte ein Anwesenheitsfoto auswählen.'));
+      return;
     }
 
-    $input = $form_state->getUserInput();
-    $fieldInput = $input[$form_key] ?? [];
-    if (!is_array($fieldInput)) {
-      $fieldInput = [];
+    if (!$photo->isValid()) {
+      $this->messengerService->addError($this->t('Das Foto konnte nicht hochgeladen werden.'));
+      return;
     }
-    $fieldInput[self::FORM_ELEMENT_PROPERTY] = implode(', ', $tags);
-    $input[$form_key] = $fieldInput;
+    $size = $photo->getSize();
+    if ($size === FALSE) {
+      $this->messengerService->addError($this->t('Das Anwesenheitsfoto konnte nicht gelesen werden.'));
+      return;
+    }
+    if ($size > self::MAX_FILE_SIZE) {
+      $this->messengerService->addError($this->t('Das Foto darf höchstens 10 MB groß sein.'));
+      return;
+    }
+
+    $image = @getimagesize($photo->getPathname());
+    $mimeType = is_array($image) ? $image['mime'] : NULL;
+    $extension = mb_strtolower($photo->getClientOriginalExtension());
+    if (!is_string($mimeType) || !in_array($mimeType, self::ALLOWED_MIME_TYPES, TRUE) || !in_array($extension, self::ALLOWED_EXTENSIONS, TRUE)) {
+      $this->messengerService->addError($this->t('Bitte ein Foto im Format JPEG, PNG oder WebP hochladen.'));
+      return;
+    }
+
+    try {
+      $contents = $photo->getContent();
+    }
+    catch (\Throwable) {
+      $this->messengerService->addError($this->t('Das Anwesenheitsfoto konnte nicht gelesen werden.'));
+      return;
+    }
+
+    try {
+      $names = $this->recognizer->recognizeImage($contents, $mimeType);
+    }
+    catch (AttendanceRecognitionException $exception) {
+      $this->messengerService->addError($exception->getMessage());
+      return;
+    }
+
+    if ($names === []) {
+      $this->messengerService->addWarning($this->t('Auf dem Anwesenheitsfoto wurden keine Namen erkannt.'));
+      $this->reportNoValueProduced($form_state, $fieldName);
+      return;
+    }
+
+    $result = $this->memberMatcher->match($names);
+    if ($result['unmatched'] !== []) {
+      $this->messengerService->addWarning($this->t('Nicht eindeutig erkannt: @names', [
+        '@names' => implode(', ', $result['unmatched']),
+      ]));
+    }
+    if ($result['matched'] === []) {
+      $this->reportNoValueProduced($form_state, $fieldName);
+      return;
+    }
+
+    $entity = $this->buildEntity($form, $form_state);
+    if (!$entity instanceof FieldableEntityInterface || !$entity->hasField($fieldName)) {
+      $this->messengerService->addError($this->t('Die Teilnehmer konnten nicht übernommen werden.'));
+      return;
+    }
+
+    $ids = $this->participantIds($entity, $fieldName);
+    foreach ($result['matched'] as $id) {
+      $ids[$id] = $id;
+    }
+    unset($ids[0]);
+
+    $entity->set($fieldName, array_values($ids));
+    $this->setFormInput($entity, $form_state, $fieldName);
+    $this->updateItemsCount($form, $form_state, $fieldName, count($ids));
+    $this->reportProducedValue($form_state, $fieldName);
+    $form_state->setRebuild();
+  }
+
+  /**
+   * Returns the uploaded photo of the current request.
+   *
+   * @return \Symfony\Component\HttpFoundation\File\UploadedFile|null
+   *   The uploaded photo, or NULL when there is none.
+   */
+  private function uploadedPhoto(): ?UploadedFile {
+    $request = $this->requestStack->getCurrentRequest();
+    if ($request === NULL) {
+      return NULL;
+    }
+    $files = $request->files->get('files');
+    if (!is_array($files)) {
+      return NULL;
+    }
+    $photo = $files[self::UPLOAD_ELEMENT] ?? NULL;
+    return $photo instanceof UploadedFile ? $photo : NULL;
+  }
+
+  /**
+   * Returns the participant IDs that the form currently holds.
+   *
+   * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+   *   The entity built from the submitted form values.
+   * @param string $fieldName
+   *   The participant field name.
+   *
+   * @return array<int, int>
+   *   The participant IDs, keyed by ID.
+   */
+  private function participantIds(FieldableEntityInterface $entity, string $fieldName): array {
+    $ids = [];
+    foreach ($entity->get($fieldName) as $item) {
+      $id = $item->get('target_id')->getString();
+      if ($id !== '' && ctype_digit($id) && (int) $id > 0) {
+        $ids[(int) $id] = (int) $id;
+      }
+    }
+    return $ids;
+  }
+
+  /**
+   * Writes the participants into the user input of the widget.
+   *
+   * The tags widget renders one text input for all values and expects the
+   * comma separated "Name (ID)" format instead of one element per delta.
+   *
+   * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+   *   The entity that holds the participants.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param string $fieldName
+   *   The participant field name.
+   */
+  private function setFormInput(FieldableEntityInterface $entity, FormStateInterface $form_state, string $fieldName): void {
+    $input = $form_state->getUserInput();
+
+    if ($this->widgetHandlesMultipleValues($form_state, $fieldName)) {
+      $tags = [];
+      foreach ($entity->get($fieldName) as $item) {
+        $user = $item->get('entity')->getValue();
+        if (!$user instanceof UserInterface) {
+          continue;
+        }
+        $tags[] = $user->getDisplayName() . ' (' . $user->id() . ')';
+      }
+
+      $fieldInput = $input[$fieldName] ?? [];
+      if (!is_array($fieldInput)) {
+        $fieldInput = [];
+      }
+      $fieldInput[self::FORM_ELEMENT_PROPERTY] = implode(', ', $tags);
+      $input[$fieldName] = $fieldInput;
+    }
+    else {
+      $input[$fieldName] = $entity->get($fieldName)->getValue();
+    }
+
     $form_state->setUserInput($input);
+  }
+
+  /**
+   * Bumps the rebuilt widget's item count for multi-value autocomplete fields.
+   *
+   * Multi-value widgets render one sub-element per delta based on the field
+   * state. Without this, a rebuilt widget keeps the delta slots it had before
+   * the recognition and the new participants would not be editable.
+   *
+   * @param array<mixed> $form
+   *   The form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param string $fieldName
+   *   The participant field name.
+   * @param int $count
+   *   The number of participants.
+   */
+  private function updateItemsCount(array $form, FormStateInterface $form_state, string $fieldName, int $count): void {
+    if ($this->widgetHandlesMultipleValues($form_state, $fieldName)) {
+      return;
+    }
+
+    $field = $form[$fieldName] ?? NULL;
+    $widget = is_array($field) ? ($field['widget'] ?? NULL) : NULL;
+    $parents = is_array($widget) ? ($widget['#field_parents'] ?? []) : [];
+    if (!is_array($parents)) {
+      return;
+    }
+
+    $fieldState = WidgetBase::getWidgetState($parents, $fieldName, $form_state);
+    $required = max(0, $count - 1);
+    if ($required > ($fieldState['items_count'] ?? 0)) {
+      $fieldState['items_count'] = $required;
+      WidgetBase::setWidgetState($parents, $fieldName, $form_state, $fieldState);
+    }
+  }
+
+  /**
+   * Returns whether the widget renders all values as one element.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state carrying the form display.
+   * @param string $fieldName
+   *   The participant field name.
+   *
+   * @return bool
+   *   TRUE when the widget declares multiple_values.
+   */
+  private function widgetHandlesMultipleValues(FormStateInterface $form_state, string $fieldName): bool {
+    $formDisplay = NestedArray::getValue($form_state->getStorage(), ['form_display']);
+    if (!$formDisplay instanceof EntityFormDisplayInterface) {
+      return FALSE;
+    }
+    $widget = $formDisplay->getRenderer($fieldName);
+    if ($widget === NULL) {
+      return FALSE;
+    }
+    $definition = $widget->getPluginDefinition();
+    return is_array($definition) && !empty($definition['multiple_values']);
   }
 
 }

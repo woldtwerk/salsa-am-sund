@@ -49,8 +49,8 @@ final class LessonHooks {
    * Implements hook_ENTITY_TYPE_predelete() for node entities.
    *
    * Lessons without any recorded attendance data are deleted with their
-   * course. Lessons with figures, participants, a photo or a cancellation are
-   * kept, so their history survives the course.
+   * course. Lessons with figures, participants or a cancellation are kept, so
+   * their history survives the course.
    *
    * @param \Drupal\node\NodeInterface $node
    *   The node being deleted.
@@ -91,10 +91,10 @@ final class LessonHooks {
    *   The lesson.
    *
    * @return bool
-   *   TRUE when the lesson has figures, participants, a photo or is cancelled.
+   *   TRUE when the lesson has figures, participants or is cancelled.
    */
   private function hasRecordedData(NodeInterface $lesson): bool {
-    foreach (['field_dance_figures', 'field_participants', 'field_attendance_photo'] as $field_name) {
+    foreach (['field_dance_figures', 'field_participants'] as $field_name) {
       if ($lesson->hasField($field_name) && !$lesson->get($field_name)->isEmpty()) {
         return TRUE;
       }
