@@ -407,6 +407,9 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     $anonymous = new AnonymousUserSession();
     $this->container->get('current_user')->setAccount($anonymous);
     self::assertFalse($lesson->access('view', $anonymous));
+    // Scheduler publishes lessons only after they are over, but the calendar
+    // must show them before that.
+    $lesson->setUnpublished()->save();
     $occurrences = $this->repository->findOccurrences(
       EventFilter::coursesOnly([$this->courseId]),
       $this->date('2026-10-01'),
