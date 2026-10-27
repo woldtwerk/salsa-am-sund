@@ -23,6 +23,7 @@ dependencies:
     - tagify
     - tagify_user_list
     - text
+    - workspace_events
 id: node.course.default
 targetEntityType: node
 bundle: course
@@ -69,14 +70,10 @@ content:
     settings: {  }
     third_party_settings: {  }
   field_lessons:
-    type: entity_reference_autocomplete
+    type: workspace_events_lesson_table
     weight: -12
     region: content
-    settings:
-      match_operator: CONTAINS
-      match_limit: 10
-      size: 60
-      placeholder: ''
+    settings: {  }
     third_party_settings: {  }
   field_link:
     type: link_default

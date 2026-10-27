@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events\Hook;
 
-use Drupal\Core\Entity\EntityFormInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Hook\Attribute\Hook;
-use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\LessonGenerator;
 
@@ -16,8 +13,6 @@ use Drupal\workspace_events\LessonGenerator;
  * Keeps the lessons of a course in sync with the course itself.
  */
 final class LessonHooks {
-
-  use StringTranslationTrait;
 
   /**
    * Constructs the lesson hooks.
@@ -87,48 +82,6 @@ final class LessonHooks {
       }
       $lesson->delete();
     }
-  }
-
-  /**
-   * Implements hook_form_alter().
-   *
-   * Explains how to change the dates of a course that already has lessons,
-   * because the generator does not update existing lessons.
-   *
-   * @param array<string, mixed> $form
-   *   The form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The form state.
-   * @param string $form_id
-   *   The form ID.
-   *
-   * @param-out array<mixed> $form
-   */
-  #[Hook('form_alter')]
-  public function formAlter(array &$form, FormStateInterface $form_state, string $form_id): void {
-    if ($form_id !== 'node_course_form' || !isset($form['field_lessons']) || !is_array($form['field_lessons'])) {
-      return;
-    }
-
-    $form_object = $form_state->getFormObject();
-    if (!$form_object instanceof EntityFormInterface) {
-      return;
-    }
-    $course = $form_object->getEntity();
-    if (!$course instanceof NodeInterface || $course->bundle() !== LessonGenerator::COURSE_BUNDLE) {
-      return;
-    }
-    if ($course->get('field_lessons')->isEmpty()) {
-      return;
-    }
-
-    $weight = $form['field_lessons']['#weight'] ?? 0;
-    $form['workspace_events_lesson_hint'] = [
-      '#markup' => $this->t('Termine ändern: Stunden löschen, dann Kurs speichern.'),
-      '#prefix' => '<div class="messages messages--warning">',
-      '#suffix' => '</div>',
-      '#weight' => (is_numeric($weight) ? (int) $weight : 0) - 1,
-    ];
   }
 
   /**
