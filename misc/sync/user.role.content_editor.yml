@@ -104,6 +104,7 @@ permissions:
   - 'revert all revisions'
   - 'schedule publishing of nodes'
   - 'skip comment approval'
+  - 'use attendance recognition'
   - 'use basic_editorial transition create_new_draft'
   - 'use basic_editorial transition publish'
   - 'use basic_editorial transition unpublish'

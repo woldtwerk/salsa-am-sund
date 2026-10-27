@@ -1,0 +1,13 @@
+uuid: 897a899c-4d3a-4802-8391-c1c65cdd1dcf
+langcode: de
+status: true
+dependencies:
+  module:
+    - ai_automators
+_core:
+  default_config_hash: DSUXQfVj4VHOn5plFVKXFEg7swL6A4t5InvpY2zN3Nw
+id: automator_chain_delete_action
+label: 'Delete automator chains'
+type: automator_chain
+plugin: 'entity:delete_action:automator_chain'
+configuration: {  }

@@ -12,9 +12,9 @@
 - keep the toolbar and the Navigation sidebar for an admin masquerading as an
   account without `access toolbar` / `access navigation`
 - drop the status message masquerade shows after a switch
-- move _Taxonomy_, _Menus_ (both from _Structure_) and _URL aliases_ (from
-  _Configuration_) to the Content section of the Navigation sidebar, after
-  _Media_
+- move _Taxonomy_, _Menus_ (both from _Structure_), _URL aliases_ (from
+  _Configuration_) and _Unterrichtsstunden_ (from _Content_) to the Content
+  section of the Navigation sidebar, after _Media_
 - keep Layout Builder in gin's palette, so its canvas, drop zones and remove
   button are dark in dark mode instead of white
 
@@ -105,17 +105,17 @@ and `masquerade.unmasquerade`. Only the status type goes — the same controller
 reports a refused switch as an error. Nothing else runs on those two routes,
 so there is no other status message to take with it.
 
-## Taxonomy, URL aliases and menus under Content
+## Taxonomy, URL aliases, menus and lessons under Content
 
 Core's Navigation module renders the Content section from the `content` menu,
 not from the Content subtree of the admin menu: its admin block starts at
 level 2, and `NavigationHooks` removes `system.admin_content` entirely. The
 links in Structure and Configuration therefore live in the wrong menu.
 
-`hook_menu_links_discovered_alter()` moves the three existing definitions out
-of the `admin` menu and into `content`, dropping their old parent and giving
-them a weight after _Media_ (0) and before the trash (1000). Titles,
-descriptions, paths and access checks stay core's; Navigation's menu tree
+`hook_menu_links_discovered_alter()` moves the existing definitions out of the
+`admin` menu and into `content`, dropping their old parent and giving them a
+weight after _Media_ (0) and before the trash (1000). Titles, descriptions,
+paths and access checks stay their providers'; Navigation's menu tree
 still runs the route access check, so a link appears only for a user who may
 reach the page. To move another link, add it to `AdminUiHooks::contentLinks()`
 with an icon id.

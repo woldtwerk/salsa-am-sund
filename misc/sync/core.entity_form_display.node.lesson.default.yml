@@ -11,9 +11,11 @@ dependencies:
     - node.type.lesson
   module:
     - datetime_range
+    - field_widget_actions
     - image
     - taxonomy
     - user
+    - workspace_events
 id: node.lesson.default
 targetEntityType: node
 bundle: lesson
@@ -59,7 +61,16 @@ content:
       match_limit: 10
       size: 60
       placeholder: ''
-    third_party_settings: {  }
+    third_party_settings:
+      field_widget_actions:
+        5b2a6c1e-8f4d-4d2b-9a7e-3c1f0d9e8b6a:
+          enabled: '1'
+          button_label: 'Teilnehmer aus Foto erkennen'
+          weight: '0'
+          multiple: false
+          settings:
+            automator_id: node.lesson.field_participants.default
+          plugin_id: attendance_from_photo_participants
 hidden:
   created: true
   langcode: true

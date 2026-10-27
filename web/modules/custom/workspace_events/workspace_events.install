@@ -13,12 +13,16 @@ use Drupal\node\NodeAccessRebuild;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
+use Drupal\views\ViewsData;
 use Drupal\workflows\Entity\Workflow;
+use Drupal\workspace_events\AttendanceRecognition;
+use Drupal\workspace_events\AttendanceRecognitionInstaller;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\LessonInstaller;
+use Drupal\workspace_events\MemberOverviewInstaller;
 use Drupal\workspace_events\OrganizerResolver;
 use Drupal\workspace_events\ScheduleMigrator;
 
@@ -137,11 +141,35 @@ function workspace_events_update_10006(): void {
 /**
  * Implements hook_update_N().
  *
- * Adds the "like" flag for dance figures and grants the flag permissions to the
- * member role.
+ * Installs the AI attendance recognition, points the Mistral provider at the
+ * environment backed key, adds the participant automator action to the lesson
+ * form and grants the new permission to the content editor role.
+ */
+function workspace_events_update_10008(): void {
+  \Drupal::service('module_installer')->install([
+    'key',
+    'ai',
+    'ai_automators',
+    'field_widget_actions',
+    'ai_provider_mistral',
+  ]);
+
+  $installer = \Drupal::service(AttendanceRecognitionInstaller::class);
+  \assert($installer instanceof AttendanceRecognitionInstaller);
+  $installer->install();
+
+  workspace_events_grant_editor_permissions();
+}
+
+/**
+ * Implements hook_update_N().
  *
- * The member views for the liked dance figures are added to this update hook
- * later, so a site updates the flag and the views in one run.
+ * Adds the "like" flag for dance figures, grants the flag permissions to the
+ * member role and adds the member overview pages for the dance figures and
+ * the courses.
+ *
+ * The member views are added in this update hook together with the flag,
+ * because the dance figure view needs both dance figure flags.
  */
 function workspace_events_update_10009(): void {
   $installer = \Drupal::service(DanceFigureInstaller::class);
@@ -149,6 +177,17 @@ function workspace_events_update_10009(): void {
   $installer->install([DanceFigureFlag::Like->configName()]);
 
   workspace_events_grant_flag_permissions(DanceFigureFlag::Like);
+
+  $member_overview_installer = \Drupal::service(MemberOverviewInstaller::class);
+  \assert($member_overview_installer instanceof MemberOverviewInstaller);
+  $member_overview_installer->install();
+
+  // The new view handlers use the lesson and taxonomy term field tables, so
+  // the views data cache must be rebuilt.
+  $views_data = \Drupal::service('views.views_data');
+  if ($views_data instanceof ViewsData) {
+    $views_data->clear();
+  }
 }
 
 /**
@@ -370,6 +409,7 @@ function workspace_events_editor_permissions(): array {
     'edit any lesson content',
     'delete any lesson content',
     DanceFigureAccessHooks::VIEW_PERMISSION,
+    AttendanceRecognition::PERMISSION,
   ];
 }
 

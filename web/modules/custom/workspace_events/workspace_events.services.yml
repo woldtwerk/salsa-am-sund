@@ -23,8 +23,15 @@ services:
       - '@Drupal\workspace_events\ConfigRecordLoader'
   Drupal\workspace_events\DanceFigureInstaller:
     autowire: true
+  Drupal\workspace_events\AttendanceRecognitionInstaller:
+    autowire: true
+  Drupal\workspace_events\MemberOverviewInstaller:
+    autowire: true
   Drupal\workspace_events\EventSubscriber\HtmxFlagResponseSubscriber:
     autowire: true
+    tags:
+      - { name: event_subscriber }
+  Drupal\workspace_events\EventSubscriber\MyCoursesRouteSubscriber:
     tags:
       - { name: event_subscriber }
   Drupal\workspace_events\StructuredDataBuilder:
