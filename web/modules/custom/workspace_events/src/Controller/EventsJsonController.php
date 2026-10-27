@@ -103,10 +103,12 @@ final class EventsJsonController implements ContainerInjectionInterface {
     $cacheability->addCacheTags([
       'node_list:event',
       'node_list:course',
+      'node_list:lesson',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
     foreach ($occurrences as $occurrence) {
+      $cacheability->addCacheableDependency($occurrence->sourceNode());
       $cacheability->addCacheableDependency($occurrence->node);
       if ($occurrence->organizer !== NULL) {
         $cacheability->addCacheableDependency($occurrence->organizer);
@@ -127,25 +129,30 @@ final class EventsJsonController implements ContainerInjectionInterface {
    * @param \DateTimeZone $timezone
    *   The timezone used for date output.
    *
-   * @return array{id: string, title: string, start: string, end: string|null, allDay: bool, url: string, classNames: string[], extendedProps: array{location: string|null, organizer: string|null, course: bool}}
+   * @return array{id: string, title: string, start: string, end: string|null, allDay: bool, url: string, classNames: string[], extendedProps: array{location: string|null, organizer: string|null, course: bool, cancelled: bool}}
    *   The event as FullCalendar expects it.
    */
   private function buildEvent(EventOccurrence $occurrence, \DateTimeZone $timezone): array {
     $start = $occurrence->start->setTimezone($timezone);
     $end = $occurrence->end?->setTimezone($timezone);
+    $class_names = [$occurrence->isCourse() ? 'is-course' : 'is-event'];
+    if ($occurrence->isCancelled()) {
+      $class_names[] = 'is-cancelled';
+    }
 
     return [
-      'id' => $occurrence->node->id() . '-' . $occurrence->delta . '-' . $occurrence->start->getTimestamp(),
+      'id' => $occurrence->sourceNode()->id() . '-' . $occurrence->start->getTimestamp(),
       'title' => (string) $occurrence->node->label(),
       'start' => $occurrence->allDay ? $start->format('Y-m-d') : $start->format(\DateTimeInterface::ATOM),
       'end' => $this->formatEnd($end, $occurrence->allDay),
       'allDay' => $occurrence->allDay,
       'url' => $this->getUrl($occurrence->node),
-      'classNames' => [$occurrence->isCourse() ? 'is-course' : 'is-event'],
+      'classNames' => $class_names,
       'extendedProps' => [
         'location' => $occurrence->location === NULL ? NULL : (string) $occurrence->location->label(),
         'organizer' => $occurrence->organizer === NULL ? NULL : (string) $occurrence->organizer->label(),
         'course' => $occurrence->isCourse(),
+        'cancelled' => $occurrence->isCancelled(),
       ],
     ];
   }

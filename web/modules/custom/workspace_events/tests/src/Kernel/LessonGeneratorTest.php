@@ -222,10 +222,7 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   private function createCourseSchedule(\DateTimeImmutable $first, \DateTimeImmutable $last, int $interval = 1): NodeInterface {
     return $this->createCourse([
       'title' => 'Salsa Kurs',
-      'field_course_first' => [
-        'value' => $first->format('Y-m-d\TH:i:s'),
-        'end_value' => $first->modify('+1 hour')->format('Y-m-d\TH:i:s'),
-      ],
+      'field_course_first' => $this->dateRange($first, $first->modify('+1 hour')),
       'field_course_last' => ['value' => $last->format('Y-m-d')],
       'field_course_interval' => ['value' => $interval],
     ]);
@@ -281,7 +278,10 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   private function lessonStart(NodeInterface $lesson): \DateTimeImmutable {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
-    return new \DateTimeImmutable($item->get('value')->getString(), new \DateTimeZone(self::TIMEZONE));
+    return (new \DateTimeImmutable(
+      $item->get('value')->getString(),
+      new \DateTimeZone('UTC'),
+    ))->setTimezone(new \DateTimeZone(self::TIMEZONE));
   }
 
   /**
@@ -296,7 +296,10 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   private function lessonEnd(NodeInterface $lesson): int {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
-    return (new \DateTimeImmutable($item->get('end_value')->getString(), new \DateTimeZone(self::TIMEZONE)))->getTimestamp();
+    return (new \DateTimeImmutable(
+      $item->get('end_value')->getString(),
+      new \DateTimeZone('UTC'),
+    ))->getTimestamp();
   }
 
 }

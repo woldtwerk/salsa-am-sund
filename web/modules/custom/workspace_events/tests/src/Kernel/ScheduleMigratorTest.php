@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Kernel;
 
+use Drupal\field\Entity\FieldConfig;
+use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\NodeInterface;
+use Drupal\smart_date_recur\Entity\SmartDateRule;
 use Drupal\workspace_events\ScheduleMigrator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -16,7 +19,16 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 #[CoversClass(ScheduleMigrator::class)]
 #[Group('workspace_events')]
 #[RunTestsInSeparateProcesses]
-final class ScheduleMigratorTest extends LessonKernelTestBase {
+final class ScheduleMigratorTest extends EventKernelTestBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  protected static $modules = [
+    ...EventKernelTestBase::MODULES,
+    'smart_date',
+    'smart_date_recur',
+  ];
 
   /**
    * The migrator.
@@ -29,6 +41,8 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   protected function setUp(): void {
     parent::setUp();
     $this->installLessonConfig();
+
+    $this->createLegacyScheduleField();
 
     $migrator = $this->container->get(ScheduleMigrator::class);
     \assert($migrator instanceof ScheduleMigrator);
@@ -57,8 +71,9 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
 
     $first = $course->get('field_course_first')->first();
     self::assertNotNull($first);
-    self::assertSame($start->format('Y-m-d\TH:i:s'), $first->get('value')->getString());
-    self::assertSame($end->format('Y-m-d\TH:i:s'), $first->get('end_value')->getString());
+    $utc = new \DateTimeZone('UTC');
+    self::assertSame($start->setTimezone($utc)->format('Y-m-d\TH:i:s'), $first->get('value')->getString());
+    self::assertSame($end->setTimezone($utc)->format('Y-m-d\TH:i:s'), $first->get('end_value')->getString());
     self::assertSame($start->modify('+6 weeks')->format('Y-m-d'), $course->get('field_course_last')->getString());
     self::assertSame('2', $course->get('field_course_interval')->getString());
 
@@ -74,7 +89,10 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
       static function (NodeInterface $lesson): string {
         $item = $lesson->get('field_lesson_date')->first();
         self::assertNotNull($item);
-        return substr($item->get('value')->getString(), 0, 10);
+        return (new \DateTimeImmutable(
+          $item->get('value')->getString(),
+          new \DateTimeZone('UTC'),
+        ))->setTimezone(new \DateTimeZone(self::TIMEZONE))->format('Y-m-d');
       },
       $lessons,
     ));
@@ -106,7 +124,6 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
     self::assertNotNull($expected);
     self::assertSame($expected['value'], $this->fieldTimestamp($event, 'field_event_date'));
     self::assertSame($expected['end_value'], $this->fieldEndTimestamp($event, 'field_event_date'));
-    self::assertFalse($event->get('field_when')->isEmpty());
   }
 
   /**
@@ -133,6 +150,93 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
     $expected = $deltas[count($deltas) - 1];
     self::assertSame($expected['value'], $this->fieldTimestamp($event, 'field_event_date'));
     self::assertSame($expected['end_value'], $this->fieldEndTimestamp($event, 'field_event_date'));
+  }
+
+  /**
+   * Tests that the migrator does nothing without the legacy field.
+   */
+  public function testDoesNothingWithoutLegacyField(): void {
+    FieldConfig::load('node.course.field_when')?->delete();
+    FieldConfig::load('node.event.field_when')?->delete();
+    FieldStorageConfig::loadByName('node', 'field_when')?->delete();
+
+    self::assertSame('', $this->migrator->migrate());
+  }
+
+  /**
+   * Creates the legacy Smart Date field on courses and events.
+   */
+  private function createLegacyScheduleField(): void {
+    FieldStorageConfig::create([
+      'field_name' => 'field_when',
+      'entity_type' => 'node',
+      'type' => 'smartdate',
+      'cardinality' => FieldStorageConfig::CARDINALITY_UNLIMITED,
+    ])->save();
+    foreach (['event' => 'Datum & Uhrzeit', 'course' => 'Wann'] as $bundle => $label) {
+      $when = FieldConfig::create([
+        'field_name' => 'field_when',
+        'entity_type' => 'node',
+        'bundle' => $bundle,
+        'label' => $label,
+        'required' => TRUE,
+        'field_storage' => FieldStorageConfig::loadByName('node', 'field_when'),
+      ]);
+      $when->setThirdPartySetting('smart_date_recur', 'allow_recurring', TRUE);
+      $when->setThirdPartySetting('smart_date_recur', 'month_limit', 12);
+      $when->save();
+    }
+  }
+
+  /**
+   * Creates a recurrence rule and returns its materialized date deltas.
+   *
+   * @param \DateTimeImmutable $start
+   *   The first occurrence start.
+   * @param \DateTimeImmutable $end
+   *   The first occurrence end.
+   * @param string $frequency
+   *   The recurrence frequency.
+   * @param string $parameters
+   *   The recurrence parameters.
+   * @param string $limit
+   *   The recurrence limit, for example COUNT=4. Empty for unlimited.
+   * @param string $bundle
+   *   The node bundle the rule belongs to.
+   *
+   * @return array<int, array<string, mixed>>
+   *   The date deltas.
+   */
+  private function recurringDeltas(\DateTimeImmutable $start, \DateTimeImmutable $end, string $frequency, string $parameters, string $limit = '', string $bundle = 'event'): array {
+    $rule = SmartDateRule::create([
+      'freq' => $frequency,
+      'limit' => $limit,
+      'unlimited' => $limit === '',
+      'entity_type' => 'node',
+      'bundle' => $bundle,
+      'field_name' => 'field_when',
+      'start' => $start->getTimestamp(),
+      'end' => $end->getTimestamp(),
+      'parameters' => $parameters,
+    ]);
+    $rule->setTimezone(self::TIMEZONE);
+    $instances = $rule->getRuleInstances(strtotime('+12 months'));
+    self::assertIsArray($instances);
+    $rule->set('instances', ['data' => $instances]);
+    $rule->save();
+
+    $deltas = [];
+    foreach ($rule->getStoredInstances() as $index => $instance) {
+      $deltas[] = [
+        'value' => $instance['value'],
+        'end_value' => $instance['end_value'],
+        'duration' => (int) (($instance['end_value'] - $instance['value']) / 60),
+        'timezone' => self::TIMEZONE,
+        'rrule' => $rule->id(),
+        'rrule_index' => $index,
+      ];
+    }
+    return $deltas;
   }
 
   /**
@@ -168,7 +272,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   private function fieldTimestamp(NodeInterface $node, string $field_name): int {
     $item = $node->get($field_name)->first();
     self::assertNotNull($item);
-    return (new \DateTimeImmutable($item->get('value')->getString(), new \DateTimeZone(self::TIMEZONE)))->getTimestamp();
+    return (new \DateTimeImmutable($item->get('value')->getString(), new \DateTimeZone('UTC')))->getTimestamp();
   }
 
   /**
@@ -185,7 +289,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   private function fieldEndTimestamp(NodeInterface $node, string $field_name): int {
     $item = $node->get($field_name)->first();
     self::assertNotNull($item);
-    return (new \DateTimeImmutable($item->get('end_value')->getString(), new \DateTimeZone(self::TIMEZONE)))->getTimestamp();
+    return (new \DateTimeImmutable($item->get('end_value')->getString(), new \DateTimeZone('UTC')))->getTimestamp();
   }
 
   /**
@@ -198,13 +302,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
    *   The lessons, in the stored order.
    */
   private function loadReferencedLessons(NodeInterface $course): array {
-    $lessons = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $lesson = $this->nodeStorage->load((int) $item->get('target_id')->getString());
-      self::assertInstanceOf(NodeInterface::class, $lesson);
-      $lessons[] = $lesson;
-    }
-    return $lessons;
+    return $this->loadCourseLessons($course);
   }
 
 }

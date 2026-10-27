@@ -170,9 +170,7 @@ final class DetailPagePreprocessHooks {
    */
   private function prepareCourse(array &$variables, NodeInterface $node, array $occurrences): void {
     $variables['course_level'] = $this->detailFieldResolver->getDifficultyLabel($node);
-    $variables['course_schedule'] = isset($occurrences[0])
-      ? $this->formatSchedule($occurrences[0])
-      : '';
+    $variables['course_schedule'] = $this->buildCourseSchedule($node, $occurrences);
     $variables['course_next_dates'] = $this->buildNextDates($occurrences);
     $variables['course_location'] = $this->buildLocation($node);
     $variables['course_link'] = $this->buildLink($node);
@@ -266,6 +264,14 @@ final class DetailPagePreprocessHooks {
     // The subscription URLs are absolute, so they depend on the site host. The
     // JSON-LD is only attached on the node's canonical route.
     $cacheability->addCacheContexts(['url.site', 'route']);
+    foreach ($occurrences as $occurrence) {
+      $cacheability->addCacheableDependency($occurrence->sourceNode());
+      $cacheability->addCacheableDependency($occurrence->node);
+    }
+    if ($node->bundle() === 'course') {
+      // A new lesson changes the next dates of its course.
+      $cacheability->addCacheTags(['node_list:lesson']);
+    }
     $location = $this->detailFieldResolver->getLocationTerm($node);
     if ($location !== NULL) {
       $cacheability->addCacheableDependency($location);
@@ -340,7 +346,7 @@ final class DetailPagePreprocessHooks {
    * @param \Drupal\workspace_events\EventOccurrence[] $occurrences
    *   The upcoming occurrences.
    *
-   * @return array<int, array{date: string, date_iso: string, weekday: string, time: string, ical_url: string}>
+   * @return array<int, array{date: string, date_iso: string, weekday: string, time: string, ical_url: string, cancelled: bool}>
    *   The date rows.
    */
   private function buildNextDates(array $occurrences): array {
@@ -352,9 +358,88 @@ final class DetailPagePreprocessHooks {
         'weekday' => $this->formatWeekday($occurrence),
         'time' => $this->formatTime($occurrence) ?? '',
         'ical_url' => $occurrence->toIcalUrl()->toString(),
+        'cancelled' => $occurrence->isCancelled(),
       ];
     }
     return $dates;
+  }
+
+  /**
+   * Formats the schedule line of a course.
+   *
+   * The rhythm comes from the course field and is only mentioned when the
+   * lessons do not take place every week. The weekday and time come from the
+   * next lesson, so the line stays correct when the first lesson is in the
+   * past.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course node.
+   * @param \Drupal\workspace_events\EventOccurrence[] $occurrences
+   *   The upcoming occurrences.
+   *
+   * @return string
+   *   The schedule, or an empty string without upcoming dates.
+   */
+  private function buildCourseSchedule(NodeInterface $course, array $occurrences): string {
+    if (!isset($occurrences[0])) {
+      return '';
+    }
+
+    $parts = [];
+    $interval = $this->getCourseInterval($course);
+    if ($interval !== NULL && $interval !== 1) {
+      $label = $this->getCourseIntervalLabel($course, $interval);
+      if ($label !== '') {
+        $parts[] = $label;
+      }
+    }
+    $schedule = $this->formatSchedule($occurrences[0]);
+    if ($schedule !== '') {
+      $parts[] = $schedule;
+    }
+
+    return implode(' · ', $parts);
+  }
+
+  /**
+   * Returns the interval of a course in weeks.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course node.
+   *
+   * @return int|null
+   *   The interval, or NULL when the course has no interval.
+   */
+  private function getCourseInterval(NodeInterface $course): ?int {
+    if (!$course->hasField('field_course_interval') || $course->get('field_course_interval')->isEmpty()) {
+      return NULL;
+    }
+    $value = $course->get('field_course_interval')->getString();
+    return is_numeric($value) ? (int) $value : NULL;
+  }
+
+  /**
+   * Returns the configured label of a course interval.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course node.
+   * @param int $interval
+   *   The interval value.
+   *
+   * @return string
+   *   The label, or an empty string when the field has no label for the value.
+   */
+  private function getCourseIntervalLabel(NodeInterface $course, int $interval): string {
+    if (!$course->hasField('field_course_interval')) {
+      return '';
+    }
+    $definition = $course->get('field_course_interval')->getFieldDefinition();
+    $allowed = $definition->getFieldStorageDefinition()->getSetting('allowed_values');
+    if (!is_array($allowed) || !isset($allowed[$interval])) {
+      return '';
+    }
+    $label = $allowed[$interval];
+    return is_scalar($label) ? (string) $label : '';
   }
 
   /**

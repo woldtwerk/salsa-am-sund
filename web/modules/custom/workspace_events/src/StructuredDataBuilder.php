@@ -82,7 +82,7 @@ final class StructuredDataBuilder {
     foreach ($occurrences as $occurrence) {
       $event = [
         '@type' => 'Event',
-        '@id' => $url . '#event-' . $occurrence->delta,
+        '@id' => $url . '#event-' . $occurrence->sourceNode()->id(),
         'name' => (string) $node->label(),
         'url' => $url,
         'startDate' => $this->formatStart($occurrence),

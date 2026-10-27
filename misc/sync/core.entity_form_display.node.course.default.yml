@@ -11,7 +11,6 @@ dependencies:
     - field.field.node.course.field_lessons
     - field.field.node.course.field_link
     - field.field.node.course.field_location
-    - field.field.node.course.field_when
     - node.type.course
     - workflows.workflow.basic_editorial
   module:
@@ -21,8 +20,6 @@ dependencies:
     - link
     - options
     - path
-    - smart_date
-    - smart_date_recur
     - tagify
     - tagify_user_list
     - text
@@ -100,35 +97,6 @@ content:
       show_entity_id: 0
       parent_selection: 1
     third_party_settings: {  }
-  field_when:
-    type: smartdate_default
-    weight: -18
-    region: content
-    settings:
-      modal: false
-      default_duration: 60
-      default_duration_increments: |-
-        30
-        60|1 hour
-        90
-        120|2 hours
-        custom
-      show_extra: false
-      hide_date: false
-      allday: true
-      remove_seconds: false
-      duration_overlay: true
-    third_party_settings:
-      smart_date_recur:
-        modal: false
-        show_single: false
-        allowed_recur_freq_values:
-          MINUTELY: '0'
-          HOURLY: '0'
-          DAILY: DAILY
-          WEEKLY: WEEKLY
-          MONTHLY: MONTHLY
-          YEARLY: YEARLY
   langcode:
     type: language_select
     weight: 2

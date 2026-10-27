@@ -6,6 +6,7 @@ namespace Drupal\workspace_events;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 
 /**
@@ -148,8 +149,8 @@ final class LessonGenerator {
     }
 
     $timezone = $this->siteTimeZone->get();
-    $start = new \DateTimeImmutable($start_value, $timezone);
-    $end = $end_value === '' ? $start : new \DateTimeImmutable($end_value, $timezone);
+    $start = $this->fromStorageValue($start_value, $timezone);
+    $end = $end_value === '' ? $start : $this->fromStorageValue($end_value, $timezone);
     $last_day = \DateTimeImmutable::createFromFormat('!Y-m-d', $last_value, $timezone);
     if ($last_day === FALSE) {
       return NULL;
@@ -214,8 +215,8 @@ final class LessonGenerator {
         'langcode' => $course->language()->getId(),
         'status' => $published ? NodeInterface::PUBLISHED : NodeInterface::NOT_PUBLISHED,
         'field_lesson_date' => [
-          'value' => $start->format('Y-m-d\TH:i:s'),
-          'end_value' => $end->format('Y-m-d\TH:i:s'),
+          'value' => $this->toStorageValue($start),
+          'end_value' => $this->toStorageValue($end),
         ],
         'field_cancelled' => FALSE,
       ]);
@@ -246,6 +247,41 @@ final class LessonGenerator {
    */
   private function toFieldValues(array $ids): array {
     return array_values(array_map(static fn (int $id): array => ['target_id' => $id], $ids));
+  }
+
+  /**
+   * Converts a stored date to the site timezone.
+   *
+   * Date fields store their values in UTC.
+   *
+   * @param string $value
+   *   The stored value.
+   * @param \DateTimeZone $timezone
+   *   The site timezone.
+   *
+   * @return \DateTimeImmutable
+   *   The date in the site timezone.
+   */
+  private function fromStorageValue(string $value, \DateTimeZone $timezone): \DateTimeImmutable {
+    return (new \DateTimeImmutable($value, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE)))
+      ->setTimezone($timezone);
+  }
+
+  /**
+   * Converts a date in the site timezone to the storage format.
+   *
+   * Date fields store their values in UTC.
+   *
+   * @param \DateTimeImmutable $date
+   *   The date in the site timezone.
+   *
+   * @return string
+   *   The value in the storage timezone.
+   */
+  private function toStorageValue(\DateTimeImmutable $date): string {
+    return $date
+      ->setTimezone(new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE))
+      ->format(DateTimeItemInterface::DATETIME_STORAGE_FORMAT);
   }
 
 }

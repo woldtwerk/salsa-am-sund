@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Kernel;
 
+use Drupal\Core\Session\AnonymousUserSession;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventFilterFactory;
@@ -56,9 +57,9 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
   private int $allDayId;
 
   /**
-   * The event without a known end node ID.
+   * The external event node ID.
    */
-  private int $openEndId;
+  private int $externalId;
 
   /**
    * The unpublished event node ID.
@@ -70,6 +71,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    $this->installLessonConfig();
     $this->repository = $this->container->get(EventOccurrenceRepository::class);
     $filter_factory = $this->container->get(EventFilterFactory::class);
     \assert($filter_factory instanceof EventFilterFactory);
@@ -84,52 +86,48 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
       'title' => 'Anfänger',
       'field_location' => $this->locationA,
       'field_difficulty' => [0],
-      'field_when' => $this->recurringDeltas(
+      ...$this->courseSchedule(
         $this->date('2026-10-05', '18:15'),
-        $this->date('2026-10-05', '19:15'),
-        'WEEKLY',
-        'INTERVAL=1;BYDAY=MO',
-        '',
-        'course',
+        $this->date('2026-12-31'),
       ),
     ]);
     $this->courseId = (int) $course->id();
-
     $party = $this->createEvent([
       'title' => 'Tanzabend',
       'field_location' => $this->locationA,
-      'field_when' => [
-        $this->dateDelta($this->date('2026-10-26', '18:00'), $this->date('2026-10-26', '22:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('2026-10-26', '18:00'),
+        $this->date('2026-10-26', '22:00'),
+      ),
     ]);
     $this->partyId = (int) $party->id();
 
     $all_day = $this->createEvent([
       'title' => 'Salsa-Party',
       'field_location' => $this->locationB,
-      'field_when' => [
-        $this->allDayDelta($this->date('2026-11-20')),
-      ],
+      'field_event_date' => $this->allDayRange($this->date('2026-11-20')),
     ]);
     $this->allDayId = (int) $all_day->id();
 
-    $open_end = $this->createEvent([
+    $external = $this->createEvent([
       'title' => 'Salsa im ballhaus goldfisch',
       'field_organizer' => $this->externalOrganizer,
       'field_location' => $this->locationB,
-      'field_when' => [
-        $this->dateDelta($this->date('2026-10-09', '20:00'), NULL),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('2026-10-09', '20:00'),
+        $this->date('2026-10-09', '22:00'),
+      ),
     ]);
-    $this->openEndId = (int) $open_end->id();
+    $this->externalId = (int) $external->id();
 
     $unpublished = $this->createEvent([
       'title' => 'Entwurf',
       'status' => NodeInterface::NOT_PUBLISHED,
       'field_location' => $this->locationA,
-      'field_when' => [
-        $this->dateDelta($this->date('2026-10-10', '20:00'), $this->date('2026-10-10', '22:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('2026-10-10', '20:00'),
+        $this->date('2026-10-10', '22:00'),
+      ),
     ]);
     $this->unpublishedId = (int) $unpublished->id();
   }
@@ -154,7 +152,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     self::assertNotContains($this->unpublishedId, $node_ids);
     self::assertNotContains($this->allDayId, $node_ids);
 
-    // The recurring course yields four occurrences in October.
+    // The course yields four weekly occurrences in October.
     self::assertCount(4, array_filter($node_ids, fn (int $id): bool => $id === $this->courseId));
 
     // The 18:00 party is sorted before the 18:15 course on the same day.
@@ -165,13 +163,14 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     self::assertSame('Anfänger', (string) $last_day[1]->node->label());
     self::assertTrue($last_day[1]->isCourse());
     self::assertNull($last_day[1]->organizer);
+    self::assertNotNull($last_day[1]->lesson);
 
-    // An event without an end has no end value.
-    $open_end = array_values(array_filter($occurrences, fn ($occurrence): bool => (int) $occurrence->node->id() === $this->openEndId));
-    self::assertCount(1, $open_end);
-    self::assertNull($open_end[0]->end);
-    self::assertFalse($open_end[0]->allDay);
-    self::assertSame('Sonstige', $open_end[0]->organizer?->label());
+    // An event has no lesson.
+    $external = array_values(array_filter($occurrences, fn ($occurrence): bool => (int) $occurrence->node->id() === $this->externalId));
+    self::assertCount(1, $external);
+    self::assertNull($external[0]->lesson);
+    self::assertFalse($external[0]->allDay);
+    self::assertSame('Sonstige', $external[0]->organizer?->label());
   }
 
   /**
@@ -196,7 +195,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     self::assertSame([$this->externalOrganizer], $filter->organizerIds);
     $occurrences = $this->repository->findOccurrences($filter, $from, $to);
     self::assertCount(1, $occurrences);
-    self::assertSame($this->openEndId, (int) $occurrences[0]->node->id());
+    self::assertSame($this->externalId, (int) $occurrences[0]->node->id());
 
     $filter = $this->filterFactory->fromQuery(['type' => 'course']);
     self::assertFalse($filter->includeEvents);
@@ -228,7 +227,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     $occurrences = $this->repository->findOccurrences($filter, $from, $to);
     self::assertCount(2, $occurrences);
     self::assertSame(
-      [$this->openEndId, $this->partyId],
+      [$this->externalId, $this->partyId],
       array_map(static fn ($occurrence): int => (int) $occurrence->node->id(), $occurrences),
     );
 
@@ -302,7 +301,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
       $this->repository->findOccurrences($combined, $from, $to),
     );
     self::assertCount(5, $ids);
-    self::assertContains($this->openEndId, $ids);
+    self::assertContains($this->externalId, $ids);
     self::assertNotContains($this->partyId, $ids);
 
     $all = $this->repository->findOccurrences(new EventFilter(), $from, $to);
@@ -317,13 +316,9 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     $second = $this->createCourse([
       'title' => 'Fortgeschrittene',
       'field_location' => $this->locationA,
-      'field_when' => $this->recurringDeltas(
+      ...$this->courseSchedule(
         $this->date('2026-10-06', '19:30'),
-        $this->date('2026-10-06', '20:30'),
-        'WEEKLY',
-        'INTERVAL=1;BYDAY=TU',
-        '',
-        'course',
+        $this->date('2026-12-31'),
       ),
     ]);
     $second_id = (int) $second->id();
@@ -355,7 +350,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     self::assertCount(6, $occurrences);
     self::assertSame(4, count(array_filter($ids, static fn (int $id): bool => $id === $second_id)));
     self::assertContains($this->partyId, $ids);
-    self::assertContains($this->openEndId, $ids);
+    self::assertContains($this->externalId, $ids);
     self::assertNotContains($this->courseId, $ids);
 
     // An empty course list keeps the previous behaviour: every course.
@@ -382,7 +377,7 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
       $this->date('2026-10-31', '23:59'),
     );
     self::assertCount(1, $occurrences);
-    self::assertSame($this->openEndId, (int) $occurrences[0]->node->id());
+    self::assertSame($this->externalId, (int) $occurrences[0]->node->id());
   }
 
   /**
@@ -423,9 +418,10 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
     $node = $this->createEvent([
       'title' => 'Ohne Veranstalter',
       'field_organizer' => NULL,
-      'field_when' => [
-        $this->dateDelta($this->date('2026-10-15', '20:00'), $this->date('2026-11-15', '20:00')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('2026-10-15', '20:00'),
+        $this->date('2026-11-15', '20:00'),
+      ),
     ]);
     $id = (int) $node->id();
     $from = $this->date('2026-10-01');
@@ -444,6 +440,92 @@ final class EventOccurrenceRepositoryTest extends EventKernelTestBase {
       $to,
     );
     self::assertNotContains($id, array_map(static fn ($occurrence): int => (int) $occurrence->node->id(), $filtered));
+  }
+
+  /**
+   * Tests that a lesson of an unpublished course is not an occurrence.
+   */
+  public function testLessonOfUnpublishedCourseIsHidden(): void {
+    $course = $this->createCourse([
+      'title' => 'Entwurfskurs',
+      'status' => NodeInterface::NOT_PUBLISHED,
+      ...$this->courseSchedule(
+        $this->date('2026-10-01', '18:00'),
+        $this->date('2026-10-01', '19:00'),
+      ),
+    ]);
+
+    $occurrences = $this->repository->findOccurrences(
+      EventFilter::coursesOnly(),
+      $this->date('2026-10-01'),
+      $this->date('2026-10-31', '23:59'),
+    );
+    foreach ($occurrences as $occurrence) {
+      self::assertNotSame((int) $course->id(), (int) $occurrence->node->id());
+    }
+
+    // The earliest lesson belongs to the unpublished course, so the limit must
+    // not cut off the first lessons of the published course.
+    $limited = $this->repository->findOccurrences(
+      EventFilter::coursesOnly(),
+      $this->date('2026-10-01'),
+      $this->date('2026-10-31', '23:59'),
+      1,
+    );
+    self::assertCount(1, $limited);
+    self::assertSame('2026-10-05', $limited[0]->start->format('Y-m-d'));
+
+    $lesson_id = (int) $course->get('field_lessons')->first()?->get('target_id')->getString();
+    $lesson = $this->nodeStorage->load($lesson_id);
+    self::assertInstanceOf(NodeInterface::class, $lesson);
+    self::assertNull($this->repository->findOccurrence($lesson));
+  }
+
+  /**
+   * Tests that the lesson dates are public even though lessons are restricted.
+   */
+  public function testCourseDatesAreVisibleToAnonymous(): void {
+    $lesson_id = (int) $this->nodeStorage->load($this->courseId)?->get('field_lessons')->first()?->get('target_id')->getString();
+    $lesson = $this->nodeStorage->load($lesson_id);
+    self::assertInstanceOf(NodeInterface::class, $lesson);
+
+    $anonymous = new AnonymousUserSession();
+    $this->container->get('current_user')->setAccount($anonymous);
+    self::assertFalse($lesson->access('view', $anonymous));
+
+    $occurrences = $this->repository->findOccurrences(
+      EventFilter::coursesOnly([$this->courseId]),
+      $this->date('2026-10-01'),
+      $this->date('2026-10-31', '23:59'),
+    );
+    self::assertCount(4, $occurrences);
+    self::assertTrue($occurrences[0]->isCourse());
+  }
+
+  /**
+   * Tests that a cancelled lesson is still an occurrence and is flagged.
+   */
+  public function testCancelledLessonIsFlagged(): void {
+    $course = $this->createCourse([
+      'title' => 'Ausfall',
+      ...$this->courseSchedule(
+        $this->date('2026-10-08', '18:00'),
+        $this->date('2026-10-08', '19:00'),
+      ),
+    ]);
+    $lesson_id = (int) $course->get('field_lessons')->first()?->get('target_id')->getString();
+    $lesson = $this->nodeStorage->load($lesson_id);
+    self::assertInstanceOf(NodeInterface::class, $lesson);
+    $lesson->set('field_cancelled', TRUE);
+    $lesson->save();
+
+    $occurrences = $this->repository->findOccurrences(
+      EventFilter::coursesOnly([(int) $course->id()]),
+      $this->date('2026-10-01'),
+      $this->date('2026-10-31', '23:59'),
+    );
+    self::assertCount(1, $occurrences);
+    self::assertTrue($occurrences[0]->isCancelled());
   }
 
 }

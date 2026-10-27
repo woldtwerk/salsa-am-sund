@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Drupal\workspace_events;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldItemInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
 
@@ -42,12 +44,15 @@ final class ScheduleMigrator {
    *   The time service.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
    *   The logger factory.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entityFieldManager
+   *   The field manager, used to detect the legacy field.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly SiteTimeZone $siteTimeZone,
     private readonly TimeInterface $time,
     private readonly LoggerChannelFactoryInterface $loggerFactory,
+    private readonly EntityFieldManagerInterface $entityFieldManager,
   ) {}
 
   /**
@@ -58,6 +63,12 @@ final class ScheduleMigrator {
    *   when no event had more than one date.
    */
   public function migrate(): string {
+    // The migration only runs while the legacy field still exists. After the
+    // smart_date removal update it does nothing.
+    if (!array_key_exists(self::LEGACY_FIELD_NAME, $this->entityFieldManager->getFieldStorageDefinitions('node'))) {
+      return '';
+    }
+
     $this->migrateCourses();
     return $this->migrateEvents();
   }
@@ -145,8 +156,8 @@ final class ScheduleMigrator {
     $last_day = $this->toDate($last_timestamp, $timezone);
 
     $course->set('field_course_first', [
-      'value' => $start->format('Y-m-d\TH:i:s'),
-      'end_value' => $end->format('Y-m-d\TH:i:s'),
+      'value' => $this->toStorageValue($start),
+      'end_value' => $this->toStorageValue($end),
     ]);
     $course->set('field_course_last', ['value' => $last_day->format('Y-m-d')]);
     $course->set('field_course_interval', ['value' => $this->readInterval($rule_id)]);
@@ -217,8 +228,8 @@ final class ScheduleMigrator {
       $end = $this->readEnd($selected, $timezone) ?? $start;
 
       $event->set('field_event_date', [
-        'value' => $start->format('Y-m-d\TH:i:s'),
-        'end_value' => $end->format('Y-m-d\TH:i:s'),
+        'value' => $this->toStorageValue($start),
+        'end_value' => $this->toStorageValue($end),
       ]);
       $event->setSyncing(TRUE);
       $event->setNewRevision(FALSE);
@@ -300,6 +311,23 @@ final class ScheduleMigrator {
    */
   private function toDate(int $timestamp, \DateTimeZone $timezone): \DateTimeImmutable {
     return (new \DateTimeImmutable('@' . $timestamp))->setTimezone($timezone);
+  }
+
+  /**
+   * Converts a date in the site timezone to the storage format.
+   *
+   * Date fields store their values in UTC.
+   *
+   * @param \DateTimeImmutable $date
+   *   The date in the site timezone.
+   *
+   * @return string
+   *   The value in the storage timezone.
+   */
+  private function toStorageValue(\DateTimeImmutable $date): string {
+    return $date
+      ->setTimezone(new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE))
+      ->format(DateTimeItemInterface::DATETIME_STORAGE_FORMAT);
   }
 
   /**

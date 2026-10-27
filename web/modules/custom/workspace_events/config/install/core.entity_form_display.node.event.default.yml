@@ -7,7 +7,6 @@ dependencies:
     - field.field.node.event.field_link
     - field.field.node.event.field_location
     - field.field.node.event.field_organizer
-    - field.field.node.event.field_when
     - node.type.event
     - taxonomy.vocabulary.organizer
     - workflows.workflow.basic_editorial
@@ -16,8 +15,6 @@ dependencies:
     - datetime_range
     - link
     - path
-    - smart_date
-    - smart_date_recur
     - text
 id: node.event.default
 targetEntityType: node
@@ -66,33 +63,6 @@ content:
     region: content
     settings: {  }
     third_party_settings: {  }
-  field_when:
-    type: smartdate_default
-    weight: -18
-    region: content
-    settings:
-      modal: false
-      default_duration: 60
-      default_duration_increments: |-
-        0|kein Ende
-        60|1 Stunde
-        120|2 Stunden
-        240|4 Stunden
-        custom
-      show_extra: false
-      hide_date: true
-      allday: true
-      remove_seconds: false
-      duration_overlay: true
-    third_party_settings:
-      smart_date_recur:
-        modal: false
-        show_single: false
-        allowed_recur_freq_values:
-          DAILY: DAILY
-          WEEKLY: WEEKLY
-          MONTHLY: MONTHLY
-          YEARLY: YEARLY
   langcode:
     type: language_select
     weight: 2

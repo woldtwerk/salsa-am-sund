@@ -35,6 +35,7 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    $this->installLessonConfig();
     $hooks = $this->container->get(DetailPagePreprocessHooks::class);
     \assert($hooks instanceof DetailPagePreprocessHooks);
     $this->hooks = $hooks;
@@ -46,14 +47,6 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
   public function testPreprocessFullCourse(): void {
     $start = $this->date('next monday', '19:30');
     $end = $this->date('next monday', '20:30');
-    $deltas = $this->recurringDeltas(
-      $start,
-      $end,
-      'WEEKLY',
-      'INTERVAL=1;BYDAY=' . strtoupper(substr($start->format('D'), 0, 2)),
-      '',
-      'course',
-    );
 
     $location = $this->createLocation(
       'Bootshaus Stralsund',
@@ -72,8 +65,10 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
         'value' => '<p>Neue Figuren und Elemente für Fortgeschrittene.</p>',
         'format' => 'plain_text',
       ],
-      'field_when' => $deltas,
+      ...$this->courseSchedule($start, $start->modify('+5 weeks'), 1, $end),
     ]);
+    $lessons = $this->loadCourseLessons($course);
+    self::assertCount(6, $lessons);
 
     $this->setRoute('entity.node.canonical', $course);
 
@@ -105,14 +100,19 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     }
     self::assertSame($expected_dates, array_column($dates, 'date_iso'));
     self::assertSame(
-      '/termine/' . $course->id() . '/0/ical',
+      '/termine/' . $lessons[0]->id() . '/ical',
       $dates[0]['ical_url'],
     );
+    self::assertFalse($dates[0]['cancelled']);
     foreach ($dates as $index => $date) {
       \assert(is_array($date));
       self::assertSame($weekday, $date['weekday']);
       self::assertSame('19:30 – 20:30', $date['time']);
       self::assertSame($start->modify('+' . $index . ' weeks')->format('d.m.Y'), $date['date']);
+      self::assertSame(
+        '/termine/' . $lessons[$index]->id() . '/ical',
+        $date['ical_url'],
+      );
     }
 
     self::assertStringStartsWith('webcal://', $variables['course_ical_url']);
@@ -139,6 +139,8 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     $cache = $variables['#cache'];
     \assert(is_array($cache));
     self::assertContains('node:' . $course->id(), $cache['tags']);
+    self::assertContains('node:' . $lessons[0]->id(), $cache['tags']);
+    self::assertContains('node_list:lesson', $cache['tags']);
     self::assertContains('taxonomy_term:' . $location->id(), $cache['tags']);
     // The provider of the course is the "Salsa am Sund" organizer term.
     self::assertContains('taxonomy_term:' . $this->salsaAmSund, $cache['tags']);
@@ -146,15 +148,77 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     self::assertContains('url.site', $cache['contexts']);
     self::assertContains('route', $cache['contexts']);
 
-    // The page may be cached until the next date has ended.
+    // The page may be cached until the next lesson has ended.
     $request_time = $this->container->get('datetime.time')->getRequestTime();
-    self::assertSame($deltas[0]['end_value'] - $request_time, $cache['max-age']);
+    self::assertSame($this->lessonEndTimestamp($lessons[0]) - $request_time, $cache['max-age']);
 
     $structured_data = $this->getAttachedJsonLd($variables);
     self::assertSame('https://schema.org', $structured_data['@context']);
     $graph = $structured_data['@graph'];
     \assert(is_array($graph));
     self::assertSame('Course', $graph[0]['@type']);
+  }
+
+  /**
+   * Tests the schedule line of a course that takes place every two weeks.
+   */
+  public function testCourseScheduleInterval(): void {
+    $start = $this->date('next monday', '18:15');
+    $course = $this->createCourse([
+      'title' => 'Zweiwöchentlich',
+      ...$this->courseSchedule($start, $start->modify('+4 weeks'), 2),
+    ]);
+
+    $variables = [
+      'node' => $course,
+      'view_mode' => 'full',
+    ];
+    $this->hooks->preprocessNode($variables);
+
+    $date_formatter = $this->container->get('date.formatter');
+    \assert($date_formatter instanceof DateFormatterInterface);
+    $weekday = $date_formatter->format(
+      $start->getTimestamp(),
+      'custom',
+      'l',
+      $start->getTimezone()->getName(),
+    );
+    self::assertSame('Alle 2 Wochen · ' . $weekday . ' · 18:15 – 19:15', $variables['course_schedule']);
+    $dates = $variables['course_next_dates'];
+    \assert(is_array($dates));
+    self::assertCount(3, $dates);
+    self::assertSame([
+      $start->format('Y-m-d'),
+      $start->modify('+2 weeks')->format('Y-m-d'),
+      $start->modify('+4 weeks')->format('Y-m-d'),
+    ], array_column($dates, 'date_iso'));
+  }
+
+  /**
+   * Tests that a cancelled lesson is marked on the detail page.
+   */
+  public function testCancelledLesson(): void {
+    $start = $this->date('next monday', '18:15');
+    $course = $this->createCourse([
+      'title' => 'Mit Ausfall',
+      ...$this->courseSchedule($start, $start->modify('+1 week')),
+    ]);
+    $lessons = $this->loadCourseLessons($course);
+    self::assertCount(2, $lessons);
+    $lessons[0]->set('field_cancelled', TRUE);
+    $lessons[0]->save();
+
+    $variables = [
+      'node' => $course,
+      'view_mode' => 'full',
+    ];
+    $this->hooks->preprocessNode($variables);
+
+    $dates = $variables['course_next_dates'];
+    \assert(is_array($dates));
+    self::assertCount(2, $dates);
+    self::assertTrue($dates[0]['cancelled']);
+    self::assertFalse($dates[1]['cancelled']);
   }
 
   /**
@@ -186,14 +250,6 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
   public function testPreprocessFullEvent(): void {
     $start = $this->date('next wednesday', '21:00');
     $end = $this->date('next wednesday', '23:30');
-    $deltas = $this->recurringDeltas(
-      $start,
-      $end,
-      'WEEKLY',
-      'INTERVAL=1;BYDAY=' . strtoupper(substr($start->format('D'), 0, 2)),
-      '',
-      'event',
-    );
 
     $location = $this->createLocation(
       'Kulturhaus Stralsund',
@@ -212,7 +268,7 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
         'value' => '<p>Jeden Mittwoch Tanzen bis Mitternacht.</p>',
         'format' => 'plain_text',
       ],
-      'field_when' => $deltas,
+      'field_event_date' => $this->dateRange($start, $end),
     ]);
 
     $this->setRoute('entity.node.canonical', $event);
@@ -241,24 +297,14 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
       'date_iso' => $start->format('Y-m-d'),
       'weekday' => $weekday,
       'time' => '21:00 – 23:30',
-      'ical_url' => '/termine/' . $event->id() . '/0/ical',
+      'ical_url' => '/termine/' . $event->id() . '/ical',
+      'cancelled' => FALSE,
     ], $next_date);
 
     $dates = $variables['event_next_dates'];
     \assert(is_array($dates));
-    self::assertCount(6, $dates);
-
-    $expected_dates = [];
-    for ($week = 0; $week < 6; $week++) {
-      $expected_dates[] = $start->modify('+' . $week . ' weeks')->format('Y-m-d');
-    }
-    self::assertSame($expected_dates, array_column($dates, 'date_iso'));
-    foreach ($dates as $index => $date) {
-      \assert(is_array($date));
-      self::assertSame($weekday, $date['weekday']);
-      self::assertSame('21:00 – 23:30', $date['time']);
-      self::assertSame($start->modify('+' . $index . ' weeks')->format('d.m.Y'), $date['date']);
-    }
+    self::assertCount(1, $dates);
+    self::assertSame($start->format('Y-m-d'), $dates[0]['date_iso']);
 
     self::assertStringStartsWith('webcal://', $variables['event_ical_url']);
     self::assertStringEndsWith(
@@ -292,15 +338,15 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     self::assertContains('url.site', $cache['contexts']);
     self::assertContains('route', $cache['contexts']);
 
-    // The page may be cached until the next date has ended.
+    // The page may be cached until the event has ended.
     $request_time = $this->container->get('datetime.time')->getRequestTime();
-    self::assertSame($deltas[0]['end_value'] - $request_time, $cache['max-age']);
+    self::assertSame($end->getTimestamp() - $request_time, $cache['max-age']);
 
     $structured_data = $this->getAttachedJsonLd($variables);
     self::assertSame('https://schema.org', $structured_data['@context']);
     $graph = $structured_data['@graph'];
     \assert(is_array($graph));
-    self::assertCount(6, $graph);
+    self::assertCount(1, $graph);
     self::assertSame('Event', $graph[0]['@type']);
     self::assertSame('Salsa Night', $graph[0]['name']);
   }
@@ -311,9 +357,10 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
   public function testPreprocessEventWithoutUpcomingDates(): void {
     $event = $this->createEvent([
       'title' => 'Vergangene Party',
-      'field_when' => [
-        $this->dateDelta($this->date('2020-01-04', '21:00'), $this->date('2020-01-04', '23:30')),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('2020-01-04', '21:00'),
+        $this->date('2020-01-04', '23:30'),
+      ),
     ]);
 
     $variables = [
@@ -341,9 +388,10 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
   public function testOtherViewModesAreIgnored(): void {
     $event = $this->createEvent([
       'title' => 'Tanzabend',
-      'field_when' => [
-        $this->dateDelta($this->date('now +1 day', '20:00'), NULL),
-      ],
+      'field_event_date' => $this->dateRange(
+        $this->date('now +1 day', '20:00'),
+        $this->date('now +1 day', '23:00'),
+      ),
     ]);
     $variables = [
       'node' => $event,
@@ -352,11 +400,10 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     $this->hooks->preprocessNode($variables);
     self::assertArrayNotHasKey('event_next_dates', $variables);
 
+    $start = $this->date('now +2 days', '18:15');
     $course = $this->createCourse([
       'title' => 'Anfänger',
-      'field_when' => [
-        $this->dateDelta($this->date('now +2 days', '18:15'), $this->date('now +2 days', '19:15')),
-      ],
+      ...$this->courseSchedule($start, $start),
     ]);
     $variables = [
       'node' => $course,
@@ -374,11 +421,11 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     $end = $start->modify('+2 hours');
     $event = $this->createEvent([
       'title' => 'Salsa Night',
-      'field_when' => [$this->dateDelta($start, $end)],
+      'field_event_date' => $this->dateRange($start, $end),
     ]);
     $other = $this->createEvent([
       'title' => 'Andere Party',
-      'field_when' => [$this->dateDelta($start, $end)],
+      'field_event_date' => $this->dateRange($start, $end),
     ]);
 
     $routes = [
@@ -419,6 +466,24 @@ final class DetailPagePreprocessHooksTest extends EventKernelTestBase {
     $request_stack = $this->container->get('request_stack');
     \assert($request_stack instanceof RequestStack);
     $request_stack->push($request);
+  }
+
+  /**
+   * Returns the end timestamp of a lesson.
+   *
+   * @param \Drupal\node\NodeInterface $lesson
+   *   The lesson.
+   *
+   * @return int
+   *   The timestamp at which the lesson ends.
+   */
+  private function lessonEndTimestamp(NodeInterface $lesson): int {
+    $item = $lesson->get('field_lesson_date')->first();
+    self::assertNotNull($item);
+    return (new \DateTimeImmutable(
+      $item->get('end_value')->getString(),
+      new \DateTimeZone('UTC'),
+    ))->getTimestamp();
   }
 
   /**

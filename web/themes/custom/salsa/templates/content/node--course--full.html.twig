@@ -12,8 +12,8 @@
  * - attributes: Attributes for the article wrapper.
  * - course_level: The level label of the course.
  * - course_schedule: Weekday and time range of the series.
- * - course_next_dates: Upcoming dates with date, date_iso, weekday, time and
- *   iCal URL.
+ * - course_next_dates: Upcoming dates with date, date_iso, weekday, time,
+ *   iCal URL and cancellation flag.
  * - course_location: Location name, address and map URL.
  * - course_link: Optional external link with label and href.
  * - course_ical_url: The webcal subscription URL of this course's feed.
@@ -98,6 +98,11 @@
                     <span class="font-body text-sm font-semibold uppercase tracking-wide text-flame-gold">
                       {{ item.time ?: 'Ganztägig'|t }}
                     </span>
+                    {% if item.cancelled %}
+                      <span class="font-body text-sm font-semibold uppercase tracking-wide text-flame-orange">
+                        {{ 'Fällt aus'|t }}
+                      </span>
+                    {% endif %}
                     <a href="{{ item.ical_url }}" download class="inline-flex items-center gap-1.5 text-sm font-semibold text-mist no-underline hover:text-flame-gold">
                       {{ icon('salsa', 'calendar', {size: 16}) }}
                       <span>{{ 'Zum Kalender'|t }}</span>
