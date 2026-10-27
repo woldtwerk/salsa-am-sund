@@ -24,6 +24,6 @@ name: Hilfsseite
 type: page
 description: 'Verwenden Sie die <em>Hilfsseite</em> für Ihre statischen Inhalte, wie beispielsweise eine Seite mit der „Datenschutzerklärung“.'
 help: null
-new_revision: true
+new_revision: false
 preview_mode: 0
 display_submitted: false
