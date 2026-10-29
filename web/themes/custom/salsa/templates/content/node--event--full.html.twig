@@ -57,7 +57,7 @@
           {% if next_date %}
             <time datetime="{{ next_date.date_iso }}" class="inline-flex items-center gap-2 font-body text-sm font-semibold text-white/85">
               {{ icon('salsa', 'calendar', {size: 18}) }}
-              {{ next_date.weekday }}, {{ next_date.date }} · {{ next_date.time ?: 'Ganztägig'|t }}
+              {{ next_date.weekday }}, {{ next_date.date }} · {{ next_date.time ?: 'All day'|t }}
             </time>
           {% endif %}
         </div>
@@ -86,7 +86,7 @@
 
         <section class="{{ body|striptags|trim is not empty ? 'mt-12' : '' }}" aria-labelledby="event-dates-title">
           <h2 id="event-dates-title" class="font-display text-2xl leading-tight font-extrabold italic text-flame-light md:text-3xl">
-            {{ 'Termine'|t }}
+            {{ 'Dates'|t }}
           </h2>
 
           {% if next_dates is not empty %}
@@ -98,16 +98,16 @@
                   </time>
                   <div class="flex flex-wrap items-center gap-x-5 gap-y-1">
                     <span class="font-body text-sm font-semibold uppercase tracking-wide text-flame-gold">
-                      {{ item.time ?: 'Ganztägig'|t }}
+                      {{ item.time ?: 'All day'|t }}
                     </span>
                     {% if item.cancelled %}
                       <span class="font-body text-sm font-semibold uppercase tracking-wide text-flame-orange">
-                        {{ 'Fällt aus'|t }}
+                        {{ 'Cancelled'|t }}
                       </span>
                     {% endif %}
                     <a href="{{ item.ical_url }}" download class="inline-flex items-center gap-1.5 text-sm font-semibold text-mist no-underline hover:text-flame-gold">
                       {{ icon('salsa', 'calendar', {size: 16}) }}
-                      <span>{{ 'Zum Kalender'|t }}</span>
+                      <span>{{ 'Add to calendar'|t }}</span>
                       <span class="sr-only">: {{ item.weekday }}, {{ item.date }}</span>
                     </a>
                   </div>
@@ -115,7 +115,7 @@
               {% endfor %}
             </ol>
           {% else %}
-            <p class="mt-4 text-mist">{{ 'Für diese Veranstaltung sind keine weiteren Termine geplant.'|t }}</p>
+            <p class="mt-4 text-mist">{{ 'No further dates are planned for this event.'|t }}</p>
           {% endif %}
         </section>
       </div>
@@ -125,7 +125,7 @@
           <div class="rounded-2xl border border-line bg-ink-2 p-5 md:p-6">
             <h2 class="flex items-center gap-2 font-display text-xl leading-tight font-bold italic text-sand">
               {{ icon('salsa', 'map-pin', {size: 20}) }}
-              {{ 'Ort'|t }}
+              {{ 'Location'|t }}
             </h2>
             <p class="mt-3 font-semibold text-sand">{{ location.name }}</p>
             {% if location.address %}
@@ -139,24 +139,24 @@
                 rel="noopener noreferrer"
               >
                 {{ icon('salsa', 'map-pin', {size: 16}) }}
-                {{ 'Auf der Karte ansehen'|t }}
+                {{ 'View on map'|t }}
               </a>
             {% endif %}
           </div>
         {% endif %}
 
         <div class="rounded-2xl border border-line bg-ink-2 p-5 md:p-6">
-          <h2 class="font-display text-xl leading-tight font-bold italic text-sand">{{ 'Kalender'|t }}</h2>
+          <h2 class="font-display text-xl leading-tight font-bold italic text-sand">{{ 'Calendar'|t }}</h2>
           <p class="mt-2 text-sm leading-relaxed text-mist">
             {% if organizer %}
-              {{ 'Alle Partys von @organizer als Kalender abonnieren.'|t({'@organizer': organizer}) }}
+              {{ 'Subscribe to all parties by @organizer as a calendar.'|t({'@organizer': organizer}) }}
             {% else %}
-              {{ 'Alle Partys als Kalender abonnieren.'|t }}
+              {{ 'Subscribe to all parties as a calendar.'|t }}
             {% endif %}
           </p>
           <div class="mt-5 flex flex-wrap gap-3">
             {% include 'salsa:button' with {
-              label: 'Kalender abonnieren'|t,
+              label: 'Subscribe to calendar'|t,
               href: event_ical_url,
               variant: 'flame',
               size: 'md',
@@ -165,7 +165,7 @@
           </div>
           <a href="{{ event_overview_url }}" class="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-mist no-underline hover:text-flame-gold">
             {{ icon('salsa', 'chevron-left', {size: 16}) }}
-            {{ 'Zurück zu den Veranstaltungen'|t }}
+            {{ 'Back to the events'|t }}
           </a>
         </div>
       </aside>

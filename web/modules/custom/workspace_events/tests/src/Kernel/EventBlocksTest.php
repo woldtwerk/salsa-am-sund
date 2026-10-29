@@ -87,9 +87,9 @@ final class EventBlocksTest extends LessonKernelTestBase {
     $items = $build['events']['#slots']['items'];
     self::assertCount(2, $items);
     self::assertSame('Salsa im ballhaus goldfisch', $items[0]['#props']['title']);
-    self::assertSame('20:00 – 23:00 Uhr', $items[0]['#props']['time']);
+    self::assertSame('20:00 – 23:00', $items[0]['#props']['time']);
     self::assertSame('Tanzabend', $items[1]['#props']['title']);
-    self::assertSame('18:00 – 22:00 Uhr', $items[1]['#props']['time']);
+    self::assertSame('18:00 – 22:00', $items[1]['#props']['time']);
     self::assertSame('Bootshaus Stralsund', $items[1]['#props']['location']);
     self::assertStringContainsString('Kurzbeschreibung für die Karte.', (string) $items[1]['#props']['text']);
     self::assertStringNotContainsString('Der lange Beschreibungstext', (string) $items[1]['#props']['text']);
@@ -232,7 +232,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     $courses = $build['schedule']['#slots']['courses'];
     self::assertCount(2, $courses);
     self::assertSame('montag', $courses[0]['#props']['day']);
-    self::assertSame('18:15 – 19:15 Uhr', $courses[0]['#props']['time']);
+    self::assertSame('18:15 – 19:15', $courses[0]['#props']['time']);
     self::assertSame('Anfänger', $courses[0]['#props']['title']);
     self::assertSame($course->toUrl()->toString(), $courses[0]['#props']['href']);
     self::assertSame('Level 0', $courses[0]['#props']['level']);

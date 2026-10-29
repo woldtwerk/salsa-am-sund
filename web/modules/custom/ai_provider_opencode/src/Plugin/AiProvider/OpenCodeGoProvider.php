@@ -12,7 +12,7 @@ use Drupal\Core\StringTranslation\TranslatableMarkup;
  */
 #[AiProvider(
   id: self::ID,
-  label: new TranslatableMarkup('OpenCode Go (Abo)'),
+  label: new TranslatableMarkup('OpenCode Go (subscription)'),
 )]
 class OpenCodeGoProvider extends OpenCodeProviderBase {
 

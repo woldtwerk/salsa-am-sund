@@ -4,6 +4,8 @@ type: theme
 description: 'Evening at the Sund: a dark, warm, rhythmic theme for the Salsa am Sund dance school in Stralsund. Canvas-ready SDC component library.'
 core_version_requirement: ^11.3
 generator: 'salsa:1.0.0'
+'interface translation project': salsa
+'interface translation server pattern': themes/custom/salsa/translations/%language.po
 regions:
   header: Header
   content: Content

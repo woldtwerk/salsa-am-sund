@@ -300,9 +300,9 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     }
     $start = $occurrence->start->format('H:i');
     if ($occurrence->end === NULL) {
-      return (string) $this->t('ab @start Uhr', ['@start' => $start]);
+      return (string) $this->t('from @start', ['@start' => $start]);
     }
-    return (string) $this->t('@start – @end Uhr', [
+    return (string) $this->t('@start – @end', [
       '@start' => $start,
       '@end' => $occurrence->end->format('H:i'),
     ]);

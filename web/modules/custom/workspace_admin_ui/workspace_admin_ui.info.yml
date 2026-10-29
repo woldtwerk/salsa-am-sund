@@ -3,6 +3,8 @@ type: module
 description: Masquerade shortcuts in the toolbar and Navigation, the Unmasquerade link in the user menu, and Taxonomy, URL aliases and menus under Content in the Navigation sidebar.
 package: Custom
 core_version_requirement: ^11
+'interface translation project': workspace_admin_ui
+'interface translation server pattern': modules/custom/workspace_admin_ui/translations/%language.po
 dependencies:
   - drupal:navigation
   - drupal:toolbar

@@ -1,6 +1,6 @@
 workspace_events.lesson_collection:
-  title: 'Unterrichtsstunden'
-  description: 'Unterrichtsstunden anlegen und bearbeiten.'
+  title: 'Lessons'
+  description: 'Create and edit lessons.'
   route_name: view.content.page_1
   route_parameters:
     type: lesson
@@ -9,8 +9,8 @@ workspace_events.lesson_collection:
   weight: 10
 
 workspace_events.dance_figures:
-  title: 'Tanzfiguren'
-  description: 'Alle Tanzfiguren durchsuchen.'
+  title: 'Dance figures'
+  description: 'Browse all dance figures.'
   route_name: view.dance_figures.page_1
   menu_name: account
   weight: 0

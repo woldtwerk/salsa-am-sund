@@ -26,7 +26,7 @@
         {{ icon('salsa', 'user', {size: 24}) }}
       </span>
       <h1 class="mt-4 font-display text-3xl leading-[1.05] font-extrabold italic text-balance text-sand md:text-4xl">
-        {{ auth.heading|default('Anmelden'|t) }}
+        {{ auth.heading|default('Sign in'|t) }}
       </h1>
       {% if intro|trim is not empty %}
         <p class="mt-2 text-sm leading-relaxed text-mist">{{ intro }}</p>
@@ -39,7 +39,7 @@
       </div>
       <div class="my-6 flex items-center gap-3" aria-hidden="true">
         <span class="h-px flex-1 bg-line"></span>
-        <span class="text-xs font-semibold uppercase tracking-[0.2em] text-mist">{{ 'oder'|t }}</span>
+        <span class="text-xs font-semibold uppercase tracking-[0.2em] text-mist">{{ 'or'|t }}</span>
         <span class="h-px flex-1 bg-line"></span>
       </div>
     {% endif %}

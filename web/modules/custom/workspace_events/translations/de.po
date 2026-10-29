@@ -70,11 +70,176 @@ msgstr "Kalender abonnieren"
 msgid "Download .ics"
 msgstr "Als .ics herunterladen"
 
-msgid "ab @start Uhr"
+msgid "from @start"
 msgstr "ab @start Uhr"
 
-msgid "@start – @end Uhr"
+msgid "@start – @end"
 msgstr "@start – @end Uhr"
+
+msgid "@start onwards"
+msgstr "ab @start"
+
+msgid "@start to @end"
+msgstr "@start – @end"
 
 msgid "Termine"
 msgstr "Termine"
+
+msgid "Course"
+msgstr "Kurs"
+
+msgid "Filters lessons by their course."
+msgstr "Filtert Unterrichtsstunden nach ihrem Kurs."
+
+msgid "Lesson table"
+msgstr "Stundentabelle"
+
+msgid "Lessons (@count)"
+msgstr "Stunden (@count)"
+
+msgid "Lessons are generated from the start, end and rhythm when saving."
+msgstr "Die Stunden werden beim Speichern aus Beginn, Ende und Rhythmus erzeugt."
+
+msgid "To change the dates: delete the lessons, then save the course."
+msgstr "Termine ändern: Stunden löschen, dann Kurs speichern."
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "Time"
+msgstr "Zeit"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Participants"
+msgstr "Teilnehmer"
+
+msgid "Figures"
+msgstr "Figuren"
+
+msgid "Actions"
+msgstr "Aktionen"
+
+msgid "Today"
+msgstr "Heute"
+
+msgid "Next lesson"
+msgstr "Nächste Stunde"
+
+msgid "Edit"
+msgstr "Bearbeiten"
+
+msgid "Cancelled"
+msgstr "Fällt aus"
+
+msgid "Published"
+msgstr "Veröffentlicht"
+
+msgctxt "workspace_events"
+msgid "Scheduled"
+msgstr "Geplant"
+
+msgid "Recognize participants from a photo"
+msgstr "Teilnehmer aus Foto erkennen"
+
+msgid "Attendance"
+msgstr "Anwesenheit"
+
+msgid "Attendance photo"
+msgstr "Anwesenheitsfoto"
+
+msgid "JPEG, PNG or WebP, up to 10 MB. The photo is only sent for recognition and is not stored."
+msgstr "JPEG, PNG oder WebP, höchstens 10 MB. Das Foto wird nur zur Erkennung übertragen und nicht gespeichert."
+
+msgid "Recognized"
+msgstr "Erkannt"
+
+msgid "Member"
+msgstr "Mitglied"
+
+msgid "Hint"
+msgstr "Hinweis"
+
+msgid "Members for @name"
+msgstr "Mitglieder für @name"
+
+msgid "Apply participants"
+msgstr "Teilnehmer übernehmen"
+
+msgid "unambiguous"
+msgstr "eindeutig"
+
+msgid "attend regularly"
+msgstr "nehmen regelmäßig teil"
+
+msgid "same as last lesson"
+msgstr "wie letzte Stunde"
+
+msgid "no member found"
+msgstr "kein Mitglied gefunden"
+
+msgid "ambiguous: @names – please choose"
+msgstr "mehrdeutig: @names – bitte wählen"
+
+msgid "Please select an attendance photo."
+msgstr "Bitte ein Anwesenheitsfoto auswählen."
+
+msgid "The photo could not be uploaded."
+msgstr "Das Foto konnte nicht hochgeladen werden."
+
+msgid "The attendance photo could not be read."
+msgstr "Das Anwesenheitsfoto konnte nicht gelesen werden."
+
+msgid "The photo must not be larger than 10 MB."
+msgstr "Das Foto darf höchstens 10 MB groß sein."
+
+msgid "Please upload a photo in JPEG, PNG or WebP format."
+msgstr "Bitte ein Foto im Format JPEG, PNG oder WebP hochladen."
+
+msgid "No names were recognized on the attendance photo."
+msgstr "Auf dem Anwesenheitsfoto wurden keine Namen erkannt."
+
+msgid "Please review the suggestions and apply them."
+msgstr "Bitte die Vorschläge prüfen und übernehmen."
+
+msgid "The participants could not be applied."
+msgstr "Die Teilnehmer konnten nicht übernommen werden."
+
+msgid "More information"
+msgstr "Weitere Informationen"
+
+msgid "View dance figures"
+msgstr "Tanzfiguren ansehen"
+
+msgid "Allows viewing dance figures."
+msgstr "Erlaubt das Ansehen von Tanzfiguren."
+
+msgid "Use attendance recognition"
+msgstr "Anwesenheitserkennung verwenden"
+
+msgid "Allows recognizing participants on an attendance photo."
+msgstr "Erlaubt das Erkennen von Teilnehmern auf einem Anwesenheitsfoto."
+
+msgid "Lessons"
+msgstr "Unterrichtsstunden"
+
+msgid "Create and edit lessons."
+msgstr "Unterrichtsstunden anlegen und bearbeiten."
+
+msgid "Dance figures"
+msgstr "Tanzfiguren"
+
+msgid "Browse all dance figures."
+msgstr "Alle Tanzfiguren durchsuchen."
+
+msgctxt "workspace_events"
+msgid "Events"
+msgstr "Termine"
+
+msgctxt "workspace_events"
+msgid "Event"
+msgstr "Termin"
+
+msgid "The model %model must not be used for image vision: free models may use uploaded attendance lists for training. Choose a paid model."
+msgstr "Das Modell %model darf nicht für Bildverständnis verwendet werden: Kostenlose Modelle können hochgeladene Anwesenheitslisten zum Training verwenden. Wähle ein kostenpflichtiges Modell."

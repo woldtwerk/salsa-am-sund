@@ -4,6 +4,8 @@ package: AI Providers
 type: module
 core_version_requirement: ^11.3
 configure: ai_provider_opencode.zen_settings_form
+'interface translation project': ai_provider_opencode
+'interface translation server pattern': modules/custom/ai_provider_opencode/translations/%language.po
 
 dependencies:
   - ai:ai

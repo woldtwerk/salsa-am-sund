@@ -1,0 +1,25 @@
+# German translation of the ai_provider_opencode module.
+#
+# English is the source language: the msgids are the literals passed to
+# TranslatableMarkup() in this module's PHP. Imported into Drupal's locale
+# storage with:
+#
+#   drush locale:import de modules/custom/ai_provider_opencode/translations/de.po \
+#     --type=customized --override=all
+#
+# Informal "du".
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ai_provider_opencode\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "OpenCode Go (subscription)"
+msgstr "OpenCode Go (Abo)"
+
+msgid "OpenCode Zen (credit)"
+msgstr "OpenCode Zen (Guthaben)"

@@ -1,11 +1,11 @@
 ai_provider_opencode.zen_settings_menu:
-  title: 'OpenCode Zen (Guthaben)'
+  title: 'OpenCode Zen (credit)'
   description: 'Set up OpenCode Zen (pay as you go).'
   route_name: ai_provider_opencode.zen_settings_form
   parent: ai.admin_providers
 
 ai_provider_opencode.go_settings_menu:
-  title: 'OpenCode Go (Abo)'
+  title: 'OpenCode Go (subscription)'
   description: 'Set up OpenCode Go (subscription).'
   route_name: ai_provider_opencode.go_settings_form
   parent: ai.admin_providers

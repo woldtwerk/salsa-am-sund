@@ -1,6 +1,6 @@
 {% set months = {
-  1: 'JAN'|t, 2: 'FEB'|t, 3: 'MRZ'|t, 4: 'APR'|t, 5: 'MAI'|t, 6: 'JUN'|t,
-  7: 'JUL'|t, 8: 'AUG'|t, 9: 'SEP'|t, 10: 'OKT'|t, 11: 'NOV'|t, 12: 'DEZ'|t
+  1: 'JAN'|t, 2: 'FEB'|t, 3: 'MAR'|t, 4: 'APR'|t, 5: 'MAY'|t, 6: 'JUN'|t,
+  7: 'JUL'|t, 8: 'AUG'|t, 9: 'SEP'|t, 10: 'OCT'|t, 11: 'NOV'|t, 12: 'DEC'|t
 } %}
 {% set day_number = date|date('j') %}
 {% set month_number = date|date('n') %}
@@ -36,7 +36,7 @@
   <div class="min-w-0 flex-1">
     {% if is_event or is_course %}
       <span class="mb-2 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide {{ badge_colours }}">
-        {{ is_course ? 'Kurs'|t : 'Party'|t }}
+        {{ is_course ? 'Course'|t : 'Party'|t }}
       </span>
     {% endif %}
     <h3 class="font-display text-2xl leading-tight font-bold italic text-sand @md:text-3xl">
@@ -68,7 +68,7 @@
       <p class="mt-3">
         <a href="{{ ical_href }}" download class="relative z-10 inline-flex items-center gap-1.5 text-sm font-semibold text-mist no-underline hover:text-flame-gold">
           {{ icon('salsa', 'calendar', {size: 16}) }}
-          <span>{{ 'Zum Kalender'|t }}</span>
+          <span>{{ 'Add to calendar'|t }}</span>
           <span class="sr-only">: {{ title }}, {{ date|date('d.m.Y') }}</span>
         </a>
       </p>

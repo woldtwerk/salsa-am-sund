@@ -126,7 +126,7 @@ final class SalsaHooks {
 
     $count = $node->hasField('field_gallery_images') ? $node->get('field_gallery_images')->count() : 0;
     $variables['gallery_image_count'] = $count;
-    $variables['gallery_image_count_label'] = $this->formatPlural($count, '@count Bild', '@count Bilder');
+    $variables['gallery_image_count_label'] = $this->formatPlural($count, '@count image', '@count images');
 
     $cache = CacheableMetadata::createFromRenderArray($variables);
     $cache->merge($result['cache']);
@@ -233,7 +233,7 @@ final class SalsaHooks {
         max(0, $this->time->getRequestTime() - $created),
         2,
       );
-      $variables['salsa_member_since'] = $this->t('Mitglied seit @date (vor @interval)', [
+      $variables['salsa_member_since'] = $this->t('Member since @date (@interval ago)', [
         '@date' => $date,
         '@interval' => $interval,
       ]);
@@ -375,36 +375,36 @@ final class SalsaHooks {
     switch ($form_id) {
       case 'user_login_form':
         $links = [
-          ['url' => Url::fromRoute('user.pass')->toString(), 'label' => $this->t('Passwort vergessen?')],
+          ['url' => Url::fromRoute('user.pass')->toString(), 'label' => $this->t('Forgot password?')],
         ];
         $register = $this->configFactory->get('user.settings')->get('register');
         if (in_array($register, [
           UserInterface::REGISTER_VISITORS,
           UserInterface::REGISTER_VISITORS_ADMINISTRATIVE_APPROVAL,
         ], TRUE)) {
-          $links[] = ['url' => Url::fromRoute('user.register')->toString(), 'label' => $this->t('Konto erstellen')];
+          $links[] = ['url' => Url::fromRoute('user.register')->toString(), 'label' => $this->t('Create account')];
         }
         return [
-          'heading' => $this->t('Anmelden'),
-          'intro' => $this->t('Melde dich mit deinem Konto an.'),
+          'heading' => $this->t('Sign in'),
+          'intro' => $this->t('Sign in with your account.'),
           'links' => $links,
         ];
 
       case 'user_pass':
         return [
-          'heading' => $this->t('Passwort zurücksetzen'),
-          'intro' => $this->t('Gib deinen Benutzernamen oder deine E-Mail-Adresse ein.'),
+          'heading' => $this->t('Reset password'),
+          'intro' => $this->t('Enter your username or email address.', [], ['context' => 'salsa']),
           'links' => [
-            ['url' => Url::fromRoute('user.login')->toString(), 'label' => $this->t('Zur Anmeldung')],
+            ['url' => Url::fromRoute('user.login')->toString(), 'label' => $this->t('Go to sign in')],
           ],
         ];
 
       case 'user_register_form':
         return [
-          'heading' => $this->t('Konto erstellen'),
-          'intro' => $this->t('Erstelle ein Konto, um Kurse zu buchen und Termine im Blick zu behalten.'),
+          'heading' => $this->t('Create account'),
+          'intro' => $this->t('Create an account to book courses and keep track of events.'),
           'links' => [
-            ['url' => Url::fromRoute('user.login')->toString(), 'label' => $this->t('Zur Anmeldung')],
+            ['url' => Url::fromRoute('user.login')->toString(), 'label' => $this->t('Go to sign in')],
           ],
         ];
     }
@@ -552,7 +552,7 @@ final class SalsaHooks {
       unset($name['#description']);
       $attributes = $name['#attributes'] ?? [];
       $attributes = is_array($attributes) ? $attributes : [];
-      $attributes['placeholder'] = $this->t('Benutzername oder E-Mail eingeben');
+      $attributes['placeholder'] = $this->t('Enter username or email');
       $name['#attributes'] = $attributes;
       $form['name'] = $name;
     }
@@ -564,7 +564,7 @@ final class SalsaHooks {
       unset($pass['#description']);
       $attributes = $pass['#attributes'] ?? [];
       $attributes = is_array($attributes) ? $attributes : [];
-      $attributes['placeholder'] = $this->t('Passwort eingeben');
+      $attributes['placeholder'] = $this->t('Enter password');
       $pass['#attributes'] = $attributes;
       // Room for the view_password toggle inside the field.
       self::addClass($pass, 'pe-12');

@@ -16,7 +16,7 @@
     aria-haspopup="dialog"
     class="block aspect-square w-full cursor-zoom-in overflow-hidden rounded-xl border border-line/60 bg-ink-2 p-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame-gold"
   >
-    <span class="sr-only">{{ 'Bild vergrößern: @alt'|t({'@alt': image.alt|default(caption)|default('Bild')}) }}</span>
+    <span class="sr-only">{{ 'Enlarge image: @alt'|t({'@alt': image.alt|default(caption)|default('Bild')}) }}</span>
     {# The thumbnail is decorative inside the button; the button carries the
        accessible name. #}
     <img
@@ -45,7 +45,7 @@
       commandfor="{{ lightbox_id }}"
       command="close"
       class="salsa-lightbox__close"
-      aria-label="{{ 'Bild schließen'|t }}"
+      aria-label="{{ 'Close image'|t }}"
       autofocus
     >
       {{ icon('salsa', 'x', {size: 22}) }}
@@ -55,7 +55,7 @@
       type="button"
       class="salsa-lightbox__prev"
       data-salsa-lightbox-prev
-      aria-label="{{ 'Vorheriges Bild'|t }}"
+      aria-label="{{ 'Previous image'|t }}"
       hidden
     >
       {{ icon('salsa', 'chevron-left', {size: 22}) }}
@@ -64,7 +64,7 @@
       type="button"
       class="salsa-lightbox__next"
       data-salsa-lightbox-next
-      aria-label="{{ 'Nächstes Bild'|t }}"
+      aria-label="{{ 'Next image'|t }}"
       hidden
     >
       {{ icon('salsa', 'chevron-right', {size: 22}) }}

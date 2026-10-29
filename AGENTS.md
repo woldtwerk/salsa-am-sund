@@ -117,6 +117,9 @@ Before you write code:
   build it custom anyway, say why in the PR body. Don't add a dependency without asking.
 - Don't hardcode content that lives in the database (term or node labels, the site name). Load the
   entity (e.g. by the UUID constants in `OrganizerResolver`) and add it as a cache dependency.
+- Write code in English: identifiers, comments, docblocks, exception and log messages, and the
+  source strings of `t()`/`$this->t()`/`|t`. German UI text belongs in the translations
+  (`translations/de.po`), not in the code.
 
 Every render-time code path must handle:
 

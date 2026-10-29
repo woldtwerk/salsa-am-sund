@@ -1,0 +1,290 @@
+# German translation of the salsa theme.
+#
+# English is the source language: the msgids are the literals passed to t(),
+# formatPlural() and TranslatableMarkup() in the theme's PHP, and the strings in
+# its Twig templates. Imported into Drupal's locale storage with:
+#
+#   drush locale:import de themes/custom/salsa/translations/de.po \
+#     --type=customized --override=all
+#
+# Informal "du".
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: salsa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: de\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "@count image"
+msgid_plural "@count images"
+msgstr[0] "@count Bild"
+msgstr[1] "@count Bilder"
+
+msgid "Member since @date (@interval ago)"
+msgstr "Mitglied seit @date (vor @interval)"
+
+msgid "Forgot password?"
+msgstr "Passwort vergessen?"
+
+msgid "Create account"
+msgstr "Konto erstellen"
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "Sign in with your account."
+msgstr "Melde dich mit deinem Konto an."
+
+msgid "Reset password"
+msgstr "Passwort zurücksetzen"
+
+msgctxt "salsa"
+msgid "Enter your username or email address."
+msgstr "Gib deinen Benutzernamen oder deine E-Mail-Adresse ein."
+
+msgid "Go to sign in"
+msgstr "Zur Anmeldung"
+
+msgid "Create an account to book courses and keep track of events."
+msgstr "Erstelle ein Konto, um Kurse zu buchen und Termine im Blick zu behalten."
+
+msgid "Enter username or email"
+msgstr "Benutzername oder E-Mail eingeben"
+
+msgid "Enter password"
+msgstr "Passwort eingeben"
+
+msgid "Organizers"
+msgstr "Veranstalter"
+
+msgctxt "salsa"
+msgid "Type"
+msgstr "Art"
+
+msgid "Parties"
+msgstr "Partys"
+
+msgid "Party"
+msgstr "Party"
+
+msgid "Courses"
+msgstr "Kurse"
+
+msgid "Course"
+msgstr "Kurs"
+
+msgid "Cards"
+msgstr "Karten"
+
+msgid "No events for this selection."
+msgstr "Keine Termine für diese Auswahl."
+
+msgid "Show more"
+msgstr "Mehr anzeigen"
+
+msgid "Calendar"
+msgstr "Kalender"
+
+msgid "Event calendar"
+msgstr "Veranstaltungskalender"
+
+msgid "The calendar requires JavaScript. You can find all events in the iCal feed."
+msgstr "Der Kalender benötigt JavaScript. Alle Termine findest du im iCal-Feed."
+
+msgid "Download events as .ics"
+msgstr "Termine als .ics herunterladen"
+
+msgid "Subscribe to calendar"
+msgstr "Kalender abonnieren"
+
+msgid "Download .ics"
+msgstr "Als .ics herunterladen"
+
+msgid "Choose what should appear in your calendar."
+msgstr "Wähle aus, was in deinem Kalender erscheinen soll."
+
+msgid "Close"
+msgstr "Schließen"
+
+msgid "Events"
+msgstr "Veranstaltungen"
+
+msgid "Subscribe"
+msgstr "Abonnieren"
+
+msgid "Get directions"
+msgstr "Route planen"
+
+msgid "JAN"
+msgstr "JAN"
+
+msgid "FEB"
+msgstr "FEB"
+
+msgid "MAR"
+msgstr "MRZ"
+
+msgid "APR"
+msgstr "APR"
+
+msgid "MAY"
+msgstr "MAI"
+
+msgid "JUN"
+msgstr "JUN"
+
+msgid "JUL"
+msgstr "JUL"
+
+msgid "AUG"
+msgstr "AUG"
+
+msgid "SEP"
+msgstr "SEP"
+
+msgid "OCT"
+msgstr "OKT"
+
+msgid "NOV"
+msgstr "NOV"
+
+msgid "DEC"
+msgstr "DEZ"
+
+msgid "Add to calendar"
+msgstr "Zum Kalender"
+
+msgid "Enlarge image: @alt"
+msgstr "Bild vergrößern: @alt"
+
+msgid "Close image"
+msgstr "Bild schließen"
+
+msgid "Previous image"
+msgstr "Vorheriges Bild"
+
+msgid "Next image"
+msgstr "Nächstes Bild"
+
+msgid "Links"
+msgstr "Links"
+
+msgid "Navigation"
+msgstr "Navigation"
+
+msgid "Salsa am Sund · Stralsund"
+msgstr "Salsa am Sund · Stralsund"
+
+msgid "Salsa am Sund - Home"
+msgstr "Salsa am Sund - Startseite"
+
+msgid "Close menu"
+msgstr "Menü schließen"
+
+msgid "Open menu"
+msgstr "Menü öffnen"
+
+msgid "Upcoming events"
+msgstr "Nächste Termine"
+
+msgid "All day"
+msgstr "Ganztägig"
+
+msgid "Cancelled"
+msgstr "Fällt aus"
+
+msgid "No further events are currently planned."
+msgstr "Aktuell sind keine weiteren Termine geplant."
+
+msgid "Location"
+msgstr "Ort"
+
+msgid "View on map"
+msgstr "Auf der Karte ansehen"
+
+msgid "Subscribe to all events of this course as a calendar."
+msgstr "Alle Termine dieses Kurses als Kalender abonnieren."
+
+msgid "Back to the courses"
+msgstr "Zurück zu den Kursen"
+
+msgid "Dates"
+msgstr "Termine"
+
+msgid "No further dates are planned for this event."
+msgstr "Für diese Veranstaltung sind keine weiteren Termine geplant."
+
+msgid "Subscribe to all parties by @organizer as a calendar."
+msgstr "Alle Partys von @organizer als Kalender abonnieren."
+
+msgid "Subscribe to all parties as a calendar."
+msgstr "Alle Partys als Kalender abonnieren."
+
+msgid "Back to the events"
+msgstr "Zurück zu den Veranstaltungen"
+
+msgid "Write a comment"
+msgstr "Eintrag schreiben"
+
+msgid "or"
+msgstr "oder"
+
+msgid "Sign in with @provider"
+msgstr "Mit @provider anmelden"
+
+msgid "Submenu: @title"
+msgstr "Untermenü: @title"
+
+msgctxt "salsa"
+msgid "Pagination"
+msgstr "Seitennavigation"
+
+msgid "Go to first page"
+msgstr "Zur ersten Seite"
+
+msgid "First page"
+msgstr "Erste Seite"
+
+msgid "« First"
+msgstr "« Erste"
+
+msgid "Go to previous page"
+msgstr "Zur vorherigen Seite"
+
+msgid "Previous page"
+msgstr "Vorherige Seite"
+
+msgid "‹ Back"
+msgstr "‹ Zurück"
+
+msgid "Current page"
+msgstr "Aktuelle Seite"
+
+msgctxt "salsa"
+msgid "Page"
+msgstr "Seite"
+
+msgctxt "salsa"
+msgid "Go to page @key"
+msgstr "Zu Seite @key"
+
+msgid "Go to next page"
+msgstr "Zur nächsten Seite"
+
+msgid "Next page"
+msgstr "Nächste Seite"
+
+msgid "Next ›"
+msgstr "Weiter ›"
+
+msgid "Go to last page"
+msgstr "Zur letzten Seite"
+
+msgid "Last page"
+msgstr "Letzte Seite"
+
+msgid "Last »"
+msgstr "Letzte »"
