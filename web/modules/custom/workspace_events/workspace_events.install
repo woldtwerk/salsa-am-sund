@@ -136,9 +136,9 @@ function workspace_events_update_10006(): void {
 /**
  * Implements hook_update_N().
  *
- * Installs the AI attendance recognition, points the Mistral provider at the
- * environment backed key, adds the participant automator action to the lesson
- * form and grants the new permission to the content editor role.
+ * Installs the AI attendance recognition, adds the participant automator
+ * action to the lesson form and grants the new permission to the content
+ * editor role.
  */
 function workspace_events_update_10008(): void {
   \Drupal::service('module_installer')->install([
@@ -146,7 +146,6 @@ function workspace_events_update_10008(): void {
     'ai',
     'ai_automators',
     'field_widget_actions',
-    'ai_provider_mistral',
   ]);
 
   $installer = \Drupal::service(AttendanceRecognitionInstaller::class);
@@ -414,8 +413,8 @@ function workspace_events_update_10014(): void {
  *
  * Adds the selectable OpenCode OCR backends to existing sites.
  *
- * Mistral stays the configured backend, so nothing changes until an
- * administrator switches providers in the settings form.
+ * The legacy Mistral backend stays the configured backend, so nothing changes
+ * until an administrator chooses another provider.
  */
 function workspace_events_update_10015(): void {
   $loader = \Drupal::service(ConfigRecordLoader::class);
@@ -427,15 +426,16 @@ function workspace_events_update_10015(): void {
     $storage->createFromStorageRecord($loader->load('key.key.' . AttendanceRecognition::OPENCODE_KEY_ID))->save();
   }
 
-  $config = \Drupal::configFactory()->getEditable(AttendanceRecognition::SETTINGS);
+  $config = \Drupal::configFactory()->getEditable('workspace_events.attendance_recognition');
   if (!$config->isNew()) {
     return;
   }
 
-  foreach ($loader->load(AttendanceRecognition::SETTINGS) as $key => $value) {
-    $config->set($key, $value);
-  }
-  $config->save();
+  $config->setData([
+    'backend' => 'mistral_ocr',
+    'provider_id' => '',
+    'model_id' => '',
+  ])->save();
 }
 
 /**
@@ -449,28 +449,90 @@ function workspace_events_update_10016(): void {
     \Drupal::service('module_installer')->install(['ai_provider_opencode']);
   }
 
-  $loader = \Drupal::service(ConfigRecordLoader::class);
-  \assert($loader instanceof ConfigRecordLoader);
-  $record = $loader->load(AttendanceRecognition::SETTINGS);
+  $config = \Drupal::configFactory()->getEditable('workspace_events.attendance_recognition');
+  $record = $config->get();
+  if (!is_array($record)) {
+    $record = [];
+  }
   unset($record['opencode_zen'], $record['opencode_go']);
   $record['provider_id'] = is_string($record['provider_id'] ?? NULL) ? $record['provider_id'] : '';
   $record['model_id'] = is_string($record['model_id'] ?? NULL) ? $record['model_id'] : '';
 
-  $config = \Drupal::configFactory()->getEditable(AttendanceRecognition::SETTINGS);
   $old_backend = $config->get('backend');
 
   if (is_string($old_backend) && in_array($old_backend, ['opencode_zen', 'opencode_go'], TRUE)) {
     $old_model = $config->get($old_backend . '.model');
-    $record['backend'] = AttendanceRecognition::BACKEND_AI_PROVIDER;
+    $record['backend'] = 'ai_provider';
     $record['provider_id'] = $old_backend;
     $record['model_id'] = is_string($old_model) ? $old_model : '';
   }
   else {
-    $record['backend'] = AttendanceRecognition::BACKEND_MISTRAL_OCR;
+    $record['backend'] = 'mistral_ocr';
   }
 
   // Replacing all data also drops the nested settings of the old backends.
   $config->setData($record)->save();
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Moves the attendance prompt into the AI prompt library.
+ */
+function workspace_events_update_10017(): void {
+  $loader = \Drupal::service(ConfigRecordLoader::class);
+  \assert($loader instanceof ConfigRecordLoader);
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  $type_storage = $entity_type_manager->getStorage('ai_prompt_type');
+  \assert($type_storage instanceof ConfigEntityStorageInterface);
+  if ($type_storage->load(AttendanceRecognition::PROMPT_TYPE) === NULL) {
+    $type_storage->createFromStorageRecord($loader->load('ai.ai_prompt_type.' . AttendanceRecognition::PROMPT_TYPE))->save();
+  }
+
+  $prompt_storage = $entity_type_manager->getStorage('ai_prompt');
+  \assert($prompt_storage instanceof ConfigEntityStorageInterface);
+  if ($prompt_storage->load(AttendanceRecognition::PROMPT_ID) === NULL) {
+    $prompt_storage->createFromStorageRecord($loader->load('ai.ai_prompt.' . AttendanceRecognition::PROMPT_ID))->save();
+  }
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Moves the attendance recognition to the AI module settings and removes the
+ * legacy Mistral configuration.
+ */
+function workspace_events_update_10018(): void {
+  $config = \Drupal::configFactory()->getEditable('workspace_events.attendance_recognition');
+  $ai_settings = \Drupal::configFactory()->getEditable('ai.settings');
+  $default_providers = $ai_settings->get('default_providers');
+  $default_providers = is_array($default_providers) ? $default_providers : [];
+
+  if (empty($default_providers[AttendanceRecognition::OPERATION_TYPE]) && $config->get('backend') === 'ai_provider') {
+    $provider_id = $config->get('provider_id');
+    $model_id = $config->get('model_id');
+    if (is_string($provider_id) && $provider_id !== '' && is_string($model_id) && $model_id !== '') {
+      $default_providers[AttendanceRecognition::OPERATION_TYPE] = [
+        'provider_id' => $provider_id,
+        'model_id' => $model_id,
+      ];
+      $ai_settings->set('default_providers', $default_providers)->save();
+    }
+  }
+
+  $config->delete();
+
+  if (\Drupal::entityTypeManager()->hasDefinition('key')) {
+    $key = \Drupal::entityTypeManager()->getStorage('key')->load('mistral_api_key');
+    if ($key !== NULL) {
+      $key->delete();
+    }
+  }
+
+  if (\Drupal::moduleHandler()->moduleExists('ai_provider_mistral')) {
+    \Drupal::service('module_installer')->uninstall(['ai_provider_mistral']);
+  }
 }
 
 /**

@@ -15,8 +15,3 @@ workspace_events.dance_figures:
   menu_name: account
   weight: 0
 
-workspace_events.attendance_recognition_settings:
-  title: 'Anwesenheitserkennung'
-  description: 'Anbieter für die Erkennung von Anwesenheitslisten wählen.'
-  route_name: workspace_events.attendance_recognition_settings
-  parent: system.admin_config_services

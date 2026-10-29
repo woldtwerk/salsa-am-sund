@@ -51,18 +51,9 @@ services:
     autowire: true
   Drupal\workspace_events\Attendance\PreviousAttendance:
     autowire: true
-  Drupal\workspace_events\Attendance\MistralOcrClientFactory:
-    arguments:
-      - '@?ai.provider'
-      - '@http_client_factory'
-  Drupal\workspace_events\Attendance\MistralOcrClientFactoryInterface:
-    alias: Drupal\workspace_events\Attendance\MistralOcrClientFactory
-  Drupal\workspace_events\Attendance\MistralOcrBackend:
-    autowire: true
   Drupal\workspace_events\Attendance\OcrBackendResolver:
     arguments:
       - '@config.factory'
-      - '@Drupal\workspace_events\Attendance\MistralOcrBackend'
       - '@?ai.provider'
   Drupal\workspace_events\Attendance\OcrBackendResolverInterface:
     alias: Drupal\workspace_events\Attendance\OcrBackendResolver

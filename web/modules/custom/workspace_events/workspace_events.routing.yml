@@ -30,10 +30,3 @@ workspace_events.events_json:
   requirements:
     _access: 'TRUE'
 
-workspace_events.attendance_recognition_settings:
-  path: '/admin/config/services/anwesenheitserkennung'
-  defaults:
-    _form: '\Drupal\workspace_events\Form\AttendanceRecognitionSettingsForm'
-    _title: 'Anwesenheitserkennung'
-  requirements:
-    _permission: 'administer site configuration'

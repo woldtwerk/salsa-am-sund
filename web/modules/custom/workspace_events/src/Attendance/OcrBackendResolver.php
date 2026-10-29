@@ -6,14 +6,15 @@ namespace Drupal\workspace_events\Attendance;
 
 use Drupal\ai\AiProviderPluginManager;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Config\ImmutableConfig;
 use Drupal\workspace_events\AttendanceRecognition;
 
 /**
- * Resolves the OCR backend from the attendance recognition settings.
+ * Resolves the attendance recognition backend from the default AI provider.
  *
- * The backend is built once per request, so a form that recognizes several
- * photos does not read the configuration again.
+ * The backend uses the default provider of the "chat with image vision"
+ * operation and the prompt of the AI prompt library. It is built once per
+ * request, so a form that recognizes several photos does not resolve the
+ * provider and the prompt again.
  */
 final class OcrBackendResolver implements OcrBackendResolverInterface {
 
@@ -27,15 +28,12 @@ final class OcrBackendResolver implements OcrBackendResolverInterface {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
    *   The config factory.
-   * @param \Drupal\workspace_events\Attendance\MistralOcrBackend $mistralBackend
-   *   The Mistral OCR backend.
    * @param \Drupal\ai\AiProviderPluginManager|null $aiProviderManager
    *   The AI provider plugin manager (the ai.provider service), or NULL when
    *   the AI module is not available.
    */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
-    private readonly MistralOcrBackend $mistralBackend,
     private readonly ?AiProviderPluginManager $aiProviderManager,
   ) {}
 
@@ -47,40 +45,23 @@ final class OcrBackendResolver implements OcrBackendResolverInterface {
       return $this->backend;
     }
 
-    $config = $this->configFactory->get(AttendanceRecognition::SETTINGS);
-    $backend = $config->get('backend');
-    if ($backend === AttendanceRecognition::BACKEND_MISTRAL_OCR) {
-      return $this->backend = $this->mistralBackend;
-    }
-
-    if ($backend === AttendanceRecognition::BACKEND_AI_PROVIDER) {
-      return $this->backend = $this->resolveAiProviderBackend($config);
-    }
-
-    throw new \RuntimeException(sprintf('Unknown attendance recognition backend %s.', is_string($backend) ? $backend : get_debug_type($backend)));
-  }
-
-  /**
-   * Builds the backend of a configured AI provider.
-   *
-   * @param \Drupal\Core\Config\ImmutableConfig $config
-   *   The attendance recognition configuration.
-   *
-   * @return \Drupal\workspace_events\Attendance\AiProviderVisionBackend
-   *   The AI provider backend.
-   */
-  private function resolveAiProviderBackend(ImmutableConfig $config): AiProviderVisionBackend {
-    $providerId = $config->get('provider_id');
-    $modelId = $config->get('model_id');
-    if (!is_string($providerId) || $providerId === '' || !is_string($modelId) || $modelId === '') {
-      throw new \RuntimeException('The AI provider settings of the attendance recognition are incomplete.');
-    }
-
     if ($this->aiProviderManager === NULL) {
       throw new \RuntimeException('The AI module is not available.');
     }
 
-    return new AiProviderVisionBackend($this->aiProviderManager, $providerId, $modelId);
+    $default = $this->aiProviderManager->getDefaultProviderForOperationType(AttendanceRecognition::OPERATION_TYPE);
+    $providerId = is_array($default) ? ($default['provider_id'] ?? NULL) : NULL;
+    $modelId = is_array($default) ? ($default['model_id'] ?? NULL) : NULL;
+    if (!is_string($providerId) || $providerId === '' || !is_string($modelId) || $modelId === '') {
+      throw new \RuntimeException('No default AI provider for chat with image vision is configured.');
+    }
+
+    $prompt = $this->configFactory->get('ai.ai_prompt.' . AttendanceRecognition::PROMPT_ID)->get('prompt');
+    if (!is_string($prompt) || $prompt === '') {
+      throw new \RuntimeException('The prompt of the attendance recognition is missing.');
+    }
+
+    return $this->backend = new AiProviderVisionBackend($this->aiProviderManager, $providerId, $modelId, $prompt);
   }
 
 }

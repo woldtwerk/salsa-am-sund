@@ -4,22 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events;
 
-use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\Entity\ConfigEntityStorageInterface;
 use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
  * Creates the configuration of the AI attendance recognition.
  */
 final class AttendanceRecognitionInstaller extends ConfigRecordInstaller {
-
-  /**
-   * The configuration entities of the attendance recognition.
-   */
-  public const array CONFIG_NAMES = [
-    'key.key.mistral_api_key',
-  ];
 
   /**
    * The name of the lesson form display.
@@ -32,54 +23,11 @@ final class AttendanceRecognitionInstaller extends ConfigRecordInstaller {
   private const string FORM_DISPLAY_ID = 'node.lesson.default';
 
   /**
-   * The name of the Mistral provider settings.
-   */
-  private const string PROVIDER_SETTINGS = 'ai_provider_mistral.settings';
-
-  /**
-   * Constructs an AttendanceRecognitionInstaller.
-   *
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
-   *   The entity type manager.
-   * @param \Drupal\workspace_events\ConfigRecordLoader $configRecordLoader
-   *   The loader of the configuration records.
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
-   *   The config factory.
-   */
-  public function __construct(
-    EntityTypeManagerInterface $entityTypeManager,
-    ConfigRecordLoader $configRecordLoader,
-    private readonly ConfigFactoryInterface $configFactory,
-  ) {
-    parent::__construct($entityTypeManager, $configRecordLoader);
-  }
-
-  /**
    * {@inheritdoc}
    */
   public function install(?array $config_names = NULL): void {
     parent::install($config_names);
-    $this->installProviderSettings();
     $this->installFormDisplay();
-  }
-
-  /**
-   * Points the Mistral provider at the Key entity.
-   *
-   * An API key that is already configured is kept, so an update never
-   * overwrites a key an administrator chose.
-   */
-  private function installProviderSettings(): void {
-    $config = $this->configFactory->getEditable(self::PROVIDER_SETTINGS);
-    if ($config->get('api_key')) {
-      return;
-    }
-
-    $record = $this->configRecordLoader->load(self::PROVIDER_SETTINGS);
-    $config
-      ->set('api_key', $record['api_key'] ?? AttendanceRecognition::KEY_ID)
-      ->set('host', $record['host'] ?? '')
-      ->save();
   }
 
   /**
