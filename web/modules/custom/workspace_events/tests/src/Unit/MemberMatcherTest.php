@@ -21,172 +21,158 @@ final class MemberMatcherTest extends UnitTestCase {
    * Tests an exact match.
    */
   public function testExactMatch(): void {
-    $result = $this->createMatcher([7 => 'Max Mustermann'])->match(['Max Mustermann']);
-    self::assertSame([7], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    self::assertSame([
+      ['name' => 'Max Mustermann', 'candidates' => [7], 'recommended' => 7],
+    ], $this->createMatcher([7 => 'Max Mustermann'])->match(['Max Mustermann']));
   }
 
   /**
    * Tests that umlauts and ß are transliterated on both sides.
    */
   public function testUmlautsAndSharpS(): void {
-    $result = $this->createMatcher([
+    self::assertSame([
+      ['name' => 'Juergen Gross', 'candidates' => [3], 'recommended' => 3],
+      ['name' => 'Baerbel Weiss', 'candidates' => [4], 'recommended' => 4],
+    ], $this->createMatcher([
       3 => 'Jürgen Groß',
       4 => 'Bärbel Weiß',
-    ])->match(['Juergen Gross', 'Baerbel Weiss']);
-    self::assertSame([3, 4], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ])->match(['Juergen Gross', 'Baerbel Weiss']));
   }
 
   /**
    * Tests that the first and last name order does not matter.
    */
   public function testSwappedNames(): void {
-    $result = $this->createMatcher([9 => 'Max Mustermann'])->match(['Mustermann, Max']);
-    self::assertSame([9], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
+    self::assertSame([
+      ['name' => 'Mustermann, Max', 'candidates' => [9], 'recommended' => 9],
+    ], $this->createMatcher([9 => 'Max Mustermann'])->match(['Mustermann, Max']));
   }
 
   /**
    * Tests a typo within a Levenshtein distance of two.
    */
   public function testTypoWithinDistance(): void {
-    $result = $this->createMatcher([5 => 'Max Mustermann'])->match(['Max Mustermannn']);
-    self::assertSame([5], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    self::assertSame([
+      ['name' => 'Max Mustermannn', 'candidates' => [5], 'recommended' => 5],
+    ], $this->createMatcher([5 => 'Max Mustermann'])->match(['Max Mustermannn']));
   }
 
   /**
-   * Tests that a name that fits several members is reported as ambiguous.
+   * Tests that a name that fits several members keeps its candidates.
    */
-  public function testAmbiguousNameIsReported(): void {
-    $result = $this->createMatcher([
+  public function testAmbiguousNameKeepsCandidates(): void {
+    self::assertSame([
+      ['name' => 'Ann Muster', 'candidates' => [1, 2], 'recommended' => NULL],
+    ], $this->createMatcher([
       1 => 'Anna Muster',
       2 => 'Anne Muster',
-    ])->match(['Ann Muster']);
-    self::assertSame([], $result['matched']);
-    self::assertSame(['Ann Muster' => [1, 2]], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ])->match(['Ann Muster']));
   }
 
   /**
    * Tests that an exact match wins over a similar member.
    */
   public function testExactMatchWinsOverSimilarName(): void {
-    $result = $this->createMatcher([
+    self::assertSame([
+      ['name' => 'Anna Muster', 'candidates' => [1], 'recommended' => 1],
+    ], $this->createMatcher([
       1 => 'Anna Muster',
       2 => 'Anne Muster',
-    ])->match(['Anna Muster']);
-    self::assertSame([1], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ])->match(['Anna Muster']));
   }
 
   /**
    * Tests matching without any member.
    */
   public function testNoMembers(): void {
-    $result = $this->createMatcher([])->match(['Max Mustermann']);
-    self::assertSame([], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame(['Max Mustermann'], $result['unmatched']);
+    self::assertSame([
+      ['name' => 'Max Mustermann', 'candidates' => [], 'recommended' => NULL],
+    ], $this->createMatcher([])->match(['Max Mustermann']));
   }
 
   /**
-   * Tests that several lines for the same member produce one ID.
+   * Tests that the same line produces one row only.
    */
-  public function testDuplicateLinesProduceOneMatch(): void {
-    $result = $this->createMatcher([4 => 'Max Mustermann'])->match([
+  public function testDuplicateLinesProduceOneRow(): void {
+    self::assertSame([
+      ['name' => 'Max Mustermann', 'candidates' => [4], 'recommended' => 4],
+    ], $this->createMatcher([4 => 'Max Mustermann'])->match([
       'Max Mustermann',
       'Mustermann Max',
-    ]);
-    self::assertSame([4], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ]));
   }
 
   /**
    * Tests that empty and noise lines are ignored.
    */
   public function testNoiseLinesAreIgnored(): void {
-    $result = $this->createMatcher([4 => 'Max Mustermann'])->match(['', '  ', '12.10.2026']);
-    self::assertSame([], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    self::assertSame([], $this->createMatcher([4 => 'Max Mustermann'])->match(['', '  ', '12.10.2026']));
   }
 
   /**
    * Tests that a unique first name matches its member.
    */
   public function testUniqueFirstNameMatches(): void {
-    $result = $this->createMatcher([7 => 'Moritz Müller'])->match(['Moritz']);
-    self::assertSame([7], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    self::assertSame([
+      ['name' => 'Moritz', 'candidates' => [7], 'recommended' => 7],
+    ], $this->createMatcher([7 => 'Moritz Müller'])->match(['Moritz']));
   }
 
   /**
-   * Tests that a first name shared by two members is ambiguous.
+   * Tests that a first name shared by two members is recommended by no one.
    */
-  public function testSharedFirstNameIsAmbiguous(): void {
+  public function testSharedFirstNameStaysAmbiguous(): void {
     // The loader order is reversed on purpose: the candidates have to be
     // sorted by display name.
-    $result = $this->createMatcher([
+    self::assertSame([
+      ['name' => 'Sophie', 'candidates' => [1, 2], 'recommended' => NULL],
+    ], $this->createMatcher([
       2 => 'Sophie Weber',
       1 => 'Sophie Schulz',
-    ])->match(['Sophie']);
-    self::assertSame([], $result['matched']);
-    self::assertSame(['Sophie' => [1, 2]], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ])->match(['Sophie']));
   }
 
   /**
    * Tests that a full name removes its member from another line's candidates.
    */
-  public function testAlreadyMatchedMemberIsRemovedFromCandidates(): void {
-    $result = $this->createMatcher([
+  public function testAlreadyRecommendedMemberIsRemovedFromCandidates(): void {
+    self::assertSame([
+      ['name' => 'Sophie', 'candidates' => [2], 'recommended' => 2],
+      ['name' => 'Sophie Schulz', 'candidates' => [1], 'recommended' => 1],
+    ], $this->createMatcher([
       1 => 'Sophie Schulz',
       2 => 'Sophie Weber',
-    ])->match(['Sophie', 'Sophie Schulz']);
-    self::assertSame([1, 2], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ])->match(['Sophie', 'Sophie Schulz']));
   }
 
   /**
    * Tests that a last name matches its member.
    */
   public function testLastNameMatches(): void {
-    $result = $this->createMatcher([7 => 'Moritz Müller'])->match(['Müller']);
-    self::assertSame([7], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    self::assertSame([
+      ['name' => 'Müller', 'candidates' => [7], 'recommended' => 7],
+    ], $this->createMatcher([7 => 'Moritz Müller'])->match(['Müller']));
   }
 
   /**
    * Tests that an initial matches the member whose other name starts with it.
    */
   public function testInitialMatches(): void {
-    $result = $this->createMatcher([
+    self::assertSame([
+      ['name' => 'Sophie S.', 'candidates' => [1], 'recommended' => 1],
+    ], $this->createMatcher([
       1 => 'Sophie Schulz',
       2 => 'Sophie Weber',
-    ])->match(['Sophie S.']);
-    self::assertSame([1], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame([], $result['unmatched']);
+    ])->match(['Sophie S.']));
   }
 
   /**
-   * Tests that an unknown first name is unmatched.
+   * Tests that an unknown first name has no candidates.
    */
-  public function testUnknownNameIsUnmatched(): void {
-    $result = $this->createMatcher([7 => 'Moritz Müller'])->match(['Nils']);
-    self::assertSame([], $result['matched']);
-    self::assertSame([], $result['ambiguous']);
-    self::assertSame(['Nils'], $result['unmatched']);
+  public function testUnknownNameHasNoCandidates(): void {
+    self::assertSame([
+      ['name' => 'Nils', 'candidates' => [], 'recommended' => NULL],
+    ], $this->createMatcher([7 => 'Moritz Müller'])->match(['Nils']));
   }
 
   /**

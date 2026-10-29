@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Plugin\FieldWidgetAction;
 
 use Drupal\Component\Utility\NestedArray;
+use Drupal\Core\Entity\ContentEntityFormInterface;
 use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\WidgetBase;
@@ -15,11 +17,13 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\field_widget_actions\Attribute\FieldWidgetAction;
 use Drupal\field_widget_actions\FieldWidgetActionBase;
+use Drupal\node\NodeInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\Attendance\AttendanceRecognitionException;
 use Drupal\workspace_events\Attendance\AttendanceRecognizer;
 use Drupal\workspace_events\Attendance\MemberMatcher;
 use Drupal\workspace_events\Attendance\MemberNameLoaderInterface;
+use Drupal\workspace_events\Attendance\PreviousAttendance;
 use Drupal\workspace_events\AttendanceRecognition;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -55,19 +59,19 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
   private const string UPLOAD_ELEMENT = 'attendance_photo_upload';
 
   /**
-   * The form element holding the selects for ambiguous recognized names.
+   * The form element holding the review table of the recognized names.
    */
-  private const string AMBIGUOUS_ELEMENT = 'attendance_ambiguous';
+  private const string REVIEW_ELEMENT = 'attendance_review';
 
   /**
-   * The key of the "apply selection" button inside the ambiguous element.
+   * The key of the "apply selection" button inside the review element.
    */
   private const string APPLY_BUTTON = 'apply';
 
   /**
-   * The form state key prefix of the ambiguous candidates per field.
+   * The form state key prefix of the review rows per field.
    */
-  private const string AMBIGUOUS_STATE_PREFIX = 'workspace_events.attendance_ambiguous.';
+  private const string REVIEW_STATE_PREFIX = 'workspace_events.attendance_review.';
 
   /**
    * The largest accepted upload in bytes.
@@ -116,6 +120,10 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    *   The member matcher.
    * @param \Drupal\workspace_events\Attendance\MemberNameLoaderInterface $memberNameLoader
    *   The member name loader.
+   * @param \Drupal\workspace_events\Attendance\PreviousAttendance $previousAttendance
+   *   The recommender by earlier lessons.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   The entity type manager.
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   The request stack.
    */
@@ -128,6 +136,8 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     protected readonly AttendanceRecognizer $recognizer,
     protected readonly MemberMatcher $memberMatcher,
     protected readonly MemberNameLoaderInterface $memberNameLoader,
+    protected readonly PreviousAttendance $previousAttendance,
+    protected readonly EntityTypeManagerInterface $entityTypeManager,
     protected readonly RequestStack $requestStack,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $messenger);
@@ -156,6 +166,8 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       $container->get(AttendanceRecognizer::class),
       $container->get(MemberMatcher::class),
       $container->get(MemberNameLoaderInterface::class),
+      $container->get(PreviousAttendance::class),
+      $container->get('entity_type.manager'),
       $container->get('request_stack'),
     );
   }
@@ -230,29 +242,45 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       ],
     ];
 
-    $this->ambiguousSelections($form, $form_state, $fieldName, $baseWeight + 11);
+    $this->reviewTable($form, $form_state, $items, $baseWeight + 11);
   }
 
   /**
-   * Renders a select per ambiguous recognized name below the action button.
+   * Renders the review table of the recognized names below the action button.
    *
-   * The candidates live only in the form state, so nothing is persisted until
-   * the editor applies a selection.
+   * Every row holds the recognized text, an autocomplete for the member and a
+   * hint why the member is proposed. The rows live only in the form state, and
+   * nothing is added to the field until the editor applies the selection.
    *
    * @param array<mixed> $form
    *   The field widget form.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The form state.
-   * @param string $fieldName
-   *   The participant field name.
+   * @param \Drupal\Core\Field\FieldItemListInterface<\Drupal\Core\Field\FieldItemInterface> $items
+   *   The participant field.
    * @param int $weight
-   *   The weight of the selection form.
+   *   The weight of the review table.
    */
-  private function ambiguousSelections(array &$form, FormStateInterface $form_state, string $fieldName, int $weight): void {
-    $ambiguous = $this->ambiguousCandidates($form_state, $fieldName);
-    if ($ambiguous === []) {
+  private function reviewTable(array &$form, FormStateInterface $form_state, FieldItemListInterface $items, int $weight): void {
+    $fieldName = $items->getFieldDefinition()->getName();
+    $rows = $this->reviewRows($form_state, $fieldName);
+    if ($rows === []) {
       return;
     }
+
+    $fieldDefinition = $items->getFieldDefinition();
+    $handler = $fieldDefinition->getSetting('handler');
+    $handlerSettings = $fieldDefinition->getSetting('handler_settings');
+
+    $recommended = [];
+    foreach ($rows as $row) {
+      foreach ($row['recommended'] as $id) {
+        $recommended[$id] = $id;
+      }
+    }
+    $users = $recommended === []
+      ? []
+      : $this->entityTypeManager->getStorage('user')->loadMultiple($recommended);
     $names = $this->memberNameLoader->load();
 
     $element = [
@@ -260,31 +288,53 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       '#tree' => TRUE,
       '#weight' => $weight,
       '#attributes' => [
-        'class' => ['attendance-ambiguous'],
+        'class' => ['attendance-review'],
       ],
     ];
-    $index = 0;
-    foreach ($ambiguous as $label => $ids) {
-      $options = [0 => $this->t('– niemand –')];
-      foreach ($ids as $id) {
-        $options[$id] = $names[$id] ?? (string) $id;
-      }
-      $element['select_' . $index] = [
-        '#type' => 'select',
-        '#title' => $this->t('Wer ist „@name“?', ['@name' => $label]),
-        '#options' => $options,
-        '#default_value' => 0,
+    $table = [
+      '#type' => 'table',
+      '#tree' => TRUE,
+      '#header' => [
+        $this->t('Erkannt'),
+        $this->t('Mitglied'),
+        $this->t('Hinweis'),
+      ],
+      '#attributes' => [
+        'class' => ['attendance-review__table'],
+      ],
+    ];
+    foreach ($rows as $index => $row) {
+      $table[$index] = [
+        'erkannt' => [
+          '#plain_text' => $row['name'],
+        ],
+        'mitglied' => [
+          '#type' => 'entity_autocomplete',
+          '#target_type' => 'user',
+          '#selection_handler' => is_string($handler) ? $handler : 'default:user',
+          '#selection_settings' => is_array($handlerSettings) ? $handlerSettings : [],
+          '#tags' => TRUE,
+          '#title' => $this->t('Mitglieder für @name', ['@name' => $row['name']]),
+          '#title_display' => 'invisible',
+          '#size' => 40,
+          '#default_value' => array_values(array_filter(
+            array_map(static fn (int $id): mixed => $users[$id] ?? NULL, $row['recommended']),
+          )),
+        ],
+        'hinweis' => [
+          '#markup' => $this->reviewHint($row, $names),
+        ],
       ];
-      $index++;
     }
+    $element['table'] = $table;
     $element[self::APPLY_BUTTON] = [
       '#type' => 'button',
-      '#value' => $this->t('Auswahl übernehmen'),
+      '#value' => $this->t('Teilnehmer übernehmen'),
       '#name' => $fieldName . '_attendance_apply',
       '#field_widget_action_field_name' => $fieldName,
       '#field_widget_action_field_delta' => NULL,
       '#executes_submit_callback' => TRUE,
-      '#submit' => [[$this, 'applySelectionSubmit']],
+      '#submit' => [[$this, 'applyReviewSubmit']],
       '#validate' => ['::validateForm', [$this, 'clearErrorsForAction']],
       '#ajax' => [
         'callback' => [$this, 'reportResultAjax'],
@@ -293,7 +343,40 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       ],
     ];
 
-    $form[self::AMBIGUOUS_ELEMENT] = $element;
+    $form[self::REVIEW_ELEMENT] = $element;
+  }
+
+  /**
+   * Returns the hint for a review row.
+   *
+   * @param array{name: string, candidates: int[], recommended: int[], reason: string|null} $row
+   *   The review row.
+   * @param array<int, string> $names
+   *   The member display names keyed by user ID.
+   *
+   * @return \Drupal\Core\StringTranslation\TranslatableMarkup
+   *   The hint.
+   */
+  private function reviewHint(array $row, array $names): TranslatableMarkup {
+    if (count($row['candidates']) === 1 && $row['recommended'] !== []) {
+      return $this->t('eindeutig');
+    }
+    if ($row['reason'] === 'regular') {
+      return $this->t('nehmen regelmäßig teil');
+    }
+    if ($row['reason'] === 'previous') {
+      return $this->t('wie letzte Stunde');
+    }
+    if ($row['candidates'] === []) {
+      return $this->t('kein Mitglied gefunden');
+    }
+    $labels = [];
+    foreach ($row['candidates'] as $id) {
+      $labels[] = $names[$id] ?? (string) $id;
+    }
+    return $this->t('mehrdeutig: @names – bitte wählen', [
+      '@names' => implode(', ', $labels),
+    ]);
   }
 
   /**
@@ -317,7 +400,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
   }
 
   /**
-   * Reads the uploaded photo, recognizes the names and fills the field.
+   * Reads the uploaded photo, recognizes the names and proposes the members.
    *
    * @param array<mixed> $form
    *   The form.
@@ -325,6 +408,10 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    *   The form state.
    */
   public function recognizeSubmit(array &$form, FormStateInterface $form_state): void {
+    if (!$this->isAvailable()) {
+      return;
+    }
+
     $triggeringElement = $form_state->getTriggeringElement();
     $fieldName = $triggeringElement['#field_widget_action_field_name'] ?? NULL;
     if (!is_string($fieldName) || $fieldName === '' || !isset($form[$fieldName])) {
@@ -381,43 +468,66 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       return;
     }
 
-    $result = $this->memberMatcher->match($names);
-    // Replace the candidates of a previous run; an empty list also removes the
-    // selects that were rendered for them.
-    $form_state->set($this->ambiguousKey($fieldName), $result['ambiguous']);
-    if ($result['unmatched'] !== []) {
-      $this->messengerService->addWarning($this->t('Kein Mitglied gefunden: @names', [
-        '@names' => implode(', ', $result['unmatched']),
-      ]));
-    }
-    if ($result['ambiguous'] !== []) {
-      $this->messengerService->addStatus($this->t('Bitte auswählen: @names', [
-        '@names' => implode(', ', array_keys($result['ambiguous'])),
-      ]));
-    }
-
-    if ($result['matched'] !== []) {
-      $this->addParticipants($form, $form_state, $fieldName, $result['matched']);
-      return;
-    }
-    if ($result['ambiguous'] === []) {
+    $rows = $this->memberMatcher->match($names);
+    if ($rows === []) {
+      $this->messengerService->addWarning($this->t('Auf dem Anwesenheitsfoto wurden keine Namen erkannt.'));
       $this->reportNoValueProduced($form_state, $fieldName);
       return;
     }
 
-    // Only ambiguous names were found: rebuild so the selects are rendered.
+    $rows = $this->addPreviousRecommendations($rows, $form_state);
+    // Replace the rows of a previous run; an empty list also removes the table
+    // that was rendered for them.
+    $form_state->set($this->reviewKey($fieldName), $rows);
+    $this->messengerService->addStatus($this->t('Bitte die Vorschläge prüfen und übernehmen.'));
+
+    // Nothing is added before the editor applies the selection.
     $form_state->setRebuild();
   }
 
   /**
-   * Adds the selected members of the ambiguous names to the participant field.
+   * Fills the recommendation of ambiguous rows from the earlier lessons.
+   *
+   * @param array<int, array{name: string, candidates: int[], recommended: int|null}> $rows
+   *   The recognized rows.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   *
+   * @return array<int, array{name: string, candidates: int[], recommended: int[], reason: string|null}>
+   *   The rows of the review table, with the recommended members.
+   */
+  private function addPreviousRecommendations(array $rows, FormStateInterface $form_state): array {
+    $formObject = $form_state->getFormObject();
+    $lesson = $formObject instanceof ContentEntityFormInterface ? $formObject->getEntity() : NULL;
+
+    foreach ($rows as $index => $row) {
+      if ($row['recommended'] !== NULL) {
+        $rows[$index]['recommended'] = [$row['recommended']];
+        $rows[$index]['reason'] = 'unique';
+        continue;
+      }
+      $rows[$index]['recommended'] = [];
+      $rows[$index]['reason'] = NULL;
+      if (!$lesson instanceof NodeInterface || $row['candidates'] === []) {
+        continue;
+      }
+      $recommendation = $this->previousAttendance->recommendation($lesson, $row['candidates']);
+      $rows[$index]['recommended'] = $recommendation['recommended'];
+      $rows[$index]['reason'] = $recommendation['reason'];
+    }
+
+    return $rows;
+  }
+
+  /**
+   * Adds the confirmed members of the review table to the participant field.
    *
    * @param array<mixed> $form
    *   The form.
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The form state.
    */
-  public function applySelectionSubmit(array &$form, FormStateInterface $form_state): void {
+  public function applyReviewSubmit(array &$form, FormStateInterface $form_state): void {
     if (!$this->isAvailable()) {
       return;
     }
@@ -428,17 +538,12 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       return;
     }
 
-    $ambiguous = $this->ambiguousCandidates($form_state, $fieldName);
-    if ($ambiguous === []) {
-      return;
-    }
-
     $parents = $triggeringElement['#parents'] ?? [];
     if (!is_array($parents)) {
       $parents = [];
     }
     // Drop the button from the parents to reach the container holding the
-    // selects.
+    // table.
     array_pop($parents);
     $values = $form_state->getValue($parents);
     if (!is_array($values)) {
@@ -446,17 +551,24 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     }
 
     $selected = [];
-    $index = 0;
-    foreach ($ambiguous as $ids) {
-      $id = $values['select_' . $index] ?? 0;
-      if (is_numeric($id) && in_array((int) $id, $ids, TRUE)) {
-        $selected[(int) $id] = (int) $id;
+    $table = $values['table'] ?? NULL;
+    foreach (is_array($table) ? $table : [] as $row) {
+      if (!is_array($row)) {
+        continue;
       }
-      $index++;
+      $ids = $row['mitglied'] ?? [];
+      foreach (is_array($ids) ? $ids : [$ids] as $id) {
+        if (is_array($id)) {
+          $id = $id['target_id'] ?? NULL;
+        }
+        if (is_numeric($id) && (int) $id > 0) {
+          $selected[(int) $id] = (int) $id;
+        }
+      }
     }
 
-    // The editor has answered the prompts, so they are no longer shown.
-    $form_state->set($this->ambiguousKey($fieldName), []);
+    // The editor has reviewed the proposals, so the table is no longer shown.
+    $form_state->set($this->reviewKey($fieldName), []);
 
     if ($selected !== []) {
       $this->addParticipants($form, $form_state, $fieldName, $selected);
@@ -499,42 +611,53 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
   }
 
   /**
-   * Returns the unresolved ambiguous names of a field from the form state.
+   * Returns the review rows of a field from the form state.
    *
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    *   The form state.
    * @param string $fieldName
    *   The participant field name.
    *
-   * @return array<string, int[]>
-   *   The candidate user IDs per recognized name.
+   * @return array<int, array{name: string, candidates: int[], recommended: int[], reason: string|null}>
+   *   The recognized text, candidates, recommended members and the reason per
+   *   row.
    */
-  private function ambiguousCandidates(FormStateInterface $form_state, string $fieldName): array {
-    $stored = $form_state->get($this->ambiguousKey($fieldName));
+  private function reviewRows(FormStateInterface $form_state, string $fieldName): array {
+    $stored = $form_state->get($this->reviewKey($fieldName));
     if (!is_array($stored)) {
       return [];
     }
 
-    $ambiguous = [];
-    foreach ($stored as $label => $ids) {
-      if (!is_string($label) || !is_array($ids)) {
+    $rows = [];
+    foreach ($stored as $row) {
+      if (!is_array($row) || !isset($row['name']) || !is_string($row['name'])) {
         continue;
       }
       $candidates = [];
-      foreach ($ids as $id) {
+      foreach (is_array($row['candidates'] ?? NULL) ? $row['candidates'] : [] as $id) {
         if (is_int($id) || (is_string($id) && ctype_digit($id))) {
           $candidates[] = (int) $id;
         }
       }
-      if ($candidates !== []) {
-        $ambiguous[$label] = $candidates;
+      $recommended = [];
+      foreach (is_array($row['recommended'] ?? NULL) ? $row['recommended'] : [] as $id) {
+        if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+          $recommended[] = (int) $id;
+        }
       }
+      $reason = $row['reason'] ?? NULL;
+      $rows[] = [
+        'name' => $row['name'],
+        'candidates' => $candidates,
+        'recommended' => $recommended,
+        'reason' => in_array($reason, ['unique', 'regular', 'previous'], TRUE) ? $reason : NULL,
+      ];
     }
-    return $ambiguous;
+    return $rows;
   }
 
   /**
-   * Returns the form state key that holds the ambiguous candidates.
+   * Returns the form state key that holds the review rows.
    *
    * @param string $fieldName
    *   The participant field name.
@@ -542,8 +665,8 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    * @return string
    *   The form state key.
    */
-  private function ambiguousKey(string $fieldName): string {
-    return self::AMBIGUOUS_STATE_PREFIX . $fieldName;
+  private function reviewKey(string $fieldName): string {
+    return self::REVIEW_STATE_PREFIX . $fieldName;
   }
 
   /**
