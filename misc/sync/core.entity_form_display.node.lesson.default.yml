@@ -11,11 +11,9 @@ dependencies:
   module:
     - datetime_range
     - field_widget_actions
-    - image
     - scheduler
-    - taxonomy
-    - user
-    - workspace_events
+    - tagify
+    - tagify_user_list
 id: node.lesson.default
 targetEntityType: node
 bundle: lesson
@@ -29,14 +27,18 @@ content:
       display_label: true
     third_party_settings: {  }
   field_dance_figures:
-    type: entity_reference_autocomplete_tags
+    type: tagify_entity_reference_autocomplete_widget
     weight: 2
     region: content
     settings:
       match_operator: CONTAINS
       match_limit: 10
-      size: 60
       placeholder: ''
+      suggestions_dropdown: 1
+      show_entity_id: 0
+      show_info_label: 0
+      info_label: ''
+      parent_selection: 1
     third_party_settings: {  }
   field_lesson_date:
     type: daterange_default
@@ -45,14 +47,20 @@ content:
     settings: {  }
     third_party_settings: {  }
   field_participants:
-    type: entity_reference_autocomplete_tags
+    type: tagify_user_list_entity_reference_autocomplete_widget
     weight: 3
     region: content
     settings:
       match_operator: CONTAINS
       match_limit: 10
-      size: 60
+      suggestions_dropdown: 1
       placeholder: ''
+      image: user_picture
+      image_style: thumbnail
+      show_info_label: 1
+      info_label: '[user:mail]'
+      show_entity_id: 0
+      parent_selection: 1
     third_party_settings:
       field_widget_actions:
         5b2a6c1e-8f4d-4d2b-9a7e-3c1f0d9e8b6a:
