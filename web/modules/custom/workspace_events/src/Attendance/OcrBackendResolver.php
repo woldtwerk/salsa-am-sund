@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events\Attendance;
 
-use Drupal\Component\Plugin\PluginManagerInterface;
+use Drupal\ai\AiProviderPluginManager;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\workspace_events\AttendanceRecognition;
@@ -29,13 +29,14 @@ final class OcrBackendResolver implements OcrBackendResolverInterface {
    *   The config factory.
    * @param \Drupal\workspace_events\Attendance\MistralOcrBackend $mistralBackend
    *   The Mistral OCR backend.
-   * @param \Drupal\Component\Plugin\PluginManagerInterface $aiProviderManager
-   *   The AI provider plugin manager (the ai.provider service).
+   * @param \Drupal\ai\AiProviderPluginManager|null $aiProviderManager
+   *   The AI provider plugin manager (the ai.provider service), or NULL when
+   *   the AI module is not available.
    */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
     private readonly MistralOcrBackend $mistralBackend,
-    private readonly PluginManagerInterface $aiProviderManager,
+    private readonly ?AiProviderPluginManager $aiProviderManager,
   ) {}
 
   /**
@@ -73,6 +74,10 @@ final class OcrBackendResolver implements OcrBackendResolverInterface {
     $modelId = $config->get('model_id');
     if (!is_string($providerId) || $providerId === '' || !is_string($modelId) || $modelId === '') {
       throw new \RuntimeException('The AI provider settings of the attendance recognition are incomplete.');
+    }
+
+    if ($this->aiProviderManager === NULL) {
+      throw new \RuntimeException('The AI module is not available.');
     }
 
     return new AiProviderVisionBackend($this->aiProviderManager, $providerId, $modelId);

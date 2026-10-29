@@ -30,15 +30,16 @@ final class AiProviderVisionBackend implements OcrBackendInterface {
   /**
    * Constructs an AiProviderVisionBackend.
    *
-   * @param \Drupal\Component\Plugin\PluginManagerInterface $aiProviderManager
-   *   The AI provider plugin manager (the ai.provider service).
+   * @param \Drupal\Component\Plugin\PluginManagerInterface|null $aiProviderManager
+   *   The AI provider plugin manager (the ai.provider service), or NULL when
+   *   the AI module is not available.
    * @param string $providerId
    *   The ID of the AI provider.
    * @param string $modelId
    *   The model that accepts images.
    */
   public function __construct(
-    private readonly PluginManagerInterface $aiProviderManager,
+    private readonly ?PluginManagerInterface $aiProviderManager,
     private readonly string $providerId,
     private readonly string $modelId,
   ) {}
@@ -49,6 +50,10 @@ final class AiProviderVisionBackend implements OcrBackendInterface {
   public function recognizeText(string $contents, string $mimeType): string {
     if ($contents === '') {
       throw new \RuntimeException('The attendance photo is empty.');
+    }
+
+    if ($this->aiProviderManager === NULL) {
+      throw new \RuntimeException('The AI module is not available.');
     }
 
     $provider = $this->aiProviderManager->createInstance($this->providerId);
