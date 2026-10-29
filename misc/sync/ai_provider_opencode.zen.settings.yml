@@ -1,0 +1,4 @@
+_core:
+  default_config_hash: DYrl27vuAXMG3nKnK42yOh6qvL4OoFddRUokVmSx5RE
+api_key: opencode_api_key
+base_url: 'https://opencode.ai/inference/openai/v1'

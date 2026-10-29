@@ -20,6 +20,7 @@ dependencies:
   - drupal:views
   - ai:ai
   - ai_provider_mistral:ai_provider_mistral
+  - ai_provider_opencode:ai_provider_opencode
   - canvas:canvas
   - field_widget_actions:field_widget_actions
   - flag:flag

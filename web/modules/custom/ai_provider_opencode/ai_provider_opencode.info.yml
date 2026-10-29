@@ -1,0 +1,10 @@
+name: 'AI Provider OpenCode'
+description: 'Provides OpenCode Zen and OpenCode Go as AI providers for the AI module.'
+package: AI Providers
+type: module
+core_version_requirement: ^11.3
+configure: ai_provider_opencode.zen_settings_form
+
+dependencies:
+  - ai:ai
+  - key:key

@@ -439,6 +439,41 @@ function workspace_events_update_10015(): void {
 }
 
 /**
+ * Implements hook_update_N().
+ *
+ * Installs the OpenCode AI providers and moves the attendance recognition to
+ * the AI provider plugin manager.
+ */
+function workspace_events_update_10016(): void {
+  if (!\Drupal::moduleHandler()->moduleExists('ai_provider_opencode')) {
+    \Drupal::service('module_installer')->install(['ai_provider_opencode']);
+  }
+
+  $loader = \Drupal::service(ConfigRecordLoader::class);
+  \assert($loader instanceof ConfigRecordLoader);
+  $record = $loader->load(AttendanceRecognition::SETTINGS);
+  unset($record['opencode_zen'], $record['opencode_go']);
+  $record['provider_id'] = is_string($record['provider_id'] ?? NULL) ? $record['provider_id'] : '';
+  $record['model_id'] = is_string($record['model_id'] ?? NULL) ? $record['model_id'] : '';
+
+  $config = \Drupal::configFactory()->getEditable(AttendanceRecognition::SETTINGS);
+  $old_backend = $config->get('backend');
+
+  if (is_string($old_backend) && in_array($old_backend, ['opencode_zen', 'opencode_go'], TRUE)) {
+    $old_model = $config->get($old_backend . '.model');
+    $record['backend'] = AttendanceRecognition::BACKEND_AI_PROVIDER;
+    $record['provider_id'] = $old_backend;
+    $record['model_id'] = is_string($old_model) ? $old_model : '';
+  }
+  else {
+    $record['backend'] = AttendanceRecognition::BACKEND_MISTRAL_OCR;
+  }
+
+  // Replacing all data also drops the nested settings of the old backends.
+  $config->setData($record)->save();
+}
+
+/**
  * Deletes and purges all removed field definitions.
  *
  * The field data is deleted in batches, so a large site does not run out of

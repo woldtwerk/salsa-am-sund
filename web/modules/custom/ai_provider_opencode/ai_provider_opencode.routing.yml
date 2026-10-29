@@ -1,0 +1,15 @@
+ai_provider_opencode.zen_settings_form:
+  path: '/admin/config/ai/providers/opencode-zen'
+  defaults:
+    _form: '\Drupal\ai_provider_opencode\Form\OpenCodeZenConfigForm'
+    _title: 'Setup OpenCode Zen authentication'
+  requirements:
+    _permission: 'administer ai providers'
+
+ai_provider_opencode.go_settings_form:
+  path: '/admin/config/ai/providers/opencode-go'
+  defaults:
+    _form: '\Drupal\ai_provider_opencode\Form\OpenCodeGoConfigForm'
+    _title: 'Setup OpenCode Go authentication'
+  requirements:
+    _permission: 'administer ai providers'

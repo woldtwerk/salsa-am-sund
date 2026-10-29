@@ -59,29 +59,9 @@ workspace_events.attendance_recognition:
     backend:
       type: string
       label: 'OCR backend'
-    opencode_zen:
-      type: mapping
-      label: 'OpenCode Zen settings'
-      mapping:
-        base_url:
-          type: string
-          label: 'Base URL'
-        model:
-          type: string
-          label: 'Model'
-        key:
-          type: string
-          label: 'Key entity ID'
-    opencode_go:
-      type: mapping
-      label: 'OpenCode Go settings'
-      mapping:
-        base_url:
-          type: string
-          label: 'Base URL'
-        model:
-          type: string
-          label: 'Model'
-        key:
-          type: string
-          label: 'Key entity ID'
+    provider_id:
+      type: string
+      label: 'AI provider ID'
+    model_id:
+      type: string
+      label: 'AI model ID'

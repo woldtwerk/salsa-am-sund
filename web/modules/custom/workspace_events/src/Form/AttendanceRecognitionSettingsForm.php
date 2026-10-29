@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events\Form;
 
-use Drupal\Core\Config\Config;
-use Drupal\Core\Config\ImmutableConfig;
+use Drupal\ai\AiProviderPluginManager;
+use Drupal\ai\Enum\AiModelCapability;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\workspace_events\AttendanceRecognition;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Configures the OCR backend of the attendance recognition.
@@ -17,16 +20,39 @@ final class AttendanceRecognitionSettingsForm extends ConfigFormBase {
 
   /**
    * Model name markers of free models that may train on the uploaded data.
+   *
+   * @var string[]
    */
   private const array TRAINING_MODEL_MARKERS = ['free', 'big-pickle', 'nemotron'];
 
   /**
-   * The OpenCode backends with their configuration key.
+   * Constructs an AttendanceRecognitionSettingsForm.
+   *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config_manager
+   *   The typed config manager.
+   * @param \Drupal\ai\AiProviderPluginManager $aiProviderManager
+   *   The AI provider plugin manager.
    */
-  private const array OPENCODE_BACKENDS = [
-    AttendanceRecognition::BACKEND_OPENCODE_ZEN => 'OpenCode Zen (Guthaben)',
-    AttendanceRecognition::BACKEND_OPENCODE_GO => 'OpenCode Go (Abo)',
-  ];
+  public function __construct(
+    ConfigFactoryInterface $config_factory,
+    TypedConfigManagerInterface $typed_config_manager,
+    protected readonly AiProviderPluginManager $aiProviderManager,
+  ) {
+    parent::__construct($config_factory, $typed_config_manager);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container): static {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('config.typed'),
+      $container->get('ai.provider'),
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -68,48 +94,36 @@ final class AttendanceRecognitionSettingsForm extends ConfigFormBase {
       '#type' => 'radios',
       '#title' => $this->t('Anbieter'),
       '#options' => [
-        AttendanceRecognition::BACKEND_MISTRAL => $this->t('Mistral OCR'),
-        AttendanceRecognition::BACKEND_OPENCODE_ZEN => $this->t('OpenCode Zen (Guthaben)'),
-        AttendanceRecognition::BACKEND_OPENCODE_GO => $this->t('OpenCode Go (Abo)'),
+        AttendanceRecognition::BACKEND_MISTRAL_OCR => $this->t('Mistral OCR'),
+        AttendanceRecognition::BACKEND_AI_PROVIDER => $this->t('KI-Anbieter mit Bildverständnis'),
       ],
       '#default_value' => $config->get('backend'),
       '#required' => TRUE,
     ];
 
-    foreach (self::OPENCODE_BACKENDS as $name => $label) {
-      $settings = $this->backendSettings($config, $name);
-      $form[$name] = [
-        '#type' => 'details',
-        '#title' => $this->t('@backend', ['@backend' => $label]),
-        '#open' => TRUE,
-        '#tree' => TRUE,
-        '#states' => [
-          'visible' => [
-            ':input[name="backend"]' => ['value' => $name],
-          ],
+    $options = $this->providerModelOptions();
+    $provider_id = $config->get('provider_id');
+    $model_id = $config->get('model_id');
+    $default = is_string($provider_id) && $provider_id !== '' && is_string($model_id) && $model_id !== ''
+      ? $provider_id . '__' . $model_id
+      : '';
+
+    $form['provider_model'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Modell'),
+      '#description' => $this->t('Modelle von KI-Anbietern, die Chat mit Bildern unterstützen. Kostenlose Modelle, die die Daten zum Training verwenden, werden nicht angeboten. Weitere Anbieter und Modelle lassen sich unter <a href=":url">AI Providers</a> einrichten.', [
+        ':url' => '/admin/config/ai/providers',
+      ]),
+      '#options' => $options,
+      '#default_value' => $default,
+      '#required' => FALSE,
+      '#empty_option' => $this->t('- Kein Modell -'),
+      '#states' => [
+        'visible' => [
+          ':input[name="backend"]' => ['value' => AttendanceRecognition::BACKEND_AI_PROVIDER],
         ],
-      ];
-      $form[$name]['model'] = [
-        '#type' => 'textfield',
-        '#title' => $this->t('Modell'),
-        '#default_value' => $settings['model'],
-        '#required' => TRUE,
-        '#description' => $this->t('Das Modell muss Bilder akzeptieren. Kostenlose Modelle, die die Daten zum Training verwenden, werden abgelehnt.'),
-      ];
-      $form[$name]['base_url'] = [
-        '#type' => 'url',
-        '#title' => $this->t('Basis-URL'),
-        '#default_value' => $settings['base_url'],
-        '#required' => TRUE,
-      ];
-      $form[$name]['key'] = [
-        '#type' => 'key_select',
-        '#title' => $this->t('API-Schlüssel'),
-        '#default_value' => $settings['key'],
-        '#required' => TRUE,
-        '#description' => $this->t('Die Key-Entität liest den Schlüssel aus der Umgebungsvariable OPENCODE_API_KEY.'),
-      ];
-    }
+      ],
+    ];
 
     return parent::buildForm($form, $form_state);
   }
@@ -125,28 +139,25 @@ final class AttendanceRecognitionSettingsForm extends ConfigFormBase {
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     parent::validateForm($form, $form_state);
 
-    $backend = $form_state->getValue('backend');
-    if (!is_string($backend) || !isset(self::OPENCODE_BACKENDS[$backend])) {
+    if ($form_state->getValue('backend') !== AttendanceRecognition::BACKEND_AI_PROVIDER) {
       return;
     }
 
-    $values = $form_state->getValue($backend);
-    $model = is_array($values) ? ($values['model'] ?? NULL) : NULL;
-    if (!is_string($model) || $model === '') {
+    $option = $form_state->getValue('provider_model');
+    if (!is_string($option) || $option === '' || !str_contains($option, '__')) {
+      $form_state->setErrorByName('provider_model', $this->t('Wählen Sie ein Modell für die Anwesenheitserkennung.'));
       return;
     }
 
-    $backendForm = $form[$backend] ?? NULL;
-    $modelElement = is_array($backendForm) ? ($backendForm['model'] ?? NULL) : NULL;
-    if (!is_array($modelElement)) {
-      return;
-    }
-
+    $model_id = substr($option, (int) strpos($option, '__') + 2);
     foreach (self::TRAINING_MODEL_MARKERS as $marker) {
-      if (str_contains(mb_strtolower($model), $marker)) {
-        $form_state->setError($modelElement, $this->t('Das Modell %model darf nicht verwendet werden: Kostenlose Modelle können die Anwesenheitsliste zum Training verwenden. Wählen Sie ein kostenpflichtiges Modell.', [
-          '%model' => $model,
-        ]));
+      if (str_contains(mb_strtolower($model_id), $marker)) {
+        $element = $form['provider_model'] ?? NULL;
+        if (is_array($element)) {
+          $form_state->setError($element, $this->t('Das Modell %model darf nicht verwendet werden: Kostenlose Modelle können die Anwesenheitsliste zum Training verwenden. Wählen Sie ein kostenpflichtiges Modell.', [
+            '%model' => $model_id,
+          ]));
+        }
         return;
       }
     }
@@ -161,17 +172,26 @@ final class AttendanceRecognitionSettingsForm extends ConfigFormBase {
    *   The form state.
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $config = $this->config(AttendanceRecognition::SETTINGS);
-
     $backend = $form_state->getValue('backend');
-    $config->set('backend', is_string($backend) && $backend !== '' ? $backend : AttendanceRecognition::BACKEND_MISTRAL);
+    if (!is_string($backend) || !in_array($backend, [
+      AttendanceRecognition::BACKEND_MISTRAL_OCR,
+      AttendanceRecognition::BACKEND_AI_PROVIDER,
+    ], TRUE)) {
+      $backend = AttendanceRecognition::BACKEND_MISTRAL_OCR;
+    }
 
-    foreach (array_keys(self::OPENCODE_BACKENDS) as $name) {
-      $values = $form_state->getValue($name);
-      $values = is_array($values) ? $values : [];
-      foreach (['base_url', 'model', 'key'] as $field) {
-        $value = $values[$field] ?? '';
-        $config->set($name . '.' . $field, is_string($value) ? $value : '');
+    $config = $this->config(AttendanceRecognition::SETTINGS)
+      ->set('backend', $backend)
+      ->set('provider_id', '')
+      ->set('model_id', '');
+
+    if ($backend === AttendanceRecognition::BACKEND_AI_PROVIDER) {
+      $option = $form_state->getValue('provider_model');
+      if (is_string($option) && str_contains($option, '__')) {
+        [$provider_id, $model_id] = explode('__', $option, 2);
+        $config
+          ->set('provider_id', $provider_id)
+          ->set('model_id', $model_id);
       }
     }
 
@@ -181,27 +201,50 @@ final class AttendanceRecognitionSettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Returns the settings of an OpenCode backend.
+   * Returns the selectable provider and model options.
    *
-   * @param \Drupal\Core\Config\Config|\Drupal\Core\Config\ImmutableConfig $config
-   *   The attendance recognition configuration.
-   * @param string $name
-   *   The configuration key of the backend.
-   *
-   * @return array{base_url: string, model: string, key: string}
-   *   The base URL, model and key ID.
+   * @return array<string, string>
+   *   The option labels keyed by "provider__model".
    */
-  private function backendSettings(Config|ImmutableConfig $config, string $name): array {
-    $settings = $config->get($name);
-    if (!is_array($settings)) {
-      return ['base_url' => '', 'model' => '', 'key' => ''];
+  private function providerModelOptions(): array {
+    $options = $this->aiProviderManager->getSimpleProviderModelOptions('chat', TRUE, TRUE, [
+      AiModelCapability::ChatWithImageVision,
+    ]);
+
+    $filtered = [];
+    foreach ($options as $option => $label) {
+      if (!is_string($option) || $option === '') {
+        continue;
+      }
+      if ($this->isTrainingModel($option)) {
+        continue;
+      }
+      if ($label instanceof \Stringable || is_string($label)) {
+        $filtered[$option] = (string) $label;
+      }
     }
 
-    return [
-      'base_url' => is_string($settings['base_url'] ?? NULL) ? $settings['base_url'] : '',
-      'model' => is_string($settings['model'] ?? NULL) ? $settings['model'] : '',
-      'key' => is_string($settings['key'] ?? NULL) ? $settings['key'] : '',
-    ];
+    return $filtered;
+  }
+
+  /**
+   * Checks whether an option points at a free or logged model.
+   *
+   * @param string $option
+   *   The "provider__model" option.
+   *
+   * @return bool
+   *   TRUE when the model must not be used for attendance lists.
+   */
+  private function isTrainingModel(string $option): bool {
+    $parts = explode('__', $option, 2);
+    $model_id = mb_strtolower($parts[1] ?? '');
+    foreach (self::TRAINING_MODEL_MARKERS as $marker) {
+      if (str_contains($model_id, $marker)) {
+        return TRUE;
+      }
+    }
+    return FALSE;
   }
 
 }

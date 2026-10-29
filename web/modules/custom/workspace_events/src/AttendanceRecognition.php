@@ -25,7 +25,10 @@ final class AttendanceRecognition {
   public const string KEY_ID = 'mistral_api_key';
 
   /**
-   * The key entity that holds the OpenCode API key.
+   * The key entity that the AI provider OpenCode uses by default.
+   *
+   * Kept here because update 10015 installed the key entity for the former
+   * OpenCode OCR backends.
    */
   public const string OPENCODE_KEY_ID = 'opencode_api_key';
 
@@ -37,17 +40,12 @@ final class AttendanceRecognition {
   /**
    * The Mistral OCR backend.
    */
-  public const string BACKEND_MISTRAL = 'mistral';
+  public const string BACKEND_MISTRAL_OCR = 'mistral_ocr';
 
   /**
-   * The OpenCode Zen backend.
+   * A chat provider of the AI module.
    */
-  public const string BACKEND_OPENCODE_ZEN = 'opencode_zen';
-
-  /**
-   * The OpenCode Go backend.
-   */
-  public const string BACKEND_OPENCODE_GO = 'opencode_go';
+  public const string BACKEND_AI_PROVIDER = 'ai_provider';
 
   /**
    * The Mistral OCR model.

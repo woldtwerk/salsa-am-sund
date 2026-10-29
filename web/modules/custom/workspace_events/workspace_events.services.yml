@@ -61,8 +61,7 @@ services:
     arguments:
       - '@config.factory'
       - '@Drupal\workspace_events\Attendance\MistralOcrBackend'
-      - '@http_client_factory'
-      - '@?key.repository'
+      - '@ai.provider'
   Drupal\workspace_events\Attendance\OcrBackendResolverInterface:
     alias: Drupal\workspace_events\Attendance\OcrBackendResolver
   Drupal\workspace_events\Attendance\AttendanceRecognizer:
