@@ -8,11 +8,12 @@ use Drupal\ai\Base\OpenAiBasedProviderClientBase;
 use Drupal\ai\Enum\AiModelCapability;
 use Drupal\ai\Exception\AiSetupFailureException;
 use Drupal\ai\Traits\OperationType\ChatTrait;
-use Drupal\ai_provider_opencode\OpenCodeSessionClient;
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Http\ClientFactory;
 use GuzzleHttp\Psr7\Request;
 use OpenAI\Client;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Base class for the OpenCode providers.
@@ -47,6 +48,29 @@ abstract class OpenCodeProviderBase extends OpenAiBasedProviderClientBase {
    * The session ID that OpenCode Go requires, created on first use.
    */
   private ?string $sessionId = NULL;
+
+  /**
+   * The HTTP client factory.
+   */
+  protected ClientFactory $httpClientFactory;
+
+  /**
+   * {@inheritdoc}
+   *
+   * @param \Symfony\Component\DependencyInjection\ContainerInterface $container
+   *   The service container.
+   * @param array<mixed> $configuration
+   *   The plugin configuration.
+   * @param string $plugin_id
+   *   The plugin ID.
+   * @param mixed $plugin_definition
+   *   The plugin definition.
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): static {
+    $instance = parent::create($container, $configuration, $plugin_id, $plugin_definition);
+    $instance->httpClientFactory = $container->get('http_client_factory');
+    return $instance;
+  }
 
   /**
    * Models are discovered from the provider API, not hardcoded.
@@ -158,10 +182,18 @@ abstract class OpenCodeProviderBase extends OpenAiBasedProviderClientBase {
    * {@inheritdoc}
    */
   protected function createClient(): Client {
-    // OpenCode Go routes a conversation by the session header. The decorator
-    // adds it to every request without changing the OpenAI-compatible client.
+    // OpenCode Go routes a conversation by the session header, and the OpenAI
+    // client only streams with a Guzzle client, so the header goes onto a
+    // Guzzle client instead of a PSR-18 decorator.
     $http_client = $this->httpClient;
-    $this->httpClient = new OpenCodeSessionClient($http_client, $this->getSessionId());
+    $timeout = $this->configFactory->get('ai.settings')->get('request_timeout');
+    $timeout = is_numeric($timeout) && (int) $timeout > 0 ? (int) $timeout : 60;
+    $this->httpClient = $this->httpClientFactory->fromOptions([
+      'headers' => [
+        'x-opencode-session' => $this->getSessionId(),
+      ],
+      'timeout' => $timeout,
+    ]);
     try {
       return parent::createClient();
     }

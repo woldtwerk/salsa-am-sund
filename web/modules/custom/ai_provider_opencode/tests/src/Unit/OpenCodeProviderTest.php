@@ -12,6 +12,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Http\ClientFactory;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\key\KeyRepositoryInterface;
 use Drupal\Tests\UnitTestCase;
@@ -62,33 +63,39 @@ final class OpenCodeProviderTest extends UnitTestCase {
   }
 
   /**
-   * Tests that chat requests carry the session header.
+   * Tests that a streamed chat request carries the session header.
    */
-  public function testChatSendsSessionHeader(): void {
-    $mock = new MockHandler([
-      new Response(200, [], json_encode([
-        'id' => 'chatcmpl-test',
-        'object' => 'chat.completion',
-        'created' => 1,
-        'model' => 'kimi-k3',
-        'choices' => [
-          [
-            'index' => 0,
-            'message' => ['role' => 'assistant', 'content' => 'OK'],
-            'finish_reason' => 'stop',
-          ],
+  public function testStreamedChatSendsSessionHeader(): void {
+    $stream = 'data: ' . json_encode([
+      'id' => 'chatcmpl-test',
+      'object' => 'chat.completion.chunk',
+      'created' => 1,
+      'model' => 'kimi-k3',
+      'choices' => [
+        [
+          'index' => 0,
+          'delta' => ['role' => 'assistant', 'content' => 'OK'],
+          'finish_reason' => 'stop',
         ],
-        'usage' => ['prompt_tokens' => 1, 'completion_tokens' => 1, 'total_tokens' => 2],
-      ], JSON_THROW_ON_ERROR)),
+      ],
+    ], JSON_THROW_ON_ERROR) . "\n\ndata: [DONE]\n\n";
+
+    $mock = new MockHandler([
+      new Response(200, ['Content-Type' => 'text/event-stream'], $stream),
     ]);
 
     $provider = $this->provider($this->config(''), $mock);
     $provider->setAuthentication('test-key');
-    $provider->chat(new ChatInput([new ChatMessage('user', 'Hello')]), 'kimi-k3');
+    $provider->streamedOutput(TRUE);
+    $input = new ChatInput([new ChatMessage('user', 'Hello')]);
+    $provider->chat($input, 'kimi-k3');
 
     $request = $mock->getLastRequest();
     self::assertNotNull($request);
     self::assertStringStartsWith('ses_', $request->getHeaderLine('x-opencode-session'));
+
+    $body = json_decode((string) $request->getBody(), TRUE, 512, JSON_THROW_ON_ERROR);
+    self::assertTrue($body['stream']);
   }
 
   /**
@@ -106,15 +113,23 @@ final class OpenCodeProviderTest extends UnitTestCase {
     $cache = $this->createMock(CacheBackendInterface::class);
     $cache->method('get')->willReturn(FALSE);
 
-    $configFactory = $this->createMock(ConfigFactoryInterface::class);
-    $configFactory->method('get')
-      ->with('ai_provider_opencode.zen.settings')
-      ->willReturn($config);
+    $aiSettings = $this->createMock(ImmutableConfig::class);
+    $aiSettings->method('get')->willReturnMap([
+      ['request_timeout', 60],
+    ]);
 
-    return new class(
+    $configFactory = $this->createMock(ConfigFactoryInterface::class);
+    $configFactory->method('get')->willReturnMap([
+      ['ai_provider_opencode.zen.settings', $config],
+      ['ai.settings', $aiSettings],
+    ]);
+
+    $handler = HandlerStack::create($mock);
+
+    $provider = new class(
       OpenCodeZenProvider::ID,
       ['provider' => 'ai_provider_opencode'],
-      new GuzzleClient(['handler' => HandlerStack::create($mock)]),
+      new GuzzleClient(['handler' => $handler]),
       $configFactory,
       $this->createMock(LoggerChannelFactoryInterface::class),
       $cache,
@@ -131,7 +146,21 @@ final class OpenCodeProviderTest extends UnitTestCase {
         return [];
       }
 
+      /**
+       * Sets the HTTP client factory.
+       *
+       * @param \Drupal\Core\Http\ClientFactory $httpClientFactory
+       *   The HTTP client factory.
+       */
+      public function setHttpClientFactory(ClientFactory $httpClientFactory): void {
+        $this->httpClientFactory = $httpClientFactory;
+      }
+
     };
+
+    $provider->setHttpClientFactory(new ClientFactory($handler));
+
+    return $provider;
   }
 
   /**
