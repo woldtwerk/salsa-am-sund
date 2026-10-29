@@ -23,6 +23,7 @@ final class MemberMatcherTest extends UnitTestCase {
   public function testExactMatch(): void {
     $result = $this->createMatcher([7 => 'Max Mustermann'])->match(['Max Mustermann']);
     self::assertSame([7], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame([], $result['unmatched']);
   }
 
@@ -35,6 +36,7 @@ final class MemberMatcherTest extends UnitTestCase {
       4 => 'Bärbel Weiß',
     ])->match(['Juergen Gross', 'Baerbel Weiss']);
     self::assertSame([3, 4], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame([], $result['unmatched']);
   }
 
@@ -44,6 +46,7 @@ final class MemberMatcherTest extends UnitTestCase {
   public function testSwappedNames(): void {
     $result = $this->createMatcher([9 => 'Max Mustermann'])->match(['Mustermann, Max']);
     self::assertSame([9], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
   }
 
   /**
@@ -52,19 +55,21 @@ final class MemberMatcherTest extends UnitTestCase {
   public function testTypoWithinDistance(): void {
     $result = $this->createMatcher([5 => 'Max Mustermann'])->match(['Max Mustermannn']);
     self::assertSame([5], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame([], $result['unmatched']);
   }
 
   /**
-   * Tests that a name that fits several members is not assigned.
+   * Tests that a name that fits several members is reported as ambiguous.
    */
-  public function testAmbiguousNameIsUnmatched(): void {
+  public function testAmbiguousNameIsReported(): void {
     $result = $this->createMatcher([
       1 => 'Anna Muster',
       2 => 'Anne Muster',
     ])->match(['Ann Muster']);
     self::assertSame([], $result['matched']);
-    self::assertSame(['Ann Muster'], $result['unmatched']);
+    self::assertSame(['Ann Muster' => [1, 2]], $result['ambiguous']);
+    self::assertSame([], $result['unmatched']);
   }
 
   /**
@@ -76,6 +81,7 @@ final class MemberMatcherTest extends UnitTestCase {
       2 => 'Anne Muster',
     ])->match(['Anna Muster']);
     self::assertSame([1], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame([], $result['unmatched']);
   }
 
@@ -85,6 +91,7 @@ final class MemberMatcherTest extends UnitTestCase {
   public function testNoMembers(): void {
     $result = $this->createMatcher([])->match(['Max Mustermann']);
     self::assertSame([], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame(['Max Mustermann'], $result['unmatched']);
   }
 
@@ -97,6 +104,7 @@ final class MemberMatcherTest extends UnitTestCase {
       'Mustermann Max',
     ]);
     self::assertSame([4], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame([], $result['unmatched']);
   }
 
@@ -106,7 +114,79 @@ final class MemberMatcherTest extends UnitTestCase {
   public function testNoiseLinesAreIgnored(): void {
     $result = $this->createMatcher([4 => 'Max Mustermann'])->match(['', '  ', '12.10.2026']);
     self::assertSame([], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
     self::assertSame([], $result['unmatched']);
+  }
+
+  /**
+   * Tests that a unique first name matches its member.
+   */
+  public function testUniqueFirstNameMatches(): void {
+    $result = $this->createMatcher([7 => 'Moritz Müller'])->match(['Moritz']);
+    self::assertSame([7], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
+    self::assertSame([], $result['unmatched']);
+  }
+
+  /**
+   * Tests that a first name shared by two members is ambiguous.
+   */
+  public function testSharedFirstNameIsAmbiguous(): void {
+    // The loader order is reversed on purpose: the candidates have to be
+    // sorted by display name.
+    $result = $this->createMatcher([
+      2 => 'Sophie Weber',
+      1 => 'Sophie Schulz',
+    ])->match(['Sophie']);
+    self::assertSame([], $result['matched']);
+    self::assertSame(['Sophie' => [1, 2]], $result['ambiguous']);
+    self::assertSame([], $result['unmatched']);
+  }
+
+  /**
+   * Tests that a full name removes its member from another line's candidates.
+   */
+  public function testAlreadyMatchedMemberIsRemovedFromCandidates(): void {
+    $result = $this->createMatcher([
+      1 => 'Sophie Schulz',
+      2 => 'Sophie Weber',
+    ])->match(['Sophie', 'Sophie Schulz']);
+    self::assertSame([1, 2], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
+    self::assertSame([], $result['unmatched']);
+  }
+
+  /**
+   * Tests that a last name matches its member.
+   */
+  public function testLastNameMatches(): void {
+    $result = $this->createMatcher([7 => 'Moritz Müller'])->match(['Müller']);
+    self::assertSame([7], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
+    self::assertSame([], $result['unmatched']);
+  }
+
+  /**
+   * Tests that an initial matches the member whose other name starts with it.
+   */
+  public function testInitialMatches(): void {
+    $result = $this->createMatcher([
+      1 => 'Sophie Schulz',
+      2 => 'Sophie Weber',
+    ])->match(['Sophie S.']);
+    self::assertSame([1], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
+    self::assertSame([], $result['unmatched']);
+  }
+
+  /**
+   * Tests that an unknown first name is unmatched.
+   */
+  public function testUnknownNameIsUnmatched(): void {
+    $result = $this->createMatcher([7 => 'Moritz Müller'])->match(['Nils']);
+    self::assertSame([], $result['matched']);
+    self::assertSame([], $result['ambiguous']);
+    self::assertSame(['Nils'], $result['unmatched']);
   }
 
   /**

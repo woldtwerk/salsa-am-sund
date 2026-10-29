@@ -19,6 +19,7 @@ use Drupal\user\UserInterface;
 use Drupal\workspace_events\Attendance\AttendanceRecognitionException;
 use Drupal\workspace_events\Attendance\AttendanceRecognizer;
 use Drupal\workspace_events\Attendance\MemberMatcher;
+use Drupal\workspace_events\Attendance\MemberNameLoaderInterface;
 use Drupal\workspace_events\AttendanceRecognition;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -52,6 +53,21 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    * The name of the upload form element and of its entry in the files bag.
    */
   private const string UPLOAD_ELEMENT = 'attendance_photo_upload';
+
+  /**
+   * The form element holding the selects for ambiguous recognized names.
+   */
+  private const string AMBIGUOUS_ELEMENT = 'attendance_ambiguous';
+
+  /**
+   * The key of the "apply selection" button inside the ambiguous element.
+   */
+  private const string APPLY_BUTTON = 'apply';
+
+  /**
+   * The form state key prefix of the ambiguous candidates per field.
+   */
+  private const string AMBIGUOUS_STATE_PREFIX = 'workspace_events.attendance_ambiguous.';
 
   /**
    * The largest accepted upload in bytes.
@@ -98,6 +114,8 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    *   The attendance photo recognizer.
    * @param \Drupal\workspace_events\Attendance\MemberMatcher $memberMatcher
    *   The member matcher.
+   * @param \Drupal\workspace_events\Attendance\MemberNameLoaderInterface $memberNameLoader
+   *   The member name loader.
    * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
    *   The request stack.
    */
@@ -109,6 +127,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     protected readonly AccountProxyInterface $currentUser,
     protected readonly AttendanceRecognizer $recognizer,
     protected readonly MemberMatcher $memberMatcher,
+    protected readonly MemberNameLoaderInterface $memberNameLoader,
     protected readonly RequestStack $requestStack,
   ) {
     parent::__construct($configuration, $plugin_id, $plugin_definition, $messenger);
@@ -136,6 +155,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       $container->get('current_user'),
       $container->get(AttendanceRecognizer::class),
       $container->get(MemberMatcher::class),
+      $container->get(MemberNameLoaderInterface::class),
       $container->get('request_stack'),
     );
   }
@@ -198,16 +218,82 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     $form[$widgetId] = $button;
 
     $weight = $this->configuration['weight'] ?? 0;
+    $baseWeight = is_numeric($weight) ? (int) $weight : 0;
     $form[self::UPLOAD_ELEMENT] = [
       '#type' => 'file',
       '#title' => $this->t('Anwesenheitsfoto'),
       '#description' => $this->t('JPEG, PNG oder WebP, höchstens 10 MB. Das Foto wird nur zur Erkennung übertragen und nicht gespeichert.'),
-      '#weight' => (is_numeric($weight) ? (int) $weight : 0) + 9,
+      '#weight' => $baseWeight + 9,
       '#parents' => [self::UPLOAD_ELEMENT],
       '#attributes' => [
         'accept' => 'image/jpeg,image/png,image/webp',
       ],
     ];
+
+    $this->ambiguousSelections($form, $form_state, $fieldName, $baseWeight + 11);
+  }
+
+  /**
+   * Renders a select per ambiguous recognized name below the action button.
+   *
+   * The candidates live only in the form state, so nothing is persisted until
+   * the editor applies a selection.
+   *
+   * @param array<mixed> $form
+   *   The field widget form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param string $fieldName
+   *   The participant field name.
+   * @param int $weight
+   *   The weight of the selection form.
+   */
+  private function ambiguousSelections(array &$form, FormStateInterface $form_state, string $fieldName, int $weight): void {
+    $ambiguous = $this->ambiguousCandidates($form_state, $fieldName);
+    if ($ambiguous === []) {
+      return;
+    }
+    $names = $this->memberNameLoader->load();
+
+    $element = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+      '#weight' => $weight,
+      '#attributes' => [
+        'class' => ['attendance-ambiguous'],
+      ],
+    ];
+    $index = 0;
+    foreach ($ambiguous as $label => $ids) {
+      $options = [0 => $this->t('– niemand –')];
+      foreach ($ids as $id) {
+        $options[$id] = $names[$id] ?? (string) $id;
+      }
+      $element['select_' . $index] = [
+        '#type' => 'select',
+        '#title' => $this->t('Wer ist „@name“?', ['@name' => $label]),
+        '#options' => $options,
+        '#default_value' => 0,
+      ];
+      $index++;
+    }
+    $element[self::APPLY_BUTTON] = [
+      '#type' => 'button',
+      '#value' => $this->t('Auswahl übernehmen'),
+      '#name' => $fieldName . '_attendance_apply',
+      '#field_widget_action_field_name' => $fieldName,
+      '#field_widget_action_field_delta' => NULL,
+      '#executes_submit_callback' => TRUE,
+      '#submit' => [[$this, 'applySelectionSubmit']],
+      '#validate' => ['::validateForm', [$this, 'clearErrorsForAction']],
+      '#ajax' => [
+        'callback' => [$this, 'reportResultAjax'],
+        'wrapper' => 'field-widget-action-' . $fieldName,
+        'prevent' => 'submit',
+      ],
+    ];
+
+    $form[self::AMBIGUOUS_ELEMENT] = $element;
   }
 
   /**
@@ -296,16 +382,103 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     }
 
     $result = $this->memberMatcher->match($names);
+    // Replace the candidates of a previous run; an empty list also removes the
+    // selects that were rendered for them.
+    $form_state->set($this->ambiguousKey($fieldName), $result['ambiguous']);
     if ($result['unmatched'] !== []) {
-      $this->messengerService->addWarning($this->t('Nicht eindeutig erkannt: @names', [
+      $this->messengerService->addWarning($this->t('Kein Mitglied gefunden: @names', [
         '@names' => implode(', ', $result['unmatched']),
       ]));
     }
-    if ($result['matched'] === []) {
+    if ($result['ambiguous'] !== []) {
+      $this->messengerService->addStatus($this->t('Bitte auswählen: @names', [
+        '@names' => implode(', ', array_keys($result['ambiguous'])),
+      ]));
+    }
+
+    if ($result['matched'] !== []) {
+      $this->addParticipants($form, $form_state, $fieldName, $result['matched']);
+      return;
+    }
+    if ($result['ambiguous'] === []) {
       $this->reportNoValueProduced($form_state, $fieldName);
       return;
     }
 
+    // Only ambiguous names were found: rebuild so the selects are rendered.
+    $form_state->setRebuild();
+  }
+
+  /**
+   * Adds the selected members of the ambiguous names to the participant field.
+   *
+   * @param array<mixed> $form
+   *   The form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   */
+  public function applySelectionSubmit(array &$form, FormStateInterface $form_state): void {
+    if (!$this->isAvailable()) {
+      return;
+    }
+
+    $triggeringElement = $form_state->getTriggeringElement();
+    $fieldName = $triggeringElement['#field_widget_action_field_name'] ?? NULL;
+    if (!is_string($fieldName) || $fieldName === '') {
+      return;
+    }
+
+    $ambiguous = $this->ambiguousCandidates($form_state, $fieldName);
+    if ($ambiguous === []) {
+      return;
+    }
+
+    $parents = $triggeringElement['#parents'] ?? [];
+    if (!is_array($parents)) {
+      $parents = [];
+    }
+    // Drop the button from the parents to reach the container holding the
+    // selects.
+    array_pop($parents);
+    $values = $form_state->getValue($parents);
+    if (!is_array($values)) {
+      $values = [];
+    }
+
+    $selected = [];
+    $index = 0;
+    foreach ($ambiguous as $ids) {
+      $id = $values['select_' . $index] ?? 0;
+      if (is_numeric($id) && in_array((int) $id, $ids, TRUE)) {
+        $selected[(int) $id] = (int) $id;
+      }
+      $index++;
+    }
+
+    // The editor has answered the prompts, so they are no longer shown.
+    $form_state->set($this->ambiguousKey($fieldName), []);
+
+    if ($selected !== []) {
+      $this->addParticipants($form, $form_state, $fieldName, $selected);
+      return;
+    }
+
+    $form_state->setRebuild();
+  }
+
+  /**
+   * Adds participant IDs to the field and keeps the widget input in sync.
+   *
+   * @param array<mixed> $form
+   *   The form.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param string $fieldName
+   *   The participant field name.
+   * @param int[] $selected
+   *   The user IDs to add.
+   */
+  private function addParticipants(array &$form, FormStateInterface $form_state, string $fieldName, array $selected): void {
     $entity = $this->buildEntity($form, $form_state);
     if (!$entity instanceof FieldableEntityInterface || !$entity->hasField($fieldName)) {
       $this->messengerService->addError($this->t('Die Teilnehmer konnten nicht übernommen werden.'));
@@ -313,7 +486,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     }
 
     $ids = $this->participantIds($entity, $fieldName);
-    foreach ($result['matched'] as $id) {
+    foreach ($selected as $id) {
       $ids[$id] = $id;
     }
     unset($ids[0]);
@@ -323,6 +496,54 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     $this->updateItemsCount($form, $form_state, $fieldName, count($ids));
     $this->reportProducedValue($form_state, $fieldName);
     $form_state->setRebuild();
+  }
+
+  /**
+   * Returns the unresolved ambiguous names of a field from the form state.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   * @param string $fieldName
+   *   The participant field name.
+   *
+   * @return array<string, int[]>
+   *   The candidate user IDs per recognized name.
+   */
+  private function ambiguousCandidates(FormStateInterface $form_state, string $fieldName): array {
+    $stored = $form_state->get($this->ambiguousKey($fieldName));
+    if (!is_array($stored)) {
+      return [];
+    }
+
+    $ambiguous = [];
+    foreach ($stored as $label => $ids) {
+      if (!is_string($label) || !is_array($ids)) {
+        continue;
+      }
+      $candidates = [];
+      foreach ($ids as $id) {
+        if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+          $candidates[] = (int) $id;
+        }
+      }
+      if ($candidates !== []) {
+        $ambiguous[$label] = $candidates;
+      }
+    }
+    return $ambiguous;
+  }
+
+  /**
+   * Returns the form state key that holds the ambiguous candidates.
+   *
+   * @param string $fieldName
+   *   The participant field name.
+   *
+   * @return string
+   *   The form state key.
+   */
+  private function ambiguousKey(string $fieldName): string {
+    return self::AMBIGUOUS_STATE_PREFIX . $fieldName;
   }
 
   /**
