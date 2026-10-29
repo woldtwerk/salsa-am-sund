@@ -19,7 +19,6 @@ final class AttendanceRecognitionInstaller extends ConfigRecordInstaller {
    */
   public const array CONFIG_NAMES = [
     'key.key.mistral_api_key',
-    'key.key.opencode_api_key',
   ];
 
   /**

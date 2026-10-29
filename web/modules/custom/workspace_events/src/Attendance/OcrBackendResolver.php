@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events\Attendance;
 
+use Drupal\Component\Plugin\PluginManagerInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Http\ClientFactory;
-use Drupal\key\KeyRepositoryInterface;
+use Drupal\Core\Config\ImmutableConfig;
 use Drupal\workspace_events\AttendanceRecognition;
 
 /**
  * Resolves the OCR backend from the attendance recognition settings.
  *
  * The backend is built once per request, so a form that recognizes several
- * photos does not read the configuration and the Key entities again.
+ * photos does not read the configuration again.
  */
 final class OcrBackendResolver implements OcrBackendResolverInterface {
 
@@ -29,17 +29,13 @@ final class OcrBackendResolver implements OcrBackendResolverInterface {
    *   The config factory.
    * @param \Drupal\workspace_events\Attendance\MistralOcrBackend $mistralBackend
    *   The Mistral OCR backend.
-   * @param \Drupal\Core\Http\ClientFactory $httpClientFactory
-   *   The HTTP client factory.
-   * @param \Drupal\key\KeyRepositoryInterface|null $keyRepository
-   *   The repository of the Key entities, or NULL when the Key module is not
-   *   available.
+   * @param \Drupal\Component\Plugin\PluginManagerInterface $aiProviderManager
+   *   The AI provider plugin manager (the ai.provider service).
    */
   public function __construct(
     private readonly ConfigFactoryInterface $configFactory,
     private readonly MistralOcrBackend $mistralBackend,
-    private readonly ClientFactory $httpClientFactory,
-    private readonly ?KeyRepositoryInterface $keyRepository,
+    private readonly PluginManagerInterface $aiProviderManager,
   ) {}
 
   /**
@@ -52,40 +48,34 @@ final class OcrBackendResolver implements OcrBackendResolverInterface {
 
     $config = $this->configFactory->get(AttendanceRecognition::SETTINGS);
     $backend = $config->get('backend');
-    if ($backend === AttendanceRecognition::BACKEND_MISTRAL) {
+    if ($backend === AttendanceRecognition::BACKEND_MISTRAL_OCR) {
       return $this->backend = $this->mistralBackend;
     }
 
-    $label = match ($backend) {
-      AttendanceRecognition::BACKEND_OPENCODE_ZEN => 'OpenCode Zen (Guthaben)',
-      AttendanceRecognition::BACKEND_OPENCODE_GO => 'OpenCode Go (Abo)',
-      default => throw new \RuntimeException(sprintf('Unknown attendance recognition backend %s.', is_string($backend) ? $backend : get_debug_type($backend))),
-    };
-
-    $settings = $config->get($backend);
-    if (!is_array($settings)) {
-      throw new \RuntimeException(sprintf('The %s settings are missing.', $label));
+    if ($backend === AttendanceRecognition::BACKEND_AI_PROVIDER) {
+      return $this->backend = $this->resolveAiProviderBackend($config);
     }
 
-    $baseUrl = $settings['base_url'] ?? NULL;
-    $model = $settings['model'] ?? NULL;
-    $keyId = $settings['key'] ?? NULL;
-    if (!is_string($baseUrl) || $baseUrl === '' || !is_string($model) || $model === '' || !is_string($keyId) || $keyId === '') {
-      throw new \RuntimeException(sprintf('The %s settings are incomplete.', $label));
+    throw new \RuntimeException(sprintf('Unknown attendance recognition backend %s.', is_string($backend) ? $backend : get_debug_type($backend)));
+  }
+
+  /**
+   * Builds the backend of a configured AI provider.
+   *
+   * @param \Drupal\Core\Config\ImmutableConfig $config
+   *   The attendance recognition configuration.
+   *
+   * @return \Drupal\workspace_events\Attendance\AiProviderVisionBackend
+   *   The AI provider backend.
+   */
+  private function resolveAiProviderBackend(ImmutableConfig $config): AiProviderVisionBackend {
+    $providerId = $config->get('provider_id');
+    $modelId = $config->get('model_id');
+    if (!is_string($providerId) || $providerId === '' || !is_string($modelId) || $modelId === '') {
+      throw new \RuntimeException('The AI provider settings of the attendance recognition are incomplete.');
     }
 
-    if ($this->keyRepository === NULL) {
-      throw new \RuntimeException(sprintf('The Key module is required for %s.', $label));
-    }
-
-    return $this->backend = new OpenAiCompatibleVisionBackend(
-      $baseUrl,
-      $model,
-      $keyId,
-      $label,
-      $this->httpClientFactory,
-      $this->keyRepository,
-    );
+    return new AiProviderVisionBackend($this->aiProviderManager, $providerId, $modelId);
   }
 
 }

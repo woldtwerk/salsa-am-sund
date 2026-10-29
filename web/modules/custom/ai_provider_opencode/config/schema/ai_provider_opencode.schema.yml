@@ -1,0 +1,21 @@
+ai_provider_opencode.zen.settings:
+  type: config_object
+  label: 'OpenCode Zen settings'
+  mapping:
+    api_key:
+      type: string
+      label: 'The API key for OpenCode Zen via the Key module'
+    base_url:
+      type: string
+      label: 'The base URL of the OpenCode Zen API'
+
+ai_provider_opencode.go.settings:
+  type: config_object
+  label: 'OpenCode Go settings'
+  mapping:
+    api_key:
+      type: string
+      label: 'The API key for OpenCode Go via the Key module'
+    base_url:
+      type: string
+      label: 'The base URL of the OpenCode Go API'

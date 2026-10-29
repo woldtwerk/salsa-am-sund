@@ -30,10 +30,10 @@ final class AttendanceRecognizer {
   /**
    * Recognizes the candidate names on an attendance photo.
    *
-   * The image bytes are sent to the configured OCR or vision provider as a
-   * base64 data URL. No member data is sent to the provider; the recognized
-   * lines are matched locally afterwards. The bytes come from the uploaded
-   * file of the request and are never written to the file system here.
+   * The image bytes are sent to the configured OCR or vision provider. No
+   * member data is sent to the provider; the recognized lines are matched
+   * locally afterwards. The bytes come from the uploaded file of the request
+   * and are never written to the file system here.
    *
    * @param string $contents
    *   The image bytes.

@@ -1,0 +1,2 @@
+api_key: opencode_api_key
+base_url: 'https://opencode.ai/inference/openai/v1'
