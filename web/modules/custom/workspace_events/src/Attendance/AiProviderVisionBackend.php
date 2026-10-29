@@ -20,14 +20,6 @@ use Drupal\Component\Plugin\PluginManagerInterface;
 final class AiProviderVisionBackend implements OcrBackendInterface {
 
   /**
-   * The instruction sent to the vision model.
-   *
-   * The model returns plain names, one per line, so the local parser is the
-   * only place that knows how the attendance list is matched to the members.
-   */
-  public const string PROMPT = 'Lies diese handschriftliche Anwesenheitsliste. Gib ausschließlich die Namen der Personen zurück, einen Namen pro Zeile, ohne Nummern, Überschriften oder sonstigen Text.';
-
-  /**
    * Constructs an AiProviderVisionBackend.
    *
    * @param \Drupal\Component\Plugin\PluginManagerInterface|null $aiProviderManager
@@ -37,11 +29,17 @@ final class AiProviderVisionBackend implements OcrBackendInterface {
    *   The ID of the AI provider.
    * @param string $modelId
    *   The model that accepts images.
+   * @param string $prompt
+   *   The instruction sent to the vision model, from the prompt library of the
+   *   AI module. The model returns plain names, one per line, so the local
+   *   parser is the only place that knows how the attendance list is matched to
+   *   the members.
    */
   public function __construct(
     private readonly ?PluginManagerInterface $aiProviderManager,
     private readonly string $providerId,
     private readonly string $modelId,
+    private readonly string $prompt,
   ) {}
 
   /**
@@ -67,7 +65,7 @@ final class AiProviderVisionBackend implements OcrBackendInterface {
     }
 
     $input = new ChatInput([
-      new ChatMessage('user', self::PROMPT, [new ImageFile($contents, $mimeType)]),
+      new ChatMessage('user', $this->prompt, [new ImageFile($contents, $mimeType)]),
     ]);
     $output = $plugin->chat($input, $this->modelId, ['attendance_recognition']);
     $message = $output->getNormalized();

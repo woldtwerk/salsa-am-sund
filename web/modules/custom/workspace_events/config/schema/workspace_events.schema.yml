@@ -52,16 +52,3 @@ block.settings.salsa_course_schedule:
           Range:
             min: 1
 
-workspace_events.attendance_recognition:
-  type: config_object
-  label: 'Attendance recognition settings'
-  mapping:
-    backend:
-      type: string
-      label: 'OCR backend'
-    provider_id:
-      type: string
-      label: 'AI provider ID'
-    model_id:
-      type: string
-      label: 'AI model ID'

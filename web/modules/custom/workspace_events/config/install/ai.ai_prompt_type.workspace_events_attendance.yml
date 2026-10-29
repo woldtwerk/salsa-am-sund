@@ -1,0 +1,10 @@
+langcode: en
+status: true
+dependencies:
+  enforced:
+    module:
+      - workspace_events
+id: workspace_events_attendance
+label: 'Anwesenheitsliste erkennen'
+variables: {  }
+tokens: {  }

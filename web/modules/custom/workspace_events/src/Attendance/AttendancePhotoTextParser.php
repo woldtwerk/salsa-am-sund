@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Attendance;
 
 /**
- * Splits the markdown returned by Mistral OCR into candidate name lines.
+ * Splits the text returned by the vision model into candidate name lines.
  *
  * The parser only removes layout noise (headings, list markers, table
  * separators, dates and numbers). It does not decide whether a line is a
@@ -15,10 +15,10 @@ namespace Drupal\workspace_events\Attendance;
 final class AttendancePhotoTextParser {
 
   /**
-   * Parses the OCR markdown into candidate lines.
+   * Parses the model response into candidate lines.
    *
    * @param string $markdown
-   *   The markdown returned by the OCR service.
+   *   The text returned by the vision model.
    *
    * @return string[]
    *   The candidate lines in document order, without duplicates.

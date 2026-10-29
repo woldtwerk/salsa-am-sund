@@ -1,0 +1,11 @@
+uuid: 24da6aed-c041-4c76-91de-f19eb1f61d27
+langcode: de
+status: true
+dependencies:
+  enforced:
+    module:
+      - workspace_events
+id: workspace_events_attendance__default
+label: 'Standard-Prompt für die Anwesenheitserkennung'
+type: workspace_events_attendance
+prompt: 'Lies diese handschriftliche Anwesenheitsliste. Gib ausschließlich die Namen der Personen zurück, einen Namen pro Zeile, ohne Nummern, Überschriften oder sonstigen Text.'
