@@ -52,7 +52,7 @@
     class="{{ tw_merge([button.apply({variant: 'outline', size: 'md'}), focus, ui.trigger|default('')]) }}"
   >
     {{ icon('salsa', 'calendar', {size: 20}) }}
-    <span>{{ 'Kalender abonnieren'|t }}</span>
+    <span>{{ 'Subscribe to calendar'|t }}</span>
   </button>
 
   {# Without JavaScript the invoker command cannot open the dialog; the direct
@@ -62,7 +62,7 @@
       href="{{ download_href }}"
       class="{{ tw_merge([button.apply({variant: 'outline', size: 'md'}), focus, ui.fallback|default('')]) }}"
     >
-      <span>{{ 'Als .ics herunterladen'|t }}</span>
+      <span>{{ 'Download .ics'|t }}</span>
     </a>
   </noscript>
 
@@ -76,10 +76,10 @@
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 id="{{ id }}-title" class="font-display text-2xl leading-tight font-bold italic text-sand">
-            {{ 'Kalender abonnieren'|t }}
+            {{ 'Subscribe to calendar'|t }}
           </h2>
           <p class="mt-2 max-w-[45ch] text-sm leading-relaxed text-mist">
-            {{ 'Wähle aus, was in deinem Kalender erscheinen soll.'|t }}
+            {{ 'Choose what should appear in your calendar.'|t }}
           </p>
         </div>
 
@@ -88,7 +88,7 @@
           commandfor="{{ id }}"
           command="close"
           class="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-night/60 text-sand transition-colors hover:border-flame-gold hover:text-flame-gold {{ focus }}"
-          aria-label="{{ 'Schließen'|t }}"
+          aria-label="{{ 'Close'|t }}"
           autofocus
         >
           {{ icon('salsa', 'x', {size: 22}) }}
@@ -101,8 +101,8 @@
         {% endfor %}
 
         {% set groups = [
-          {key: 'organizers', label: 'Veranstaltungen'|t},
-          {key: 'courses', label: 'Kurse'|t},
+          {key: 'organizers', label: 'Events'|t},
+          {key: 'courses', label: 'Courses'|t},
         ] %}
         {% for group in groups %}
           {% set group_options = options|filter(option => option.group == group.key) %}
@@ -145,14 +145,14 @@
             data-salsa-subscribe
             class="{{ tw_merge([button.apply({variant: 'flame', size: 'md'}), focus]) }}"
           >
-            {{ 'Abonnieren'|t }}
+            {{ 'Subscribe'|t }}
           </a>
           <button
             type="submit"
             data-salsa-download
             class="{{ tw_merge([button.apply({variant: 'outline', size: 'md'}), 'bg-none shadow-none', focus, 'disabled:cursor-not-allowed disabled:opacity-50']) }}"
           >
-            {{ 'Als .ics herunterladen'|t }}
+            {{ 'Download .ics'|t }}
           </button>
         </div>
       </form>

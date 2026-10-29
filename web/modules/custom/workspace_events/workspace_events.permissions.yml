@@ -1,8 +1,8 @@
 view dance figures:
-  title: 'Tanzfiguren ansehen'
-  description: 'Erlaubt das Ansehen von Tanzfiguren.'
+  title: 'View dance figures'
+  description: 'Allows viewing dance figures.'
 
 use attendance recognition:
-  title: 'Anwesenheitserkennung verwenden'
-  description: 'Erlaubt das Erkennen von Teilnehmern auf einem Anwesenheitsfoto.'
+  title: 'Use attendance recognition'
+  description: 'Allows recognizing participants on an attendance photo.'
   restrict access: true

@@ -2,7 +2,8 @@ workspace_events.ical:
   path: '/termine.ics'
   defaults:
     _controller: '\Drupal\workspace_events\Controller\IcalController::__invoke'
-    _title: 'Termine'
+    _title: 'Events'
+    _title_context: workspace_events
   methods: [GET]
   requirements:
     _access: 'TRUE'
@@ -11,7 +12,8 @@ workspace_events.occurrence_ical:
   path: '/termine/{node}/ical'
   defaults:
     _controller: '\Drupal\workspace_events\Controller\IcalController::occurrence'
-    _title: 'Termin'
+    _title: 'Event'
+    _title_context: workspace_events
   methods: [GET]
   options:
     parameters:
@@ -25,7 +27,8 @@ workspace_events.events_json:
   path: '/termine.json'
   defaults:
     _controller: '\Drupal\workspace_events\Controller\EventsJsonController::__invoke'
-    _title: 'Termine'
+    _title: 'Events'
+    _title_context: workspace_events
   methods: [GET]
   requirements:
     _access: 'TRUE'

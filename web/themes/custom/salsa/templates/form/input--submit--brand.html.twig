@@ -13,7 +13,7 @@
  */
 #}
 {% set brand = element['#salsa_brand']|default('') %}
-<button{{ attributes.addClass('group/btn inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-line bg-ink px-4 py-3 text-sm font-semibold text-sand transition duration-200 hover:border-flame-gold/60 hover:bg-ink-2 hover:text-sand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame-gold').setAttribute('aria-label', 'Mit @provider anmelden'|t({'@provider': element['#value']})) }}>
+<button{{ attributes.addClass('group/btn inline-flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-line bg-ink px-4 py-3 text-sm font-semibold text-sand transition duration-200 hover:border-flame-gold/60 hover:bg-ink-2 hover:text-sand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame-gold').setAttribute('aria-label', 'Sign in with @provider'|t({'@provider': element['#value']})) }}>
   {% if brand %}
     <span class="shrink-0 text-sand">{{ icon('brands', brand, {size: 20}) }}</span>
   {% endif %}

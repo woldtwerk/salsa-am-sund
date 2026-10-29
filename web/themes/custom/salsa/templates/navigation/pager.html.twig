@@ -20,22 +20,22 @@
 
 {% if items %}
   <nav class="mt-10 flex justify-center" aria-labelledby="{{ heading_id }}">
-    <{{ pagination_heading_level }} id="{{ heading_id }}" class="sr-only">{{ 'Seitennavigation'|t }}</{{ pagination_heading_level }}>
+    <{{ pagination_heading_level }} id="{{ heading_id }}" class="sr-only">{{ 'Pagination'|t({}, {'context': 'salsa'}) }}</{{ pagination_heading_level }}>
     <ul class="js-pager__items flex flex-wrap items-center justify-center gap-2">
       {% if items.first %}
         <li class="hidden sm:inline-flex">
-          <a href="{{ items.first.href }}" title="{{ 'Zur ersten Seite'|t }}" class="{{ item_classes }}"{{ items.first.attributes|without('href', 'title') }}>
-            <span class="sr-only">{{ 'Erste Seite'|t }}</span>
-            <span aria-hidden="true">{{ items.first.text|default('« Erste'|t) }}</span>
+          <a href="{{ items.first.href }}" title="{{ 'Go to first page'|t }}" class="{{ item_classes }}"{{ items.first.attributes|without('href', 'title') }}>
+            <span class="sr-only">{{ 'First page'|t }}</span>
+            <span aria-hidden="true">{{ items.first.text|default('« First'|t) }}</span>
           </a>
         </li>
       {% endif %}
 
       {% if items.previous %}
         <li class="inline-flex">
-          <a href="{{ items.previous.href }}" title="{{ 'Zur vorherigen Seite'|t }}" rel="prev" class="{{ item_classes }}"{{ items.previous.attributes|without('href', 'title', 'rel') }}>
-            <span class="sr-only">{{ 'Vorherige Seite'|t }}</span>
-            <span aria-hidden="true">{{ items.previous.text|default('‹ Zurück'|t) }}</span>
+          <a href="{{ items.previous.href }}" title="{{ 'Go to previous page'|t }}" rel="prev" class="{{ item_classes }}"{{ items.previous.attributes|without('href', 'title', 'rel') }}>
+            <span class="sr-only">{{ 'Previous page'|t }}</span>
+            <span aria-hidden="true">{{ items.previous.text|default('‹ Back'|t) }}</span>
           </a>
         </li>
       {% endif %}
@@ -47,13 +47,13 @@
       {% for key, item in items.pages %}
         <li class="inline-flex">
           {% if current == key %}
-            <a href="{{ item.href }}" title="{{ 'Aktuelle Seite'|t }}" class="{{ current_classes }}" aria-current="page">
-              <span class="sr-only">{{ 'Seite'|t }}</span>
+            <a href="{{ item.href }}" title="{{ 'Current page'|t }}" class="{{ current_classes }}" aria-current="page">
+              <span class="sr-only">{{ 'Page'|t({}, {'context': 'salsa'}) }}</span>
               {{- key -}}
             </a>
           {% else %}
-            <a href="{{ item.href }}" title="{{ 'Zu Seite @key'|t({'@key': key}) }}" class="{{ item_classes }}">
-              <span class="sr-only">{{ 'Seite'|t }}</span>
+            <a href="{{ item.href }}" title="{{ 'Go to page @key'|t({'@key': key}, {'context': 'salsa'}) }}" class="{{ item_classes }}">
+              <span class="sr-only">{{ 'Page'|t({}, {'context': 'salsa'}) }}</span>
               {{- key -}}
             </a>
           {% endif %}
@@ -66,18 +66,18 @@
 
       {% if items.next %}
         <li class="inline-flex">
-          <a href="{{ items.next.href }}" title="{{ 'Zur nächsten Seite'|t }}" rel="next" class="{{ item_classes }}"{{ items.next.attributes|without('href', 'title', 'rel') }}>
-            <span class="sr-only">{{ 'Nächste Seite'|t }}</span>
-            <span aria-hidden="true">{{ items.next.text|default('Weiter ›'|t) }}</span>
+          <a href="{{ items.next.href }}" title="{{ 'Go to next page'|t }}" rel="next" class="{{ item_classes }}"{{ items.next.attributes|without('href', 'title', 'rel') }}>
+            <span class="sr-only">{{ 'Next page'|t }}</span>
+            <span aria-hidden="true">{{ items.next.text|default('Next ›'|t) }}</span>
           </a>
         </li>
       {% endif %}
 
       {% if items.last %}
         <li class="hidden sm:inline-flex">
-          <a href="{{ items.last.href }}" title="{{ 'Zur letzten Seite'|t }}" class="{{ item_classes }}"{{ items.last.attributes|without('href', 'title') }}>
-            <span class="sr-only">{{ 'Letzte Seite'|t }}</span>
-            <span aria-hidden="true">{{ items.last.text|default('Letzte »'|t) }}</span>
+          <a href="{{ items.last.href }}" title="{{ 'Go to last page'|t }}" class="{{ item_classes }}"{{ items.last.attributes|without('href', 'title') }}>
+            <span class="sr-only">{{ 'Last page'|t }}</span>
+            <span aria-hidden="true">{{ items.last.text|default('Last »'|t) }}</span>
           </a>
         </li>
       {% endif %}

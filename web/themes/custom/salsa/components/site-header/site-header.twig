@@ -5,7 +5,7 @@
     <a
       href="{{ front_url|default('/') }}"
       class="group flex shrink-0 items-center gap-3 no-underline"
-      aria-label="{{ 'Salsa am Sund - Startseite'|t }}"
+      aria-label="{{ 'Salsa am Sund - Home'|t }}"
     >
       <span class="flex items-baseline gap-2 whitespace-nowrap">
         <span class="text-flame-light font-display text-2xl leading-none font-black italic uppercase tracking-[-0.02em] font-stretch-112% md:text-3xl">Salsa</span>
@@ -26,7 +26,7 @@
         popovertargetaction="hide"
         class="salsa-site-nav__close ms-auto inline-flex size-11 items-center justify-center rounded-full border border-line text-sand transition-colors hover:border-flame-gold hover:text-flame-gold lg:hidden"
       >
-        <span class="sr-only">{{ 'Menü schließen'|t }}</span>
+        <span class="sr-only">{{ 'Close menu'|t }}</span>
         {{ icon('salsa', 'x', {size: 22}) }}
       </button>
 
@@ -45,7 +45,7 @@
       popovertargetaction="toggle"
       class="salsa-site-nav__burger ms-auto inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line text-sand transition-colors hover:border-flame-gold hover:text-flame-gold lg:hidden"
     >
-      <span class="sr-only">{{ 'Menü öffnen'|t }}</span>
+      <span class="sr-only">{{ 'Open menu'|t }}</span>
       <span class="salsa-nav-icon salsa-nav-icon--open">{{ icon('salsa', 'menu', {size: 22}) }}</span>
       <span class="salsa-nav-icon salsa-nav-icon--close">{{ icon('salsa', 'x', {size: 22}) }}</span>
     </button>

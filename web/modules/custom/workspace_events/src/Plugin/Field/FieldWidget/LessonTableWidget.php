@@ -29,7 +29,7 @@ use Drupal\workspace_events\SiteTimeZone;
  */
 #[FieldWidget(
   id: 'workspace_events_lesson_table',
-  label: new TranslatableMarkup('Stundentabelle'),
+  label: new TranslatableMarkup('Lesson table'),
   field_types: ['entity_reference'],
   multiple_values: TRUE,
 )]
@@ -114,7 +114,7 @@ final class LessonTableWidget extends WidgetBase {
       : NULL;
 
     $build['#type'] = 'details';
-    $build['#title'] = $this->t('Stunden (@count)', ['@count' => count($lessons)]);
+    $build['#title'] = $this->t('Lessons (@count)', ['@count' => count($lessons)]);
     $build['#open'] = TRUE;
 
     $cacheability = new CacheableMetadata();
@@ -124,7 +124,7 @@ final class LessonTableWidget extends WidgetBase {
 
     if ($lessons === []) {
       $build['empty'] = [
-        '#markup' => $this->t('Die Stunden werden beim Speichern aus Beginn, Ende und Rhythmus erzeugt.'),
+        '#markup' => $this->t('Lessons are generated from the start, end and rhythm when saving.'),
       ];
       $build['#cache'] = [
         'contexts' => $cacheability->getCacheContexts(),
@@ -135,7 +135,7 @@ final class LessonTableWidget extends WidgetBase {
     }
 
     $build['hint'] = [
-      '#markup' => $this->t('Termine ändern: Stunden löschen, dann Kurs speichern.'),
+      '#markup' => $this->t('To change the dates: delete the lessons, then save the course.'),
       '#prefix' => '<div class="messages messages--warning">',
       '#suffix' => '</div>',
     ];
@@ -153,12 +153,12 @@ final class LessonTableWidget extends WidgetBase {
       '#prefix' => '<div class="lesson-table__wrapper">',
       '#suffix' => '</div>',
       '#header' => [
-        $this->t('Datum'),
-        $this->t('Zeit'),
+        $this->t('Date'),
+        $this->t('Time'),
         $this->t('Status'),
-        $this->t('Teilnehmer'),
-        $this->t('Figuren'),
-        $this->t('Aktionen'),
+        $this->t('Participants'),
+        $this->t('Figures'),
+        $this->t('Actions'),
       ],
       '#rows' => $rows,
     ];
@@ -303,7 +303,7 @@ final class LessonTableWidget extends WidgetBase {
 
     $date_cell = $date;
     if ($is_relevant) {
-      $badge = $relevant['today'] ? $this->t('Heute') : $this->t('Nächste Stunde');
+      $badge = $relevant['today'] ? $this->t('Today') : $this->t('Next lesson');
       $date_cell = [
         '#markup' => $date . ' <span class="lesson-table__badge">' . $badge . '</span>',
       ];
@@ -313,7 +313,7 @@ final class LessonTableWidget extends WidgetBase {
     if ($destination !== NULL && $lesson->access('update')) {
       $actions = [
         '#type' => 'link',
-        '#title' => $this->t('Bearbeiten'),
+        '#title' => $this->t('Edit'),
         '#url' => $lesson->toUrl('edit-form', ['query' => ['destination' => $destination]]),
         '#attributes' => ['class' => ['button', 'button--small']],
       ];
@@ -402,9 +402,9 @@ final class LessonTableWidget extends WidgetBase {
    */
   private function statusLabel(NodeInterface $lesson): TranslatableMarkup {
     if ($this->isCancelled($lesson)) {
-      return $this->t('Fällt aus');
+      return $this->t('Cancelled');
     }
-    return $lesson->isPublished() ? $this->t('Veröffentlicht') : $this->t('Geplant');
+    return $lesson->isPublished() ? $this->t('Published') : $this->t('Scheduled', [], ['context' => 'workspace_events']);
   }
 
   /**

@@ -33,12 +33,12 @@ final class ViewsDataHooks {
     }
 
     $data['node_field_data']['course_reference'] = [
-      'title' => $this->t('Kurs'),
-      'help' => $this->t('Filtert Unterrichtsstunden nach ihrem Kurs.'),
+      'title' => $this->t('Course'),
+      'help' => $this->t('Filters lessons by their course.'),
       'real field' => 'nid',
       'filter' => [
-        'title' => $this->t('Kurs'),
-        'help' => $this->t('Filtert Unterrichtsstunden nach ihrem Kurs.'),
+        'title' => $this->t('Course'),
+        'help' => $this->t('Filters lessons by their course.'),
         'id' => 'entity_reference',
         'entity type' => 'node',
         'entity_type' => 'node',

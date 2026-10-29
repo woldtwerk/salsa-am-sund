@@ -83,7 +83,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     );
 
     self::assertSame('Level 1–3', $variables['course_level']);
-    self::assertSame('Alle 2 Wochen · ' . $weekday . ' · 19:30 – 20:30', $variables['course_schedule']);
+    self::assertSame('Alle 2 Wochen · ' . $weekday . ' · 19:30 to 20:30', $variables['course_schedule']);
     $dates = $variables['course_next_dates'];
     \assert(is_array($dates));
     self::assertCount(3, $dates);
@@ -98,7 +98,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     foreach ($dates as $index => $date) {
       \assert(is_array($date));
       self::assertSame($weekday, $date['weekday']);
-      self::assertSame('19:30 – 20:30', $date['time']);
+      self::assertSame('19:30 to 20:30', $date['time']);
       self::assertSame($start->modify('+' . ($index * 2) . ' weeks')->format('d.m.Y'), $date['date']);
       self::assertSame('/termine/' . $lessons[$index]->id() . '/ical', $date['ical_url']);
     }
@@ -182,7 +182,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
       'date' => $start->format('d.m.Y'),
       'date_iso' => $start->format('Y-m-d'),
       'weekday' => $weekday,
-      'time' => '21:00 – 23:30',
+      'time' => '21:00 to 23:30',
       'ical_url' => '/termine/' . $event->id() . '/ical',
       'cancelled' => FALSE,
     ], $next_date);

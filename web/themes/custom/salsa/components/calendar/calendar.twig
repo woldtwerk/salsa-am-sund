@@ -36,7 +36,7 @@
   <div data-salsa-calendar-filters class="grid gap-4 sm:grid-cols-[2fr_1fr]">
     <fieldset class="min-w-0 rounded-xl border border-line/70 bg-ink-2/40 p-4">
       <legend class="px-1 font-body text-xs font-semibold uppercase tracking-[0.2em] text-flame-gold">
-        {{ 'Veranstalter'|t }}
+        {{ 'Organizers'|t }}
       </legend>
       <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
         {% for organizer in organizers %}
@@ -56,7 +56,7 @@
 
     <fieldset class="min-w-0 rounded-xl border border-line/70 bg-ink-2/40 p-4">
       <legend class="px-1 font-body text-xs font-semibold uppercase tracking-[0.2em] text-flame-gold">
-        {{ 'Art'|t }}
+        {{ 'Type'|t({}, {'context': 'salsa'}) }}
       </legend>
       <div class="mt-1 flex flex-wrap gap-x-4 gap-y-1">
         <label class="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition-colors hover:bg-flame-gold/5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-flame-gold">
@@ -70,7 +70,7 @@
           >
           <span class="inline-flex items-center gap-2 text-sm font-semibold text-sand">
             <span class="size-2.5 shrink-0 rounded-full bg-flame-orange" aria-hidden="true"></span>
-            {{ 'Partys'|t }}
+            {{ 'Parties'|t }}
           </span>
         </label>
         <label class="flex cursor-pointer items-center gap-2 rounded-lg p-1 transition-colors hover:bg-flame-gold/5 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-flame-gold">
@@ -84,7 +84,7 @@
           >
           <span class="inline-flex items-center gap-2 text-sm font-semibold text-sand">
             <span class="size-2.5 shrink-0 rounded-full bg-flame-gold" aria-hidden="true"></span>
-            {{ 'Kurse'|t }}
+            {{ 'Courses'|t }}
           </span>
         </label>
       </div>
@@ -93,11 +93,11 @@
 
   {% embed 'salsa:tabs' with {param: 'ansicht', align: 'end'} %}
     {% block tabs %}
-      {% embed 'salsa:tab' with {label: ('Karten'|t) ~ '', name: 'karten', icon: 'layout-grid'} %}
+      {% embed 'salsa:tab' with {label: ('Cards'|t) ~ '', name: 'karten', icon: 'layout-grid'} %}
         {% block content %}
           <div data-salsa-calendar-cards>{{ cards }}</div>
           <p data-salsa-calendar-empty hidden class="mt-5 text-sm leading-relaxed text-mist">
-            {{ 'Keine Termine für diese Auswahl.'|t }}
+            {{ 'No events for this selection.'|t }}
           </p>
           <button
             type="button"
@@ -105,26 +105,26 @@
             hidden
             class="{{ tw_merge([button.apply({variant: 'outline', size: 'md'}), 'mt-6', focus]) }}"
           >
-            {{ 'Mehr anzeigen'|t }}
+            {{ 'Show more'|t }}
           </button>
         {% endblock %}
       {% endembed %}
 
-      {% embed 'salsa:tab' with {label: ('Kalender'|t) ~ '', name: 'kalender', icon: 'calendar'} %}
+      {% embed 'salsa:tab' with {label: ('Calendar'|t) ~ '', name: 'kalender', icon: 'calendar'} %}
         {% block content %}
           <full-calendar
             id="{{ id }}"
             class="salsa-calendar mt-5 block"
-            aria-label="{{ 'Veranstaltungskalender'|t }}"
+            aria-label="{{ 'Event calendar'|t }}"
           ></full-calendar>
 
           <noscript>
             <p class="mt-4 rounded-xl border border-dashed border-line/70 bg-ink-2/30 p-4 text-sm text-mist">
-              {{ 'Der Kalender benötigt JavaScript. Alle Termine findest du im iCal-Feed.'|t }}
+              {{ 'The calendar requires JavaScript. You can find all events in the iCal feed.'|t }}
             </p>
             <p class="mt-3">
               <a href="{{ ical_url }}" class="{{ tw_merge([button.apply({variant: 'outline', size: 'md'}), focus]) }}">
-                {{ 'Termine als .ics herunterladen'|t }}
+                {{ 'Download events as .ics'|t }}
               </a>
             </p>
           </noscript>

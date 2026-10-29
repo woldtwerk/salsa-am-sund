@@ -494,9 +494,9 @@ final class DetailPagePreprocessHooks {
     }
     $start = $occurrence->start->format('H:i');
     if ($occurrence->end === NULL) {
-      return (string) $this->t('ab @start', ['@start' => $start]);
+      return (string) $this->t('@start onwards', ['@start' => $start]);
     }
-    return (string) $this->t('@start – @end', [
+    return (string) $this->t('@start to @end', [
       '@start' => $start,
       '@end' => $occurrence->end->format('H:i'),
     ]);
@@ -557,7 +557,7 @@ final class DetailPagePreprocessHooks {
     }
     return [
       'label' => $link['title'] === ''
-        ? (string) $this->t('Weitere Informationen')
+        ? (string) $this->t('More information')
         : $link['title'],
       'href' => $link['url']->toString(),
     ];

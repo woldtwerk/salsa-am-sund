@@ -74,8 +74,8 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
     $this->setCurrentUser($editor);
     $rows = $this->buildRows($course);
     self::assertCount(2, $rows);
-    self::assertSame('Fällt aus', (string) $rows[0]['data'][2]);
-    self::assertSame('Veröffentlicht', (string) $rows[1]['data'][2]);
+    self::assertSame('Cancelled', (string) $rows[0]['data'][2]);
+    self::assertSame('Published', (string) $rows[1]['data'][2]);
     self::assertArrayHasKey('#url', $rows[0]['data'][5]['data']);
     self::assertArrayHasKey('#url', $rows[1]['data'][5]['data']);
     self::assertSame(

@@ -12,7 +12,7 @@ use Drupal\Core\StringTranslation\TranslatableMarkup;
  */
 #[AiProvider(
   id: self::ID,
-  label: new TranslatableMarkup('OpenCode Zen (Guthaben)'),
+  label: new TranslatableMarkup('OpenCode Zen (credit)'),
 )]
 class OpenCodeZenProvider extends OpenCodeProviderBase {
 

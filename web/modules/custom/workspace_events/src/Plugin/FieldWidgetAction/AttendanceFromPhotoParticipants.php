@@ -38,13 +38,13 @@ use Symfony\Component\HttpFoundation\RequestStack;
  */
 #[FieldWidgetAction(
   id: 'attendance_from_photo_participants',
-  label: new TranslatableMarkup('Teilnehmer aus Foto erkennen'),
+  label: new TranslatableMarkup('Recognize participants from a photo'),
   widget_types: [
     'entity_reference_autocomplete',
     'entity_reference_autocomplete_tags',
   ],
   field_types: ['entity_reference'],
-  category: new TranslatableMarkup('Anwesenheit'),
+  category: new TranslatableMarkup('Attendance'),
 )]
 final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
 
@@ -233,8 +233,8 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     $baseWeight = is_numeric($weight) ? (int) $weight : 0;
     $form[self::UPLOAD_ELEMENT] = [
       '#type' => 'file',
-      '#title' => $this->t('Anwesenheitsfoto'),
-      '#description' => $this->t('JPEG, PNG oder WebP, höchstens 10 MB. Das Foto wird nur zur Erkennung übertragen und nicht gespeichert.'),
+      '#title' => $this->t('Attendance photo'),
+      '#description' => $this->t('JPEG, PNG or WebP, up to 10 MB. The photo is only sent for recognition and is not stored.'),
       '#weight' => $baseWeight + 9,
       '#parents' => [self::UPLOAD_ELEMENT],
       '#attributes' => [
@@ -295,9 +295,9 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       '#type' => 'table',
       '#tree' => TRUE,
       '#header' => [
-        $this->t('Erkannt'),
-        $this->t('Mitglied'),
-        $this->t('Hinweis'),
+        $this->t('Recognized'),
+        $this->t('Member'),
+        $this->t('Hint'),
       ],
       '#attributes' => [
         'class' => ['attendance-review__table'],
@@ -314,7 +314,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
           '#selection_handler' => is_string($handler) ? $handler : 'default:user',
           '#selection_settings' => is_array($handlerSettings) ? $handlerSettings : [],
           '#tags' => TRUE,
-          '#title' => $this->t('Mitglieder für @name', ['@name' => $row['name']]),
+          '#title' => $this->t('Members for @name', ['@name' => $row['name']]),
           '#title_display' => 'invisible',
           '#size' => 40,
           '#default_value' => array_values(array_filter(
@@ -329,7 +329,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     $element['table'] = $table;
     $element[self::APPLY_BUTTON] = [
       '#type' => 'button',
-      '#value' => $this->t('Teilnehmer übernehmen'),
+      '#value' => $this->t('Apply participants'),
       '#name' => $fieldName . '_attendance_apply',
       '#field_widget_action_field_name' => $fieldName,
       '#field_widget_action_field_delta' => NULL,
@@ -359,22 +359,22 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    */
   private function reviewHint(array $row, array $names): TranslatableMarkup {
     if (count($row['candidates']) === 1 && $row['recommended'] !== []) {
-      return $this->t('eindeutig');
+      return $this->t('unambiguous');
     }
     if ($row['reason'] === 'regular') {
-      return $this->t('nehmen regelmäßig teil');
+      return $this->t('attend regularly');
     }
     if ($row['reason'] === 'previous') {
-      return $this->t('wie letzte Stunde');
+      return $this->t('same as last lesson');
     }
     if ($row['candidates'] === []) {
-      return $this->t('kein Mitglied gefunden');
+      return $this->t('no member found');
     }
     $labels = [];
     foreach ($row['candidates'] as $id) {
       $labels[] = $names[$id] ?? (string) $id;
     }
-    return $this->t('mehrdeutig: @names – bitte wählen', [
+    return $this->t('ambiguous: @names – please choose', [
       '@names' => implode(', ', $labels),
     ]);
   }
@@ -420,21 +420,21 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
 
     $photo = $this->uploadedPhoto();
     if ($photo === NULL) {
-      $this->messengerService->addError($this->t('Bitte ein Anwesenheitsfoto auswählen.'));
+      $this->messengerService->addError($this->t('Please select an attendance photo.'));
       return;
     }
 
     if (!$photo->isValid()) {
-      $this->messengerService->addError($this->t('Das Foto konnte nicht hochgeladen werden.'));
+      $this->messengerService->addError($this->t('The photo could not be uploaded.'));
       return;
     }
     $size = $photo->getSize();
     if ($size === FALSE) {
-      $this->messengerService->addError($this->t('Das Anwesenheitsfoto konnte nicht gelesen werden.'));
+      $this->messengerService->addError($this->t('The attendance photo could not be read.'));
       return;
     }
     if ($size > self::MAX_FILE_SIZE) {
-      $this->messengerService->addError($this->t('Das Foto darf höchstens 10 MB groß sein.'));
+      $this->messengerService->addError($this->t('The photo must not be larger than 10 MB.'));
       return;
     }
 
@@ -442,7 +442,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     $mimeType = is_array($image) ? $image['mime'] : NULL;
     $extension = mb_strtolower($photo->getClientOriginalExtension());
     if (!is_string($mimeType) || !in_array($mimeType, self::ALLOWED_MIME_TYPES, TRUE) || !in_array($extension, self::ALLOWED_EXTENSIONS, TRUE)) {
-      $this->messengerService->addError($this->t('Bitte ein Foto im Format JPEG, PNG oder WebP hochladen.'));
+      $this->messengerService->addError($this->t('Please upload a photo in JPEG, PNG or WebP format.'));
       return;
     }
 
@@ -450,7 +450,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       $contents = $photo->getContent();
     }
     catch (\Throwable) {
-      $this->messengerService->addError($this->t('Das Anwesenheitsfoto konnte nicht gelesen werden.'));
+      $this->messengerService->addError($this->t('The attendance photo could not be read.'));
       return;
     }
 
@@ -463,14 +463,14 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     }
 
     if ($names === []) {
-      $this->messengerService->addWarning($this->t('Auf dem Anwesenheitsfoto wurden keine Namen erkannt.'));
+      $this->messengerService->addWarning($this->t('No names were recognized on the attendance photo.'));
       $this->reportNoValueProduced($form_state, $fieldName);
       return;
     }
 
     $rows = $this->memberMatcher->match($names);
     if ($rows === []) {
-      $this->messengerService->addWarning($this->t('Auf dem Anwesenheitsfoto wurden keine Namen erkannt.'));
+      $this->messengerService->addWarning($this->t('No names were recognized on the attendance photo.'));
       $this->reportNoValueProduced($form_state, $fieldName);
       return;
     }
@@ -479,7 +479,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
     // Replace the rows of a previous run; an empty list also removes the table
     // that was rendered for them.
     $form_state->set($this->reviewKey($fieldName), $rows);
-    $this->messengerService->addStatus($this->t('Bitte die Vorschläge prüfen und übernehmen.'));
+    $this->messengerService->addStatus($this->t('Please review the suggestions and apply them.'));
 
     // Nothing is added before the editor applies the selection.
     $form_state->setRebuild();
@@ -593,7 +593,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
   private function addParticipants(array &$form, FormStateInterface $form_state, string $fieldName, array $selected): void {
     $entity = $this->buildEntity($form, $form_state);
     if (!$entity instanceof FieldableEntityInterface || !$entity->hasField($fieldName)) {
-      $this->messengerService->addError($this->t('Die Teilnehmer konnten nicht übernommen werden.'));
+      $this->messengerService->addError($this->t('The participants could not be applied.'));
       return;
     }
 
