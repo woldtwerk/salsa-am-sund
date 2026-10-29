@@ -7,28 +7,20 @@
 
 declare(strict_types=1);
 
-use Drupal\Core\Config\Entity\ConfigEntityStorageInterface;
 use Drupal\Core\Field\DeletedFieldsRepositoryInterface;
 use Drupal\Core\Field\FieldPurger;
 use Drupal\Core\Utility\UpdateException;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\file\FileInterface;
-use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\node\NodeAccessRebuild;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
-use Drupal\views\ViewsData;
 use Drupal\workspace_events\AttendanceRecognition;
-use Drupal\workspace_events\AttendanceRecognitionInstaller;
-use Drupal\workspace_events\ConfigRecordLoader;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureFlag;
-use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\LessonInstaller;
-use Drupal\workspace_events\MemberOverviewInstaller;
 use Drupal\workspace_events\OrganizerResolver;
 use Drupal\workspace_events\ScheduleMigrator;
 
@@ -104,89 +96,6 @@ function workspace_events_update_10004(): void {
 /**
  * Implements hook_update_N().
  *
- * Adds the dance figure vocabulary, its fields and displays, the pathauto
- * pattern and the member role, and grants the new permissions to the content
- * editor role.
- */
-function workspace_events_update_10005(): void {
-  $installer = \Drupal::service(DanceFigureInstaller::class);
-  \assert($installer instanceof DanceFigureInstaller);
-  $installer->install();
-
-  workspace_events_grant_editor_permissions();
-  workspace_events_grant_member_permissions();
-}
-
-/**
- * Implements hook_update_N().
- *
- * Installs the Flag module, adds the "mastered" flag for dance figures and
- * grants the flag permissions to the member role.
- */
-function workspace_events_update_10006(): void {
-  \Drupal::service('module_installer')->install(['flag']);
-
-  $installer = \Drupal::service(DanceFigureInstaller::class);
-  \assert($installer instanceof DanceFigureInstaller);
-  $installer->install([DanceFigureFlag::Mastered->configName()]);
-
-  workspace_events_grant_flag_permissions(DanceFigureFlag::Mastered);
-}
-
-/**
- * Implements hook_update_N().
- *
- * Installs the AI attendance recognition, adds the participant automator
- * action to the lesson form and grants the new permission to the content
- * editor role.
- */
-function workspace_events_update_10008(): void {
-  \Drupal::service('module_installer')->install([
-    'key',
-    'ai',
-    'ai_automators',
-    'field_widget_actions',
-  ]);
-
-  $installer = \Drupal::service(AttendanceRecognitionInstaller::class);
-  \assert($installer instanceof AttendanceRecognitionInstaller);
-  $installer->install();
-
-  workspace_events_grant_editor_permissions();
-}
-
-/**
- * Implements hook_update_N().
- *
- * Adds the "like" flag for dance figures, grants the flag permissions to the
- * member role and adds the member overview pages for the dance figures and
- * the courses.
- *
- * The member views are added in this update hook together with the flag,
- * because the dance figure view needs both dance figure flags.
- */
-function workspace_events_update_10009(): void {
-  $installer = \Drupal::service(DanceFigureInstaller::class);
-  \assert($installer instanceof DanceFigureInstaller);
-  $installer->install([DanceFigureFlag::Like->configName()]);
-
-  workspace_events_grant_flag_permissions(DanceFigureFlag::Like);
-
-  $member_overview_installer = \Drupal::service(MemberOverviewInstaller::class);
-  \assert($member_overview_installer instanceof MemberOverviewInstaller);
-  $member_overview_installer->install();
-
-  // The new view handlers use the lesson and taxonomy term field tables, so
-  // the views data cache must be rebuilt.
-  $views_data = \Drupal::service('views.views_data');
-  if ($views_data instanceof ViewsData) {
-    $views_data->clear();
-  }
-}
-
-/**
- * Implements hook_update_N().
- *
  * Adds the lesson bundle, the course and event date fields and the lesson
  * fields, migrates the existing Smart Date series and generates the lessons.
  *
@@ -206,8 +115,6 @@ function workspace_events_update_10007(): ?string {
   // workflow. Lessons are not moderated, so remove the new bundle again
   // before the lessons are generated.
   workspace_events_set_bundle_in_workflow('lesson', FALSE);
-
-  workspace_events_grant_editor_permissions();
 
   $migrator = \Drupal::service(ScheduleMigrator::class);
   \assert($migrator instanceof ScheduleMigrator);
@@ -276,32 +183,6 @@ function workspace_events_update_10010(): void {
 /**
  * Implements hook_update_N().
  *
- * Removes the external link field from the course bundle.
- *
- * The storage of the field stays, because events still use it.
- */
-function workspace_events_update_10011(): void {
-  $field = FieldConfig::loadByName('node', 'course', 'field_link');
-  if ($field !== NULL) {
-    $field->delete();
-  }
-}
-
-/**
- * Implements hook_update_N().
- *
- * Removes the course and event bundles from the editorial workflow, so only
- * pages stay moderated.
- */
-function workspace_events_update_10012(): void {
-  foreach (workspace_events_node_bundles() as $bundle) {
-    workspace_events_set_bundle_in_workflow($bundle, FALSE);
-  }
-}
-
-/**
- * Implements hook_update_N().
- *
  * Removes content moderation from the site.
  *
  * The editorial workflow only moderated the page content type and none of the
@@ -343,199 +224,6 @@ function workspace_events_update_10013(): void {
 }
 
 /**
- * Implements hook_update_N().
- *
- * Recognizes attendance from a temporary upload instead of a stored photo.
- *
- * Deletes the attendance photo field and its files, removes the participant
- * automator and uninstalls ai_automators when no automator uses it anymore.
- */
-function workspace_events_update_10014(): void {
-  $entity_type_manager = \Drupal::entityTypeManager();
-
-  if ($entity_type_manager->hasDefinition('ai_automator')) {
-    $automator = $entity_type_manager->getStorage('ai_automator')->load('node.lesson.field_participants.default');
-    if ($automator !== NULL) {
-      $automator->delete();
-    }
-  }
-
-  // The file references have to be read before the field data is purged.
-  $references = workspace_events_attendance_photo_file_references();
-
-  $field = FieldConfig::loadByName('node', 'lesson', 'field_attendance_photo');
-  if ($field !== NULL) {
-    $field->delete();
-  }
-  $storage = FieldStorageConfig::loadByName('node', 'field_attendance_photo');
-  if ($storage !== NULL) {
-    $storage->delete();
-  }
-
-  workspace_events_purge_deleted_fields();
-
-  // Deleting a field does not delete the files that its entities referenced.
-  $usage = \Drupal::service('file.usage');
-  \assert($usage instanceof FileUsageInterface);
-  $file_storage = $entity_type_manager->getStorage('file');
-  foreach ($references as $file_id => $entity_ids) {
-    $file = $file_storage->load($file_id);
-    if (!$file instanceof FileInterface) {
-      continue;
-    }
-    foreach ($entity_ids as $entity_id) {
-      $usage->delete($file, 'file', 'node', (string) $entity_id, 0);
-    }
-    if ($usage->listUsage($file) === []) {
-      $file->delete();
-    }
-  }
-
-  if (!\Drupal::moduleHandler()->moduleExists('ai_automators')) {
-    return;
-  }
-  $remaining = $entity_type_manager->getStorage('ai_automator')->getQuery()
-    ->accessCheck(FALSE)
-    ->count()
-    ->execute();
-  if ((int) $remaining > 0) {
-    return;
-  }
-
-  $uninstalled = \Drupal::service('module_installer')->uninstall(['ai_automators']);
-  if ($uninstalled === FALSE) {
-    throw new UpdateException('The module ai_automators could not be uninstalled. Remove the remaining automator configuration and run the update again.');
-  }
-}
-
-/**
- * Implements hook_update_N().
- *
- * Adds the selectable OpenCode OCR backends to existing sites.
- *
- * The legacy Mistral backend stays the configured backend, so nothing changes
- * until an administrator chooses another provider.
- */
-function workspace_events_update_10015(): void {
-  $loader = \Drupal::service(ConfigRecordLoader::class);
-  \assert($loader instanceof ConfigRecordLoader);
-
-  $storage = \Drupal::entityTypeManager()->getStorage('key');
-  \assert($storage instanceof ConfigEntityStorageInterface);
-  if ($storage->load(AttendanceRecognition::OPENCODE_KEY_ID) === NULL) {
-    $storage->createFromStorageRecord($loader->load('key.key.' . AttendanceRecognition::OPENCODE_KEY_ID))->save();
-  }
-
-  $config = \Drupal::configFactory()->getEditable('workspace_events.attendance_recognition');
-  if (!$config->isNew()) {
-    return;
-  }
-
-  $config->setData([
-    'backend' => 'mistral_ocr',
-    'provider_id' => '',
-    'model_id' => '',
-  ])->save();
-}
-
-/**
- * Implements hook_update_N().
- *
- * Installs the OpenCode AI providers and moves the attendance recognition to
- * the AI provider plugin manager.
- */
-function workspace_events_update_10016(): void {
-  if (!\Drupal::moduleHandler()->moduleExists('ai_provider_opencode')) {
-    \Drupal::service('module_installer')->install(['ai_provider_opencode']);
-  }
-
-  $config = \Drupal::configFactory()->getEditable('workspace_events.attendance_recognition');
-  $record = $config->get();
-  if (!is_array($record)) {
-    $record = [];
-  }
-  unset($record['opencode_zen'], $record['opencode_go']);
-  $record['provider_id'] = is_string($record['provider_id'] ?? NULL) ? $record['provider_id'] : '';
-  $record['model_id'] = is_string($record['model_id'] ?? NULL) ? $record['model_id'] : '';
-
-  $old_backend = $config->get('backend');
-
-  if (is_string($old_backend) && in_array($old_backend, ['opencode_zen', 'opencode_go'], TRUE)) {
-    $old_model = $config->get($old_backend . '.model');
-    $record['backend'] = 'ai_provider';
-    $record['provider_id'] = $old_backend;
-    $record['model_id'] = is_string($old_model) ? $old_model : '';
-  }
-  else {
-    $record['backend'] = 'mistral_ocr';
-  }
-
-  // Replacing all data also drops the nested settings of the old backends.
-  $config->setData($record)->save();
-}
-
-/**
- * Implements hook_update_N().
- *
- * Moves the attendance prompt into the AI prompt library.
- */
-function workspace_events_update_10017(): void {
-  $loader = \Drupal::service(ConfigRecordLoader::class);
-  \assert($loader instanceof ConfigRecordLoader);
-  $entity_type_manager = \Drupal::entityTypeManager();
-
-  $type_storage = $entity_type_manager->getStorage('ai_prompt_type');
-  \assert($type_storage instanceof ConfigEntityStorageInterface);
-  if ($type_storage->load(AttendanceRecognition::PROMPT_TYPE) === NULL) {
-    $type_storage->createFromStorageRecord($loader->load('ai.ai_prompt_type.' . AttendanceRecognition::PROMPT_TYPE))->save();
-  }
-
-  $prompt_storage = $entity_type_manager->getStorage('ai_prompt');
-  \assert($prompt_storage instanceof ConfigEntityStorageInterface);
-  if ($prompt_storage->load(AttendanceRecognition::PROMPT_ID) === NULL) {
-    $prompt_storage->createFromStorageRecord($loader->load('ai.ai_prompt.' . AttendanceRecognition::PROMPT_ID))->save();
-  }
-}
-
-/**
- * Implements hook_update_N().
- *
- * Moves the attendance recognition to the AI module settings and removes the
- * legacy Mistral configuration.
- */
-function workspace_events_update_10018(): void {
-  $config = \Drupal::configFactory()->getEditable('workspace_events.attendance_recognition');
-  $ai_settings = \Drupal::configFactory()->getEditable('ai.settings');
-  $default_providers = $ai_settings->get('default_providers');
-  $default_providers = is_array($default_providers) ? $default_providers : [];
-
-  if (empty($default_providers[AttendanceRecognition::OPERATION_TYPE]) && $config->get('backend') === 'ai_provider') {
-    $provider_id = $config->get('provider_id');
-    $model_id = $config->get('model_id');
-    if (is_string($provider_id) && $provider_id !== '' && is_string($model_id) && $model_id !== '') {
-      $default_providers[AttendanceRecognition::OPERATION_TYPE] = [
-        'provider_id' => $provider_id,
-        'model_id' => $model_id,
-      ];
-      $ai_settings->set('default_providers', $default_providers)->save();
-    }
-  }
-
-  $config->delete();
-
-  if (\Drupal::entityTypeManager()->hasDefinition('key')) {
-    $key = \Drupal::entityTypeManager()->getStorage('key')->load('mistral_api_key');
-    if ($key !== NULL) {
-      $key->delete();
-    }
-  }
-
-  if (\Drupal::moduleHandler()->moduleExists('ai_provider_mistral')) {
-    \Drupal::service('module_installer')->uninstall(['ai_provider_mistral']);
-  }
-}
-
-/**
  * Deletes and purges all removed field definitions.
  *
  * The field data is deleted in batches, so a large site does not run out of
@@ -553,43 +241,6 @@ function workspace_events_purge_deleted_fields(): void {
     }
     $purger->purgeBatch(50);
   }
-}
-
-/**
- * Returns the files that the attendance photo field references.
- *
- * @return array<int, array<int, int>>
- *   The file IDs, each mapped to the node IDs that reference it.
- */
-function workspace_events_attendance_photo_file_references(): array {
-  $database = \Drupal::database();
-  $references = [];
-  foreach (['node__field_attendance_photo', 'node_revision__field_attendance_photo'] as $table) {
-    if (!$database->schema()->tableExists($table)) {
-      continue;
-    }
-    $result = $database->select($table, 'photo')
-      ->fields('photo', ['entity_id', 'field_attendance_photo_target_id'])
-      ->execute();
-    if ($result === NULL) {
-      continue;
-    }
-    foreach ($result as $row) {
-      $row = (array) $row;
-      $target = $row['field_attendance_photo_target_id'] ?? NULL;
-      $entity = $row['entity_id'] ?? NULL;
-      if (!is_numeric($target) || !is_numeric($entity)) {
-        continue;
-      }
-      $file_id = (int) $target;
-      $entity_id = (int) $entity;
-      if ($file_id <= 0 || $entity_id <= 0) {
-        continue;
-      }
-      $references[$file_id][$entity_id] = $entity_id;
-    }
-  }
-  return $references;
 }
 
 /**
@@ -733,16 +384,6 @@ function workspace_events_ensure_organizer_field(): void {
 }
 
 /**
- * Returns the node bundles managed by this module.
- *
- * @return string[]
- *   The node bundle machine names.
- */
-function workspace_events_node_bundles(): array {
-  return ['event', 'course'];
-}
-
-/**
  * Adds or removes a node bundle from the basic editorial workflow.
  *
  * Does nothing when the Workflows module has been uninstalled. Idempotent:
@@ -822,35 +463,6 @@ function workspace_events_grant_editor_permissions(): void {
     return;
   }
   foreach (workspace_events_editor_permissions() as $permission) {
-    $role->grantPermission($permission);
-  }
-  $role->save();
-}
-
-/**
- * Grants the dance figure permission to the member role.
- */
-function workspace_events_grant_member_permissions(): void {
-  $role = Role::load('member');
-  if ($role === NULL) {
-    return;
-  }
-  $role->grantPermission(DanceFigureAccessHooks::VIEW_PERMISSION);
-  $role->save();
-}
-
-/**
- * Grants the flag permissions of a dance figure flag to the member role.
- *
- * @param \Drupal\workspace_events\DanceFigureFlag $flag
- *   The dance figure flag.
- */
-function workspace_events_grant_flag_permissions(DanceFigureFlag $flag): void {
-  $role = Role::load('member');
-  if ($role === NULL) {
-    return;
-  }
-  foreach ($flag->permissions() as $permission) {
     $role->grantPermission($permission);
   }
   $role->save();

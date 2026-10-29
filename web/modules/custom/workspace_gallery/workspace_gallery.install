@@ -24,49 +24,6 @@ function workspace_gallery_uninstall(): void {
 }
 
 /**
- * Implements hook_update_N().
- *
- * Removes the gallery bundle from the editorial workflow, so only pages stay
- * moderated.
- *
- * Does nothing when the Workflows module has been uninstalled.
- */
-function workspace_gallery_update_11001(): void {
-  workspace_gallery_remove_gallery_from_workflow();
-}
-
-/**
- * Removes the gallery bundle from the basic editorial workflow.
- *
- * Does nothing when the Workflows module has been uninstalled.
- */
-function workspace_gallery_remove_gallery_from_workflow(): void {
-  if (!\Drupal::moduleHandler()->moduleExists('workflows')) {
-    return;
-  }
-  $entity_type_manager = \Drupal::entityTypeManager();
-  if (!$entity_type_manager->hasDefinition('workflow')) {
-    return;
-  }
-  $workflow = $entity_type_manager->getStorage('workflow')->load('basic_editorial');
-  if ($workflow === NULL) {
-    return;
-  }
-  $plugin = $workflow->getTypePlugin();
-  $configuration = $plugin->getConfiguration();
-  $entity_types = (array) ($configuration['entity_types'] ?? []);
-  $bundles = isset($entity_types['node']) && is_array($entity_types['node']) ? $entity_types['node'] : [];
-  if (!in_array('gallery', $bundles, TRUE)) {
-    return;
-  }
-  $bundles = array_values(array_filter($bundles, static fn (mixed $bundle): bool => $bundle !== 'gallery'));
-  $entity_types['node'] = $bundles;
-  $configuration['entity_types'] = $entity_types;
-  $plugin->setConfiguration($configuration);
-  $workflow->save();
-}
-
-/**
  * Returns the gallery permissions granted to content editors.
  *
  * @return string[]

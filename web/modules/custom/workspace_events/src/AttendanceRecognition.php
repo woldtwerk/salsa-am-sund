@@ -20,19 +20,6 @@ final class AttendanceRecognition {
   public const string MEMBER_ROLE = 'member';
 
   /**
-   * The key entity that the AI provider OpenCode uses by default.
-   *
-   * Kept here because update 10015 installed the key entity for the former
-   * OpenCode OCR backends.
-   */
-  public const string OPENCODE_KEY_ID = 'opencode_api_key';
-
-  /**
-   * The AI prompt type of the attendance recognition.
-   */
-  public const string PROMPT_TYPE = 'workspace_events_attendance';
-
-  /**
    * The AI prompt that instructs the vision model.
    */
   public const string PROMPT_ID = 'workspace_events_attendance__default';
