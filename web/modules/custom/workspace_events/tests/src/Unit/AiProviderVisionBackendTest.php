@@ -6,6 +6,7 @@ namespace Drupal\Tests\workspace_events\Unit;
 
 use Drupal\ai\Base\AiProviderClientBase;
 use Drupal\ai\Base\OpenAiBasedProviderClientBase;
+use Drupal\ai\AiProviderPluginManager;
 use Drupal\ai\OperationType\Chat\ChatInput;
 use Drupal\ai\OperationType\Chat\ChatMessage;
 use Drupal\ai\OperationType\Chat\ChatOutput;
@@ -104,10 +105,37 @@ final class AiProviderVisionBackendTest extends UnitTestCase {
     $resolver = new OcrBackendResolver(
       $configFactory,
       new MistralOcrBackend($this->createMock(MistralOcrClientFactoryInterface::class)),
-      $this->createMock(PluginManagerInterface::class),
+      (new \ReflectionClass(AiProviderPluginManager::class))->newInstanceWithoutConstructor(),
     );
 
     self::assertInstanceOf(AiProviderVisionBackend::class, $resolver->resolve());
+  }
+
+  /**
+   * Tests the clean error when the AI module is not installed.
+   */
+  public function testResolverWithoutAiModuleThrows(): void {
+    $config = $this->createMock(ImmutableConfig::class);
+    $config->method('get')->willReturnMap([
+      ['backend', AttendanceRecognition::BACKEND_AI_PROVIDER],
+      ['provider_id', 'opencode_go'],
+      ['model_id', 'kimi-k3'],
+    ]);
+
+    $configFactory = $this->createMock(ConfigFactoryInterface::class);
+    $configFactory->method('get')
+      ->with(AttendanceRecognition::SETTINGS)
+      ->willReturn($config);
+
+    $resolver = new OcrBackendResolver(
+      $configFactory,
+      new MistralOcrBackend($this->createMock(MistralOcrClientFactoryInterface::class)),
+      NULL,
+    );
+
+    $this->expectException(\RuntimeException::class);
+    $this->expectExceptionMessage('The AI module is not available.');
+    $resolver->resolve();
   }
 
 }
