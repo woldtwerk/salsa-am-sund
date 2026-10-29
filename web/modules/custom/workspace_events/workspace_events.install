@@ -7,6 +7,7 @@
 
 declare(strict_types=1);
 
+use Drupal\Core\Config\Entity\ConfigEntityStorageInterface;
 use Drupal\Core\Field\DeletedFieldsRepositoryInterface;
 use Drupal\Core\Field\FieldPurger;
 use Drupal\Core\Utility\UpdateException;
@@ -21,6 +22,7 @@ use Drupal\user\Entity\Role;
 use Drupal\views\ViewsData;
 use Drupal\workspace_events\AttendanceRecognition;
 use Drupal\workspace_events\AttendanceRecognitionInstaller;
+use Drupal\workspace_events\ConfigRecordLoader;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\DanceFigureInstaller;
@@ -405,6 +407,35 @@ function workspace_events_update_10014(): void {
   if ($uninstalled === FALSE) {
     throw new UpdateException('The module ai_automators could not be uninstalled. Remove the remaining automator configuration and run the update again.');
   }
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Adds the selectable OpenCode OCR backends to existing sites.
+ *
+ * Mistral stays the configured backend, so nothing changes until an
+ * administrator switches providers in the settings form.
+ */
+function workspace_events_update_10015(): void {
+  $loader = \Drupal::service(ConfigRecordLoader::class);
+  \assert($loader instanceof ConfigRecordLoader);
+
+  $storage = \Drupal::entityTypeManager()->getStorage('key');
+  \assert($storage instanceof ConfigEntityStorageInterface);
+  if ($storage->load(AttendanceRecognition::OPENCODE_KEY_ID) === NULL) {
+    $storage->createFromStorageRecord($loader->load('key.key.' . AttendanceRecognition::OPENCODE_KEY_ID))->save();
+  }
+
+  $config = \Drupal::configFactory()->getEditable(AttendanceRecognition::SETTINGS);
+  if (!$config->isNew()) {
+    return;
+  }
+
+  foreach ($loader->load(AttendanceRecognition::SETTINGS) as $key => $value) {
+    $config->set($key, $value);
+  }
+  $config->save();
 }
 
 /**
