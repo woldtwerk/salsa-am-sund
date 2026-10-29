@@ -55,5 +55,15 @@ services:
       - '@http_client_factory'
   Drupal\workspace_events\Attendance\MistralOcrClientFactoryInterface:
     alias: Drupal\workspace_events\Attendance\MistralOcrClientFactory
+  Drupal\workspace_events\Attendance\MistralOcrBackend:
+    autowire: true
+  Drupal\workspace_events\Attendance\OcrBackendResolver:
+    arguments:
+      - '@config.factory'
+      - '@Drupal\workspace_events\Attendance\MistralOcrBackend'
+      - '@http_client_factory'
+      - '@?key.repository'
+  Drupal\workspace_events\Attendance\OcrBackendResolverInterface:
+    alias: Drupal\workspace_events\Attendance\OcrBackendResolver
   Drupal\workspace_events\Attendance\AttendanceRecognizer:
     autowire: true

@@ -25,6 +25,31 @@ final class AttendanceRecognition {
   public const string KEY_ID = 'mistral_api_key';
 
   /**
+   * The key entity that holds the OpenCode API key.
+   */
+  public const string OPENCODE_KEY_ID = 'opencode_api_key';
+
+  /**
+   * The simple configuration of the attendance recognition.
+   */
+  public const string SETTINGS = 'workspace_events.attendance_recognition';
+
+  /**
+   * The Mistral OCR backend.
+   */
+  public const string BACKEND_MISTRAL = 'mistral';
+
+  /**
+   * The OpenCode Zen backend.
+   */
+  public const string BACKEND_OPENCODE_ZEN = 'opencode_zen';
+
+  /**
+   * The OpenCode Go backend.
+   */
+  public const string BACKEND_OPENCODE_GO = 'opencode_go';
+
+  /**
    * The Mistral OCR model.
    */
   public const string MODEL = 'mistral-ocr-latest';
