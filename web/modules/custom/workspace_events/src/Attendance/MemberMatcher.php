@@ -28,17 +28,19 @@ final class MemberMatcher {
    * Matches recognized names against the members.
    *
    * The OCR often returns first names only, so a name that does not match a
-   * member's full name falls back to a token-wise match. A name that still
-   * fits several members is ambiguous and reported with its candidates so the
-   * editor can pick one. The member list is loaded once per request by the
-   * loader.
+   * member's full name falls back to a token-wise match. Every line keeps its
+   * candidates so the editor can confirm or correct the proposed member. A
+   * line with exactly one candidate is recommended directly; every other line
+   * keeps its candidates (sorted by display name) and no recommendation. The
+   * member list is loaded once per request by the loader.
    *
    * @param string[] $names
    *   The recognized candidate names.
    *
-   * @return array{matched: int[], ambiguous: array<string, int[]>, unmatched: string[]}
-   *   The matched user IDs, the candidates per ambiguous name (sorted by
-   *   display name) and the names that fit no member.
+   * @return array<int, array{name: string, candidates: int[], recommended: int|null}>
+   *   One entry per recognized line in input order: the recognized text, the
+   *   candidate user IDs (empty when no member fits) and the recommended user
+   *   ID when exactly one candidate is left.
    */
   public function match(array $names): array {
     $members = [];
@@ -53,14 +55,19 @@ final class MemberMatcher {
       }
     }
 
-    $unmatched = [];
-    $candidates = [];
+    $rows = [];
+    $seen = [];
     foreach ($names as $name) {
       $candidate = $this->normalize($name);
       if ($candidate === '') {
         continue;
       }
-      $label = trim($name);
+      // The same line appears only once in the review table, however often the
+      // OCR repeated it.
+      if (isset($seen[$candidate])) {
+        continue;
+      }
+      $seen[$candidate] = TRUE;
 
       $exact = [];
       $fuzzy = [];
@@ -79,63 +86,49 @@ final class MemberMatcher {
       if ($hits === []) {
         $hits = $this->partialMatches($candidate, $members);
       }
-      if ($hits === []) {
-        $unmatched[$label] = $label;
-        continue;
-      }
+      usort($hits, static fn (int $a, int $b): int => strcasecmp($members[$a]['name'], $members[$b]['name']));
 
-      $candidates[] = ['label' => $label, 'ids' => $hits];
-    }
-
-    $matched = [];
-    $pending = [];
-    foreach ($candidates as $candidate) {
-      if (count($candidate['ids']) === 1) {
-        $id = $candidate['ids'][0];
-        $matched[$id] = $id;
-        continue;
-      }
-      $pending[] = $candidate;
+      $rows[] = [
+        'name' => trim($name),
+        'candidates' => $hits,
+        'recommended' => count($hits) === 1 ? $hits[0] : NULL,
+      ];
     }
 
     // A line that fits several members can become clear when another line of
-    // the same photo names one of its candidates in full. Resolve repeatedly,
-    // because one assignment can make the next line unique. A duplicate line
-    // of an already matched member stays matched on purpose (the same person
-    // just appears twice on the photo).
+    // the same photo names one of its candidates in full. Members that another
+    // line already recommends are dropped from the candidates, as long as at
+    // least one candidate is left; resolve repeatedly, because one assignment
+    // can make the next line unique.
+    $recommended = [];
+    foreach ($rows as $row) {
+      if ($row['recommended'] !== NULL) {
+        $recommended[$row['recommended']] = TRUE;
+      }
+    }
     do {
       $changed = FALSE;
-      $remaining = [];
-      foreach ($pending as $candidate) {
-        $ids = array_values(array_diff($candidate['ids'], array_keys($matched)));
-        if (count($ids) === 1) {
-          $matched[$ids[0]] = $ids[0];
-          $changed = TRUE;
+      foreach ($rows as $index => $row) {
+        if ($row['recommended'] !== NULL) {
           continue;
         }
-        if ($ids === []) {
-          $unmatched[$candidate['label']] = $candidate['label'];
-          $changed = TRUE;
+        $remaining = array_values(array_filter(
+          $row['candidates'],
+          static fn (int $id): bool => !isset($recommended[$id]),
+        ));
+        if ($remaining === [] || count($remaining) === count($row['candidates'])) {
           continue;
         }
-        $candidate['ids'] = $ids;
-        $remaining[] = $candidate;
+        $rows[$index]['candidates'] = $remaining;
+        if (count($remaining) === 1) {
+          $rows[$index]['recommended'] = $remaining[0];
+          $recommended[$remaining[0]] = TRUE;
+        }
+        $changed = TRUE;
       }
-      $pending = $remaining;
-    } while ($changed && $pending !== []);
+    } while ($changed);
 
-    $ambiguous = [];
-    foreach ($pending as $candidate) {
-      $ids = $candidate['ids'];
-      usort($ids, static fn (int $a, int $b): int => strcasecmp($members[$a]['name'], $members[$b]['name']));
-      $ambiguous[$candidate['label']] = $ids;
-    }
-
-    return [
-      'matched' => array_values($matched),
-      'ambiguous' => $ambiguous,
-      'unmatched' => array_values($unmatched),
-    ];
+    return $rows;
   }
 
   /**

@@ -49,6 +49,8 @@ services:
     alias: Drupal\workspace_events\Attendance\MemberNameLoader
   Drupal\workspace_events\Attendance\MemberMatcher:
     autowire: true
+  Drupal\workspace_events\Attendance\PreviousAttendance:
+    autowire: true
   Drupal\workspace_events\Attendance\MistralOcrClientFactory:
     arguments:
       - '@?ai.provider'
