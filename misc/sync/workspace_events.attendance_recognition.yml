@@ -1,3 +1,3 @@
-backend: mistral_ocr
-provider_id: ''
-model_id: ''
+backend: ai_provider
+provider_id: opencode_go
+model_id: qwen3.7-plus
