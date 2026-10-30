@@ -11,6 +11,8 @@ services:
       - '@extension.path.resolver'
   Drupal\workspace_events\SiteTimeZone:
     autowire: true
+  Drupal\workspace_events\LessonCourseResolver:
+    autowire: true
   Drupal\workspace_events\LessonGenerator:
     autowire: true
   Drupal\workspace_events\ScheduleMigrator:
@@ -30,6 +32,10 @@ services:
     tags:
       - { name: event_subscriber }
   Drupal\workspace_events\EventSubscriber\MyCoursesRouteSubscriber:
+    tags:
+      - { name: event_subscriber }
+  Drupal\workspace_events\EventSubscriber\LessonRedirectSubscriber:
+    autowire: true
     tags:
       - { name: event_subscriber }
   Drupal\workspace_events\StructuredDataBuilder:

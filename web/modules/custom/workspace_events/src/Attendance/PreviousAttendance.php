@@ -6,6 +6,7 @@ namespace Drupal\workspace_events\Attendance;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\node\NodeInterface;
+use Drupal\workspace_events\LessonCourseResolver;
 
 /**
  * Recommends members by the attendance of the earlier lessons of the course.
@@ -21,11 +22,6 @@ final class PreviousAttendance {
    * The node bundle of a lesson.
    */
   private const string LESSON_BUNDLE = 'lesson';
-
-  /**
-   * The node bundle of a course.
-   */
-  private const string COURSE_BUNDLE = 'course';
 
   /**
    * The number of recent lessons that make a member a regular attendee.
@@ -49,9 +45,12 @@ final class PreviousAttendance {
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
+   * @param \Drupal\workspace_events\LessonCourseResolver $lessonCourseResolver
+   *   The resolver of the course of a lesson.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
+    private readonly LessonCourseResolver $lessonCourseResolver,
   ) {}
 
   /**
@@ -157,22 +156,12 @@ final class PreviousAttendance {
       return $this->attendance[$lessonId];
     }
 
-    $storage = $this->entityTypeManager->getStorage('node');
-    $courseIds = $storage->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', self::COURSE_BUNDLE)
-      ->condition('field_lessons.target_id', $lessonId)
-      ->sort('nid')
-      ->range(0, 1)
-      ->execute();
-    if ($courseIds === []) {
+    $course = $this->lessonCourseResolver->findCourse($lessonId);
+    if ($course === NULL || !$course->hasField('field_lessons')) {
       return $this->attendance[$lessonId] = [];
     }
 
-    $course = $storage->load(reset($courseIds));
-    if (!$course instanceof NodeInterface || !$course->hasField('field_lessons')) {
-      return $this->attendance[$lessonId] = [];
-    }
+    $storage = $this->entityTypeManager->getStorage('node');
 
     $lessonIds = [];
     foreach ($course->get('field_lessons') as $item) {

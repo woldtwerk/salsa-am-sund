@@ -15,6 +15,7 @@ use Drupal\Tests\UnitTestCase;
 use Drupal\workspace_events\Controller\EventsJsonController;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
+use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\OrganizerLookupInterface;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -97,7 +98,11 @@ final class EventsJsonControllerTest extends UnitTestCase {
     $entity_type_manager->method('getStorage')->with('node')->willReturn($storage);
 
     return new EventsJsonController(
-      new EventOccurrenceRepository($entity_type_manager, $this->siteTimeZone()),
+      new EventOccurrenceRepository(
+        $entity_type_manager,
+        $this->siteTimeZone(),
+        new LessonCourseResolver($entity_type_manager),
+      ),
       new EventFilterFactory($this->createMock(OrganizerLookupInterface::class)),
     );
   }

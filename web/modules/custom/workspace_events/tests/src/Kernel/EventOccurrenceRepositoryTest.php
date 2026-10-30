@@ -9,6 +9,7 @@ use Drupal\node\NodeInterface;
 use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
+use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -334,6 +335,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     $repository = new EventOccurrenceRepository(
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
+      $this->container->get(LessonCourseResolver::class),
     );
     self::assertCount(8, $repository->findOccurrences(EventFilter::coursesOnly(), $from, $to));
   }

@@ -40,10 +40,13 @@ final class EventOccurrenceRepository {
    *   The entity type manager.
    * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
    *   The timezone of the site.
+   * @param \Drupal\workspace_events\LessonCourseResolver $lessonCourseResolver
+   *   The resolver of the course of a lesson.
    */
   public function __construct(
     protected readonly EntityTypeManagerInterface $entityTypeManager,
     protected readonly SiteTimeZone $siteTimeZone,
+    protected readonly LessonCourseResolver $lessonCourseResolver,
   ) {}
 
   /**
@@ -162,7 +165,7 @@ final class EventOccurrenceRepository {
       return NULL;
     }
 
-    $course = $this->findCourseForLesson((int) $node->id());
+    $course = $this->lessonCourseResolver->findCourse((int) $node->id(), TRUE);
     if ($course === NULL) {
       return NULL;
     }
@@ -174,32 +177,6 @@ final class EventOccurrenceRepository {
       NULL,
       $this->getLocation($course),
     );
-  }
-
-  /**
-   * Finds the published course that references a lesson.
-   *
-   * @param int $lesson_id
-   *   The lesson node ID.
-   *
-   * @return \Drupal\node\NodeInterface|null
-   *   The course, or NULL when the lesson belongs to no published course.
-   */
-  private function findCourseForLesson(int $lesson_id): ?NodeInterface {
-    $ids = $this->entityTypeManager->getStorage('node')->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', 'course')
-      ->condition('status', NodeInterface::PUBLISHED)
-      ->condition('field_lessons.target_id', $lesson_id)
-      ->sort('nid')
-      ->range(0, 1)
-      ->execute();
-    if ($ids === []) {
-      return NULL;
-    }
-
-    $course = $this->entityTypeManager->getStorage('node')->load(reset($ids));
-    return $course instanceof NodeInterface ? $course : NULL;
   }
 
   /**
