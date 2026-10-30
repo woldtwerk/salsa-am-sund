@@ -99,12 +99,17 @@ function workspace_events_update_10004(): void {
  * Adds the lesson bundle, the course and event date fields and the lesson
  * fields, migrates the existing Smart Date series and generates the lessons.
  *
- * Events only keep their next upcoming date; every collapsed event series is
- * reported in the update message and in the watchdog.
+ * Courses keep their lessons. Events keep the whole Smart Date series: every
+ * delta of the legacy field is copied to the new recurring event date field
+ * and the recurrence rules of the events are pointed at it.
  */
 function workspace_events_update_10007(): ?string {
-  if (!\Drupal::moduleHandler()->moduleExists('datetime_range')) {
-    \Drupal::service('module_installer')->install(['datetime_range']);
+  $modules = array_values(array_filter(
+    ['datetime_range', 'smart_date', 'smart_date_recur'],
+    static fn (string $module): bool => !\Drupal::moduleHandler()->moduleExists($module),
+  ));
+  if ($modules !== []) {
+    \Drupal::service('module_installer')->install($modules);
   }
 
   $installer = \Drupal::service(LessonInstaller::class);
@@ -130,10 +135,13 @@ function workspace_events_update_10007(): ?string {
 /**
  * Implements hook_update_N().
  *
- * Removes the legacy Smart Date field and uninstalls the Smart Date modules.
+ * Removes the legacy Smart Date field from courses and events.
  *
  * The schedule migration of update 10007 runs first because update hooks run
- * in number order.
+ * in number order. It copied the event series to the recurring event date
+ * field and the course schedule to the lesson fields, so only the legacy field
+ * and the course rules that belonged to it can go. The Smart Date modules and
+ * the recurrence rules of the events stay installed.
  */
 function workspace_events_update_10010(): void {
   foreach (['node.course.field_when', 'node.event.field_when'] as $name) {
@@ -152,31 +160,19 @@ function workspace_events_update_10010(): void {
   // memory.
   workspace_events_purge_deleted_fields();
 
-  // The permission is provided by smart_date_recur, so it is revoked before
-  // the module disappears.
-  foreach (Role::loadMultiple() as $role) {
-    if ($role->hasPermission('make smart dates recur')) {
-      $role->revokePermission('make smart dates recur');
-      $role->save();
-    }
-  }
+  // The course rules belonged to the removed legacy field. Deleting a rule also
+  // deletes its overrides. The event rules now belong to the recurring event
+  // date field and are kept.
+  workspace_events_delete_course_date_rules();
+}
 
-  // The migration of update 10007 copied the series to the lesson and event
-  // date fields, so the leftover rule and override entities can go. They are
-  // deleted before the uninstall, because the module installer refuses to
-  // uninstall a module that still owns content.
-  workspace_events_delete_entities('smart_date_override');
-  workspace_events_delete_entities('smart_date_rule');
-
-  $installed = array_values(array_filter(
-    ['smart_date_recur', 'smart_date'],
-    static fn (string $module): bool => \Drupal::moduleHandler()->moduleExists($module),
-  ));
-  if ($installed !== []) {
-    $uninstalled = \Drupal::service('module_installer')->uninstall($installed);
-    if ($uninstalled === FALSE) {
-      throw new UpdateException(sprintf('The modules %s could not be uninstalled. Remove the remaining Smart Date content and run the update again.', implode(', ', $installed)));
-    }
+/**
+ * Deletes the Smart Date rules that belonged to the legacy course field.
+ */
+function workspace_events_delete_course_date_rules(): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+  if (!$entity_type_manager->hasDefinition('smart_date_rule')) {
+    return;
   }
 }
 
@@ -184,6 +180,17 @@ function workspace_events_update_10010(): void {
  * Implements hook_update_N().
  *
  * Removes content moderation from the site.
+  $storage = $entity_type_manager->getStorage('smart_date_rule');
+  $ids = $storage->getQuery()
+    ->accessCheck(FALSE)
+    ->condition('entity_type', 'node')
+    ->condition('bundle', 'course')
+    ->condition('field_name', ScheduleMigrator::LEGACY_FIELD_NAME)
+    ->execute();
+  if ($ids === []) {
+    return;
+  }
+  $storage->delete($storage->loadMultiple($ids));
  *
  * The editorial workflow only moderated the page content type and none of the
  * pages has an unpublished draft, so no draft revision is lost. The ECA model
@@ -488,6 +495,7 @@ function workspace_events_revoke_editor_permissions(): void {
 function workspace_events_revoke_flag_permissions(): void {
   $role = Role::load('member');
   if ($role === NULL) {
+    'make smart dates recur',
     return;
   }
   foreach (DanceFigureFlag::cases() as $flag) {

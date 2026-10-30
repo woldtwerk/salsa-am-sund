@@ -46,7 +46,7 @@ final class EventCalendarBlockTest extends LessonKernelTestBase {
     $guest = $this->createEvent([
       'title' => 'Gastparty',
       'field_organizer' => $this->externalOrganizer,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +1 day', '21:00'),
         $this->date('now +1 day', '23:00'),
       ),
@@ -54,7 +54,7 @@ final class EventCalendarBlockTest extends LessonKernelTestBase {
     $this->createEvent([
       'title' => 'Salsa-Nacht',
       'field_location' => $location->id(),
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +3 days', '20:00'),
         $this->date('now +3 days', '23:00'),
       ),

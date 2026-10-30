@@ -157,7 +157,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
         'value' => '<p>Jeden Mittwoch Tanzen bis Mitternacht.</p>',
         'format' => 'plain_text',
       ],
-      'field_event_date' => $this->dateRange($start, $end),
+      'field_event_date' => $this->smartDateRange($start, $end),
     ]);
 
     $this->setRoute('entity.node.canonical', $event);
@@ -225,7 +225,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
 
     $past = $this->createEvent([
       'title' => 'Vergangene Party',
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('2020-01-04', '21:00'),
         $this->date('2020-01-04', '23:30'),
       ),
@@ -250,7 +250,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
   public function testOtherViewModesAndRoutes(): void {
     $event = $this->createEvent([
       'title' => 'Tanzabend',
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +1 day', '20:00'),
         $this->date('now +1 day', '23:00'),
       ),
@@ -276,7 +276,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
 
     $other = $this->createEvent([
       'title' => 'Andere Party',
-      'field_event_date' => $this->dateRange($start->modify('+1 week'), $start->modify('+1 week')->modify('+2 hours')),
+      'field_event_date' => $this->smartDateRange($start->modify('+1 week'), $start->modify('+1 week')->modify('+2 hours')),
     ]);
     foreach ([
       'entity.node.preview' => $event,

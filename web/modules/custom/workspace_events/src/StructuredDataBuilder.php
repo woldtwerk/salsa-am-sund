@@ -82,7 +82,9 @@ final class StructuredDataBuilder {
     foreach ($occurrences as $occurrence) {
       $event = [
         '@type' => 'Event',
-        '@id' => $url . '#event-' . $occurrence->sourceNode()->id(),
+        // A recurring event has one Event per date, so the start timestamp
+        // keeps the identifiers unique.
+        '@id' => $url . '#event-' . $occurrence->sourceNode()->id() . '-' . $occurrence->start->getTimestamp(),
         'name' => (string) $node->label(),
         'url' => $url,
         'startDate' => $this->formatStart($occurrence),

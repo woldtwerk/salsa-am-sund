@@ -74,7 +74,7 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     $event = $this->createEvent([
       'title' => 'Tanzabend',
       'field_organizer' => $this->externalOrganizer,
-      'field_event_date' => $this->dateRange($start, $start->setTime(23, 0)),
+      'field_event_date' => $this->smartDateRange($start, $start->setTime(23, 0)),
     ]);
     $response = $this->controller->occurrence($this->request($event), $event);
     $events = $this->readCalendar($response->getContent())->select('VEVENT');
@@ -106,7 +106,7 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     $unpublished = $this->createEvent([
       'title' => 'Entwurf',
       'status' => NodeInterface::NOT_PUBLISHED,
-      'field_event_date' => $this->dateRange($start, $start->setTime(23, 0)),
+      'field_event_date' => $this->smartDateRange($start, $start->setTime(23, 0)),
     ]);
     $this->assertNotFound(fn () => $this->controller->occurrence($this->request($unpublished), $unpublished));
   }

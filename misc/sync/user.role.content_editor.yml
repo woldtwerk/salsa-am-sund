@@ -96,6 +96,7 @@ permissions:
   - 'edit terms in dance_figure'
   - 'edit terms in location'
   - 'edit terms in organizer'
+  - 'make smart dates recur'
   - 'post comments'
   - 'publish auto-saves'
   - 'revert all revisions'

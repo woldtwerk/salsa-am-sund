@@ -63,9 +63,6 @@ final class DanceFigureFlagTest extends EventKernelTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->installEntitySchema('flagging');
-    $this->installSchema('flag', ['flag_counts']);
-
     Vocabulary::create([
       'vid' => DanceFigureAccessHooks::VOCABULARY,
       'name' => 'Tanzfiguren',

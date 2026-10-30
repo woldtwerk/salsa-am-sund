@@ -67,8 +67,6 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     \assert($entity_type_manager instanceof EntityTypeManagerInterface);
     $this->entityTypeManager = $entity_type_manager;
     $this->installEntitySchema('media');
-    $this->installEntitySchema('flagging');
-    $this->installSchema('flag', ['flag_counts']);
 
     // Kernel tests have no node access records, so grant view access to every
     // node for the course select of the exposed filter.

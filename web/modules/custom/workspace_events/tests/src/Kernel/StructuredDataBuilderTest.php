@@ -61,7 +61,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
         'value' => '<p>Jeden Mittwoch Tanzen bis Mitternacht.</p>',
         'format' => 'plain_text',
       ],
-      'field_event_date' => $this->dateRange($start, $end),
+      'field_event_date' => $this->smartDateRange($start, $end),
     ]);
 
     $organizer = $event->get('field_organizer')->entity;
@@ -79,7 +79,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
     $first = $events[0];
     \assert(is_array($first));
     self::assertSame('Event', $first['@type']);
-    self::assertSame($url . '#event-' . $event->id(), $first['@id']);
+    self::assertSame($url . '#event-' . $event->id() . '-' . $start->getTimestamp(), $first['@id']);
     self::assertSame('Salsa Night', $first['name']);
     self::assertSame($url, $first['url']);
     self::assertSame($start->format(\DateTimeInterface::ATOM), $first['startDate']);
@@ -109,7 +109,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
     $day = $this->date('next saturday', '00:00');
     $all_day = $this->createEvent([
       'title' => 'Tanzfest',
-      'field_event_date' => $this->allDayRange($day),
+      'field_event_date' => $this->allDaySmartDateRange($day),
     ]);
     $data = $this->builder->buildEvent($all_day, [
       new EventOccurrence($all_day, NULL, $day, NULL, TRUE, NULL, NULL),

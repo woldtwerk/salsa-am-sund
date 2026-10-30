@@ -22,16 +22,6 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 final class ScheduleMigratorTest extends LessonKernelTestBase {
 
   /**
-   * The modules the legacy schedule test needs.
-   *
-   * @var string[]
-   */
-  protected static $modules = [
-    'smart_date',
-    'smart_date_recur',
-  ];
-
-  /**
    * The migrator.
    */
   private ScheduleMigrator $migrator;
@@ -41,10 +31,6 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
-
-    $this->installEntitySchema('smart_date_rule');
-    $this->installEntitySchema('smart_date_override');
-    $this->installConfig(['smart_date', 'smart_date_recur']);
 
     $this->createLegacyScheduleField();
 
@@ -97,51 +83,56 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   }
 
   /**
-   * Tests the upcoming and the last past date of event series.
+   * Tests that a recurring event keeps every delta and its rules.
    */
   public function testMigratesEvents(): void {
     $timezone = new \DateTimeZone(self::TIMEZONE);
-    $upcoming_start = (new \DateTimeImmutable('now', $timezone))
-      ->modify('first day of -2 months')
-      ->setTime(19, 0);
-    $upcoming_deltas = $this->recurringDeltas(
-      $upcoming_start,
-      $upcoming_start->modify('+3 hours'),
-      'MONTHLY',
-      'COUNT=4',
+    $second_friday = new \DateTimeImmutable('second friday of january 2027 20:00', $timezone);
+    $fourth_friday = new \DateTimeImmutable('fourth friday of january 2027 20:00', $timezone);
+    $deltas = array_merge(
+      $this->recurringDeltas($second_friday, $second_friday->modify('+2 hours'), 'MONTHLY', 'BYDAY=2FR', 'COUNT=3'),
+      $this->recurringDeltas($fourth_friday, $fourth_friday->modify('+2 hours'), 'MONTHLY', 'BYDAY=4FR', 'COUNT=3'),
     );
-    $upcoming = $this->createEvent([
-      'title' => 'Monatliche Party',
-      'field_when' => $upcoming_deltas,
+    $event = $this->createEvent([
+      'title' => 'Salsa im Ballhaus Goldfisch',
+      'field_when' => $deltas,
     ]);
 
-    $past_start = (new \DateTimeImmutable('now', $timezone))
-      ->modify('first day of -4 months')
-      ->setTime(19, 0);
-    $past_deltas = $this->recurringDeltas(
-      $past_start,
-      $past_start->modify('+3 hours'),
-      'MONTHLY',
-      'COUNT=3',
-    );
+    $past_start = (new \DateTimeImmutable('first day of -4 months', $timezone))->setTime(19, 0);
+    $past_deltas = [
+      $this->smartDateRange($past_start, $past_start->modify('+3 hours')),
+      $this->smartDateRange($past_start->modify('+1 month'), $past_start->modify('+1 month')->modify('+3 hours')),
+    ];
     $past = $this->createEvent([
       'title' => 'Vergangene Party',
       'field_when' => $past_deltas,
     ]);
 
-    $message = $this->migrator->migrate();
-    self::assertStringContainsString('Monatliche Party', $message);
-    self::assertStringContainsString('4 dates collapsed', $message);
-    self::assertStringContainsString('Vergangene Party', $message);
+    self::assertSame('', $this->migrator->migrate());
 
-    $expected = $this->firstUpcomingDelta($upcoming_deltas);
-    self::assertNotNull($expected);
-    self::assertSame($expected['value'], $this->fieldTimestamp('field_event_date', (int) $upcoming->id()));
-    self::assertSame($expected['end_value'], $this->fieldTimestamp('field_event_date', (int) $upcoming->id(), 'end_value'));
+    // Every delta is copied one to one, including rule and rule index.
+    $event_id = (int) $event->id();
+    $copied = $this->fieldRows('field_event_date', $event_id);
+    self::assertCount(count($deltas), $copied);
+    foreach (array_values($deltas) as $delta => $expected) {
+      self::assertSame((string) $expected['value'], $copied[$delta]['value']);
+      self::assertSame((string) $expected['end_value'], $copied[$delta]['end_value']);
+      self::assertSame((string) $expected['duration'], $copied[$delta]['duration']);
+      self::assertSame((string) $expected['rrule'], $copied[$delta]['rrule']);
+      self::assertSame((string) $expected['rrule_index'], $copied[$delta]['rrule_index']);
+      self::assertSame($expected['timezone'], $copied[$delta]['timezone']);
+    }
 
-    $expected = $past_deltas[count($past_deltas) - 1];
-    self::assertSame($expected['value'], $this->fieldTimestamp('field_event_date', (int) $past->id()));
-    self::assertSame($expected['end_value'], $this->fieldTimestamp('field_event_date', (int) $past->id(), 'end_value'));
+    // Both rules of the series now belong to the recurring event date field.
+    $rules = $this->container->get('entity_type.manager')->getStorage('smart_date_rule')->loadMultiple();
+    self::assertCount(2, $rules);
+    foreach ($rules as $rule) {
+      self::assertInstanceOf(SmartDateRule::class, $rule);
+      self::assertSame('field_event_date', $rule->get('field_name')->getString());
+    }
+
+    // A series that already ended keeps its dates too.
+    self::assertCount(count($past_deltas), $this->fieldRows('field_event_date', (int) $past->id()));
   }
 
   /**
@@ -222,25 +213,6 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   }
 
   /**
-   * Returns the first date of a series that is not in the past.
-   *
-   * @param array<int, array<string, mixed>> $deltas
-   *   The date deltas.
-   *
-   * @return array<string, mixed>|null
-   *   The first upcoming delta, or NULL when every date is in the past.
-   */
-  private function firstUpcomingDelta(array $deltas): ?array {
-    $now = time();
-    foreach ($deltas as $delta) {
-      if ((int) $delta['value'] >= $now) {
-        return $delta;
-      }
-    }
-    return NULL;
-  }
-
-  /**
    * Loads the lessons of a course from their stored references.
    *
    * @param int $course_id
@@ -268,22 +240,45 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   }
 
   /**
-   * Returns a stored date field as a timestamp.
+   * Returns all stored deltas of a Smart Date field as plain arrays.
    *
    * @param string $field_name
    *   The field name.
    * @param int $entity_id
    *   The node ID.
-   * @param string $property
-   *   The field property.
    *
-   * @return int
-   *   The stored timestamp.
+   * @return array<int, array{value: string, end_value: string, duration: string, rrule: string, rrule_index: string, timezone: string}>
+   *   The rows keyed by delta.
    */
-  private function fieldTimestamp(string $field_name, int $entity_id, string $property = 'value'): int {
-    $value = $this->fieldColumn($field_name, $entity_id, $property);
-    self::assertNotNull($value);
-    return (new \DateTimeImmutable($value, new \DateTimeZone('UTC')))->getTimestamp();
+  private function fieldRows(string $field_name, int $entity_id): array {
+    $prefix = $field_name . '_';
+    $rows = $this->container->get('database')->select('node__' . $field_name, 't')
+      ->fields('t', [
+        'delta',
+        $prefix . 'value',
+        $prefix . 'end_value',
+        $prefix . 'duration',
+        $prefix . 'rrule',
+        $prefix . 'rrule_index',
+        $prefix . 'timezone',
+      ])
+      ->condition('entity_id', $entity_id)
+      ->orderBy('delta')
+      ->execute()
+      ->fetchAll();
+
+    $result = [];
+    foreach ($rows as $row) {
+      $result[(int) $row->delta] = [
+        'value' => (string) $row->{$prefix . 'value'},
+        'end_value' => (string) $row->{$prefix . 'end_value'},
+        'duration' => (string) $row->{$prefix . 'duration'},
+        'rrule' => (string) $row->{$prefix . 'rrule'},
+        'rrule_index' => (string) $row->{$prefix . 'rrule_index'},
+        'timezone' => (string) $row->{$prefix . 'timezone'},
+      ];
+    }
+    return $result;
   }
 
   /**

@@ -97,7 +97,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     $party = $this->createEvent([
       'title' => 'Tanzabend',
       'field_location' => $this->locationA,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('2026-10-26', '18:00'),
         $this->date('2026-10-26', '22:00'),
       ),
@@ -107,7 +107,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     $all_day = $this->createEvent([
       'title' => 'Salsa-Party',
       'field_location' => $this->locationB,
-      'field_event_date' => $this->allDayRange($this->date('2026-11-20')),
+      'field_event_date' => $this->allDaySmartDateRange($this->date('2026-11-20')),
     ]);
     $this->allDayId = (int) $all_day->id();
 
@@ -115,7 +115,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
       'title' => 'Salsa im ballhaus goldfisch',
       'field_organizer' => $this->externalOrganizer,
       'field_location' => $this->locationB,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('2026-10-09', '20:00'),
         $this->date('2026-10-09', '22:00'),
       ),
@@ -126,7 +126,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
       'title' => 'Entwurf',
       'status' => NodeInterface::NOT_PUBLISHED,
       'field_location' => $this->locationA,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('2026-10-10', '20:00'),
         $this->date('2026-10-10', '22:00'),
       ),
@@ -336,8 +336,49 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
       $this->container->get(LessonCourseResolver::class),
+      $this->container->get('database'),
+      $this->container->get('datetime.time'),
     );
     self::assertCount(8, $repository->findOccurrences(EventFilter::coursesOnly(), $from, $to));
+  }
+
+  /**
+   * Tests that every delta of a recurring event is one occurrence.
+   */
+  public function testRecurringEventDeltas(): void {
+    $event = $this->createEvent([
+      'title' => 'Jeden Mittwoch',
+      'field_event_date' => [
+        $this->smartDateRange($this->date('2026-10-07', '20:00'), $this->date('2026-10-07', '22:00')),
+        $this->smartDateRange($this->date('2026-10-14', '20:00'), $this->date('2026-10-14', '22:00')),
+        $this->smartDateRange($this->date('2026-10-21', '20:00'), $this->date('2026-10-21', '22:00')),
+        $this->smartDateRange($this->date('2026-10-28', '20:00'), $this->date('2026-10-28', '22:00')),
+      ],
+    ]);
+    $filter = EventFilter::eventsOnly(eventIds: [(int) $event->id()]);
+    $from = $this->date('2026-10-01');
+    $to = $this->date('2026-10-31', '23:59');
+
+    $occurrences = $this->repository->findOccurrences($filter, $from, $to);
+    self::assertCount(4, $occurrences);
+    self::assertSame([
+      '2026-10-07',
+      '2026-10-14',
+      '2026-10-21',
+      '2026-10-28',
+    ], array_map(
+      static fn ($occurrence): string => $occurrence->start->format('Y-m-d'),
+      $occurrences,
+    ));
+    foreach ($occurrences as $occurrence) {
+      self::assertSame((int) $event->id(), (int) $occurrence->node->id());
+      self::assertNull($occurrence->lesson);
+    }
+
+    $limited = $this->repository->findOccurrences($filter, $from, $to, 2);
+    self::assertCount(2, $limited);
+    self::assertSame('2026-10-07', $limited[0]->start->format('Y-m-d'));
+    self::assertSame('2026-10-14', $limited[1]->start->format('Y-m-d'));
   }
 
   /**

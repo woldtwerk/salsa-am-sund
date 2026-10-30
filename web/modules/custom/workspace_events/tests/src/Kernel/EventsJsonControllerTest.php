@@ -82,7 +82,7 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
       'title' => 'Salsa-Nacht am Sund',
       'field_location' => $this->locationA,
       'field_link' => ['uri' => 'https://www.ballhaus-goldfisch.de/', 'title' => 'ballhaus goldfisch'],
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +3 days', '18:00'),
         $this->date('now +3 days', '22:00'),
       ),
@@ -90,13 +90,13 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     $this->createEvent([
       'title' => 'Tanzabend im Freien',
       'field_location' => $this->locationB,
-      'field_event_date' => $this->allDayRange($this->date('now +10 days')),
+      'field_event_date' => $this->allDaySmartDateRange($this->date('now +10 days')),
     ]);
     $this->createEvent([
       'title' => 'Externe Party',
       'field_organizer' => $this->externalOrganizer,
       'field_location' => $this->locationA,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +5 days', '20:00'),
         $this->date('now +5 days', '23:00'),
       ),
@@ -104,7 +104,7 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     $this->createEvent([
       'title' => 'Entwurf',
       'status' => NodeInterface::NOT_PUBLISHED,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +4 days', '18:00'),
         $this->date('now +4 days', '22:00'),
       ),
@@ -163,6 +163,8 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
       $this->container->get(LessonCourseResolver::class),
+      $this->container->get('database'),
+      $this->container->get('datetime.time'),
     );
     $this->controller = new EventsJsonController(
       $repository,

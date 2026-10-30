@@ -49,7 +49,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
       'title' => 'Salsa im ballhaus goldfisch',
       'field_organizer' => $this->externalOrganizer,
       'field_location' => $location->id(),
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +1 day', '20:00'),
         $this->date('now +1 day', '23:00'),
       ),
@@ -68,7 +68,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
         'summary' => 'Kurzbeschreibung für die Karte.',
         'format' => 'plain_text',
       ],
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +3 days', '18:00'),
         $this->date('now +3 days', '22:00'),
       ),
@@ -305,7 +305,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
   public function testOccurrenceCache(): void {
     $node = $this->createEvent([
       'title' => 'Cache test',
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +1 day', '18:00'),
         $this->date('now +1 day', '19:00'),
       ),

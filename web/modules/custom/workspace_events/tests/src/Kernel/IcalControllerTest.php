@@ -133,7 +133,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     $all_day = $this->createEvent([
       'title' => 'Salsa-Party',
       'field_location' => $location_b->id(),
-      'field_event_date' => $this->allDayRange($this->date('now +20 days')),
+      'field_event_date' => $this->allDaySmartDateRange($this->date('now +20 days')),
     ]);
     $this->allDayId = (int) $all_day->id();
 
@@ -142,7 +142,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     $multi_day = $this->createEvent([
       'title' => 'Festival',
       'field_location' => $location_b->id(),
-      'field_event_date' => $this->allDayRange($this->multiDayStart, $this->multiDayLastDay),
+      'field_event_date' => $this->allDaySmartDateRange($this->multiDayStart, $this->multiDayLastDay),
     ]);
     $this->multiDayId = (int) $multi_day->id();
 
@@ -151,7 +151,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
       'field_organizer' => $this->externalOrganizer,
       'field_location' => $this->locationA,
       'field_link' => ['uri' => 'https://www.ballhaus-goldfisch.de/', 'title' => 'ballhaus goldfisch'],
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +10 days', '20:00'),
         $this->date('now +10 days', '23:00'),
       ),
@@ -161,7 +161,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     $past = $this->createEvent([
       'title' => 'Vergangener Tanzabend',
       'field_location' => $this->locationA,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now -5 days', '18:00'),
         $this->date('now -5 days', '22:00'),
       ),
@@ -172,7 +172,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
       'title' => 'Entwurf',
       'status' => NodeInterface::NOT_PUBLISHED,
       'field_location' => $this->locationA,
-      'field_event_date' => $this->dateRange(
+      'field_event_date' => $this->smartDateRange(
         $this->date('now +2 days', '18:00'),
         $this->date('now +2 days', '22:00'),
       ),
