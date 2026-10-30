@@ -6,8 +6,10 @@ namespace Drupal\workspace_events;
 
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
+use Drupal\pathauto\PathautoState;
 
 /**
  * Generates the lessons of a course from its schedule.
@@ -37,11 +39,14 @@ final class LessonGenerator {
    *   The site timezone.
    * @param \Drupal\Component\Datetime\TimeInterface $time
    *   The time service.
+   * @param \Drupal\Core\Extension\ModuleHandlerInterface $moduleHandler
+   *   The module handler.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly SiteTimeZone $siteTimeZone,
     private readonly TimeInterface $time,
+    private readonly ModuleHandlerInterface $moduleHandler,
   ) {}
 
   /**
@@ -212,7 +217,7 @@ final class LessonGenerator {
           'end_value' => $this->toStorageValue($occurrence['end']),
         ],
         'field_cancelled' => FALSE,
-      ]);
+      ] + $this->getPathValue());
       \assert($lesson instanceof NodeInterface);
 
       if (!$published && $lesson->hasField('publish_on')) {
@@ -226,6 +231,25 @@ final class LessonGenerator {
     }
 
     return $lesson_ids;
+  }
+
+  /**
+   * Returns the path field value that disables automatic aliases.
+   *
+   * Lessons redirect to their course, so they must not get a URL alias. The
+   * check keeps the generator working while Pathauto is not installed yet,
+   * for example during the update that creates the lessons before the
+   * configuration import enables it.
+   *
+   * @return array<string, mixed>
+   *   The path field value, or an empty array when Pathauto is unavailable.
+   */
+  private function getPathValue(): array {
+    if (!$this->moduleHandler->moduleExists('pathauto') || !class_exists(PathautoState::class)) {
+      return [];
+    }
+
+    return ['path' => ['pathauto' => PathautoState::SKIP]];
   }
 
   /**

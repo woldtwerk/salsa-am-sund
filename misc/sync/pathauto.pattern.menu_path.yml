@@ -10,7 +10,14 @@ id: menu_path
 label: Menüpfad
 type: 'canonical_entities:node'
 pattern: '/[node:menu-link:parents:join-path]/[node:title]'
-selection_criteria: {  }
+selection_criteria:
+  2f5dbb5e-1c37-4f76-9c19-8a6d1b7e5c40:
+    id: 'entity_bundle:node'
+    negate: true
+    context_mapping:
+      node: node
+    bundles:
+      lesson: lesson
 selection_logic: and
 weight: 10
 relationships: {  }
