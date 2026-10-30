@@ -211,6 +211,9 @@ msgstr "Alle Termine dieses Kurses als Kalender abonnieren."
 msgid "Back to the courses"
 msgstr "Zurück zu den Kursen"
 
+msgid "Back to dance figures"
+msgstr "Zurück zu den Tanzfiguren"
+
 msgid "Dates"
 msgstr "Termine"
 

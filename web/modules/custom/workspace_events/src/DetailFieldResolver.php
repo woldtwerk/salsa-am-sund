@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events;
 
+use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
@@ -115,21 +116,57 @@ final class DetailFieldResolver {
   }
 
   /**
-   * Returns the difficulty label of a course.
+   * Returns the difficulty label of an entity.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The course node.
+   * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+   *   The entity with the difficulty field.
    *
    * @return string
-   *   The formatted level, or an empty string when the course has none.
+   *   The formatted level, or an empty string when the entity has none.
    */
-  public function getDifficultyLabel(NodeInterface $node): string {
-    if (!$node->hasField('field_difficulty')) {
-      return '';
+  public function getDifficultyLabel(FieldableEntityInterface $entity): string {
+    return Difficulty::label($this->getDifficultyValues($entity));
+  }
+
+  /**
+   * Returns one label per difficulty value of an entity.
+   *
+   * A dance figure shows each level as its own badge instead of the combined
+   * label of a course.
+   *
+   * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+   *   The entity with the difficulty field.
+   *
+   * @return string[]
+   *   The formatted level labels.
+   */
+  public function getDifficultyLabels(FieldableEntityInterface $entity): array {
+    $labels = [];
+    foreach ($this->getDifficultyValues($entity) as $value) {
+      $label = Difficulty::label([$value]);
+      if ($label !== '') {
+        $labels[] = $label;
+      }
     }
-    $items = $node->get('field_difficulty');
+    return $labels;
+  }
+
+  /**
+   * Returns the numeric difficulty values of an entity.
+   *
+   * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
+   *   The entity with the difficulty field.
+   *
+   * @return int[]
+   *   The difficulty values.
+   */
+  private function getDifficultyValues(FieldableEntityInterface $entity): array {
+    if (!$entity->hasField('field_difficulty')) {
+      return [];
+    }
+    $items = $entity->get('field_difficulty');
     if ($items->isEmpty()) {
-      return '';
+      return [];
     }
 
     $values = [];
@@ -139,8 +176,7 @@ final class DetailFieldResolver {
         $values[] = (int) $value;
       }
     }
-
-    return Difficulty::label($values);
+    return $values;
   }
 
 }
