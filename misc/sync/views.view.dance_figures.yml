@@ -8,7 +8,7 @@ dependencies:
     - field.storage.taxonomy_term.field_video
     - flag.flag.like
     - flag.flag.learned
-    - image.style.thumbnail
+    - image.style.16_9_608x342_focal_point_webp
     - node.type.course
     - taxonomy.vocabulary.dance_figure
   module:
@@ -46,7 +46,7 @@ display:
           entity_type: taxonomy_term
           entity_field: name
           plugin_id: term_name
-          label: Name
+          label: ''
           exclude: false
           alter:
             alter_text: false
@@ -111,8 +111,8 @@ display:
           entity_type: taxonomy_term
           entity_field: field_difficulty
           plugin_id: field
-          label: Level
-          exclude: false
+          label: ''
+          exclude: true
           alter:
             alter_text: false
             text: ''
@@ -174,7 +174,7 @@ display:
           entity_type: media
           entity_field: thumbnail
           plugin_id: field
-          label: Video
+          label: ''
           exclude: false
           alter:
             alter_text: false
@@ -219,7 +219,7 @@ display:
           type: image
           settings:
             image_link: ''
-            image_style: thumbnail
+            image_style: 16_9_608x342_focal_point_webp
             image_loading:
               attribute: lazy
           group_column: target_id
@@ -241,7 +241,7 @@ display:
           admin_label: ''
           entity_type: flagging
           plugin_id: flag_link
-          label: Gelernt
+          label: ''
           exclude: false
           alter:
             alter_text: false
@@ -291,7 +291,7 @@ display:
           admin_label: ''
           entity_type: flagging
           plugin_id: flag_link
-          label: 'Gefällt mir'
+          label: ''
           exclude: false
           alter:
             alter_text: false
@@ -355,7 +355,7 @@ display:
         type: basic
         options:
           submit_button: Anwenden
-          reset_button: false
+          reset_button: true
           reset_button_label: Zurücksetzen
           exposed_sorts_label: 'Sortieren nach'
           expose_sort_order: true
@@ -583,7 +583,7 @@ display:
             identifier: course
             required: false
             remember: false
-            multiple: true
+            multiple: false
             remember_roles:
               authenticated: authenticated
             reduce: false
@@ -663,7 +663,7 @@ display:
           exposed: true
           expose:
             operator_id: ''
-            label: 'Meine Favoriten'
+            label: Favoriten
             description: ''
             use_operator: false
             operator: ''
@@ -688,60 +688,11 @@ display:
             default_group_multiple: {  }
             group_items: {  }
       style:
-        type: table
+        type: default
         options:
           grouping: {  }
           row_class: ''
           default_row_class: true
-          columns:
-            name: name
-            field_difficulty: field_difficulty
-            thumbnail: thumbnail
-            flag_link: flag_link
-            flag_link_like: flag_link_like
-          default: '-1'
-          info:
-            name:
-              sortable: false
-              default_sort_order: asc
-              align: ''
-              separator: ''
-              empty_column: false
-              responsive: ''
-            field_difficulty:
-              sortable: false
-              default_sort_order: asc
-              align: ''
-              separator: ''
-              empty_column: false
-              responsive: ''
-            thumbnail:
-              sortable: false
-              default_sort_order: asc
-              align: ''
-              separator: ''
-              empty_column: false
-              responsive: ''
-            flag_link:
-              sortable: false
-              default_sort_order: asc
-              align: ''
-              separator: ''
-              empty_column: false
-              responsive: ''
-            flag_link_like:
-              sortable: false
-              default_sort_order: asc
-              align: ''
-              separator: ''
-              empty_column: false
-              responsive: ''
-          override: true
-          sticky: false
-          summary: ''
-          empty_table: false
-          caption: ''
-          description: ''
       row:
         type: fields
         options:

@@ -1,0 +1,18 @@
+{#
+/**
+ * @file
+ * Exposed filter bar of the dance figure overview.
+ *
+ * The panel and the filter grid follow the calendar filter bar.
+ *
+ * Available variables:
+ * - form: The exposed filter form.
+ * - q: The query string prefix when clean URLs are off.
+ */
+#}
+{% if q is not empty %}
+  {{ q }}
+{% endif %}
+<div class="salsa-surface-dark mb-8 grid gap-4 rounded-2xl border border-line bg-ink p-4 text-sand sm:grid-cols-2 md:p-6 lg:grid-cols-6 lg:items-end [&_.form-actions]:mb-0 [&_.form-actions]:flex [&_.form-actions]:flex-wrap [&_.form-actions]:items-end [&_.form-actions]:gap-3 [&_.form-item]:mb-0 [&_.form-item]:min-w-0 [&_label]:mb-1 [&_label]:block [&_label]:font-body [&_label]:text-xs [&_label]:font-semibold [&_label]:uppercase [&_label]:tracking-[0.2em] [&_label]:text-flame-gold">
+  {{ form }}
+</div>

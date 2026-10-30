@@ -1,0 +1,20 @@
+{#
+/**
+ * @file
+ * Difficulty chips of a dance figure.
+ *
+ * Shared by the dance figure detail page and the overview cards.
+ *
+ * Available variables:
+ * - levels: The formatted difficulty labels.
+ */
+#}
+{% if levels %}
+  <div class="flex flex-wrap items-center gap-2">
+    {% for level in levels %}
+      <span class="inline-flex items-center rounded-full border border-flame-gold/40 bg-flame-gold/10 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-flame-gold">
+        {{ level }}
+      </span>
+    {% endfor %}
+  </div>
+{% endif %}

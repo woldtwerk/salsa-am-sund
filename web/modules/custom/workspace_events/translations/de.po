@@ -263,3 +263,18 @@ msgid "@title (@count lesson)"
 msgid_plural "@title (@count lessons)"
 msgstr[0] "@title (@count Unterrichtsstunde)"
 msgstr[1] "@title (@count Unterrichtsstunden)"
+
+msgid "All"
+msgstr "Alle"
+
+msgid "Learned"
+msgstr "Gelernt"
+
+msgid "Not learned yet"
+msgstr "Noch nicht gelernt"
+
+msgid "Favorites only"
+msgstr "Nur Favoriten"
+
+msgid "No favorites"
+msgstr "Keine Favoriten"

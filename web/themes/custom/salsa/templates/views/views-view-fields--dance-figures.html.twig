@@ -1,0 +1,53 @@
+{#
+/**
+ * @file
+ * Dance figure card.
+ *
+ * Available variables:
+ * - fields: The rendered view fields.
+ * - row: The raw result row; its entity supplies the difficulty labels.
+ * - dance_figure_levels: The formatted difficulty labels.
+ */
+#}
+{% set thumbnail = fields.thumbnail is defined ? fields.thumbnail.content|render : '' %}
+{% set name = fields.name is defined ? fields.name.content|render : '' %}
+{% set initial = name|striptags|trim|slice(0, 1)|upper %}
+{% set flags = [] %}
+{% if fields.flag_link is defined %}
+  {% set flags = flags|merge([fields.flag_link.content]) %}
+{% endif %}
+{% if fields.flag_link_like is defined %}
+  {% set flags = flags|merge([fields.flag_link_like.content]) %}
+{% endif %}
+
+<article class="group relative flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-ink-2 transition duration-300 hover:border-flame-gold/50 hover:shadow-[0_24px_60px_-32px_rgb(224_38_27_/_0.8)]">
+  <div class="relative aspect-video w-full overflow-hidden border-b border-line bg-ink">
+    {% if thumbnail|trim is not empty %}
+      <div class="h-full w-full [&_img]:h-full [&_img]:w-full [&_img]:object-cover">{{ thumbnail }}</div>
+    {% else %}
+      <div class="absolute inset-0 bg-grain" aria-hidden="true"></div>
+      <div class="absolute inset-0 flex items-center justify-center">
+        {% if initial %}
+          <span class="font-display text-6xl font-black italic text-flame-gold/25" aria-hidden="true">{{ initial }}</span>
+        {% endif %}
+        <span class="absolute end-4 bottom-4 inline-flex size-10 items-center justify-center rounded-full border border-flame-gold/30 bg-flame-gold/10 text-flame-gold" aria-hidden="true">
+          {{ icon('salsa', 'music', {size: 20}) }}
+        </span>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="flex min-w-0 flex-1 flex-col p-5 md:p-6">
+    <h3 class="font-display text-2xl leading-tight font-bold italic text-balance text-sand [&_a]:text-inherit [&_a]:no-underline [&_a]:hover:text-flame-gold md:text-3xl">
+      {{ name }}
+    </h3>
+
+    <div class="mt-3">
+      {% include '@salsa/includes/dance-figure-levels.html.twig' with {levels: dance_figure_levels|default([])} only %}
+    </div>
+
+    <div class="mt-auto pt-5">
+      {% include '@salsa/includes/dance-figure-flags.html.twig' with {flags: flags} only %}
+    </div>
+  </div>
+</article>
