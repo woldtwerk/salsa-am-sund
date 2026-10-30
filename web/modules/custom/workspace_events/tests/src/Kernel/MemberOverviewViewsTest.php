@@ -20,12 +20,10 @@ use Drupal\views\ViewsData;
 use Drupal\views\ViewExecutable;
 use Drupal\workspace_events\Access\MyCoursesAccess;
 use Drupal\workspace_events\DanceFigureFlag;
-use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\Hook\LessonAccessHooks;
 use Drupal\workspace_events\Hook\ViewsDataHooks;
-use Drupal\workspace_events\MemberOverviewInstaller;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -34,7 +32,6 @@ use Symfony\Component\Routing\Route;
 /**
  * Tests the member overview views and the access to "Meine Kurse".
  */
-#[CoversClass(MemberOverviewInstaller::class)]
 #[CoversClass(MyCoursesAccess::class)]
 #[CoversClass(ViewsDataHooks::class)]
 #[Group('workspace_events')]
@@ -89,16 +86,14 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
     $this->installDanceFigureFields();
 
     // The shipped views reference the flag handlers and flags.
-    $flag_installer = $this->container->get(DanceFigureInstaller::class);
-    \assert($flag_installer instanceof DanceFigureInstaller);
-    $flag_installer->install(array_map(
+    $this->installConfigRecords(array_map(
       static fn (DanceFigureFlag $flag): string => $flag->configName(),
       DanceFigureFlag::cases(),
     ));
-
-    $overview_installer = $this->container->get(MemberOverviewInstaller::class);
-    \assert($overview_installer instanceof MemberOverviewInstaller);
-    $overview_installer->install();
+    $this->installConfigRecords([
+      'views.view.dance_figures',
+      'views.view.my_courses',
+    ]);
 
     $views_data = $this->container->get('views.views_data');
     \assert($views_data instanceof ViewsData);

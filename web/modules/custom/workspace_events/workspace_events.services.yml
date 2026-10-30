@@ -29,10 +29,6 @@ services:
     arguments:
       - '@entity_type.manager'
       - '@Drupal\workspace_events\ConfigRecordLoader'
-  Drupal\workspace_events\DanceFigureInstaller:
-    autowire: true
-  Drupal\workspace_events\MemberOverviewInstaller:
-    autowire: true
   Drupal\workspace_events\EventSubscriber\HtmxFlagResponseSubscriber:
     autowire: true
     tags:

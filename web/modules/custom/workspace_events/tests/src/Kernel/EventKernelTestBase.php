@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\Core\Entity\EntityStorageInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
 use Drupal\node\Entity\Node;
@@ -15,6 +16,8 @@ use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\Tests\user\Traits\UserCreationTrait;
+use Drupal\workspace_events\ConfigRecordInstaller;
+use Drupal\workspace_events\ConfigRecordLoader;
 use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\OrganizerResolver;
@@ -128,6 +131,24 @@ abstract class EventKernelTestBase extends KernelTestBase {
     // Creating the fields can rebuild the container. Refresh the storage so
     // the tests use the field definitions of the new configuration.
     $this->nodeStorage = $this->container->get('entity_type.manager')->getStorage('node');
+  }
+
+  /**
+   * Installs configuration entities from the module's configuration records.
+   *
+   * @param string[] $names
+   *   The configuration names, in creation order.
+   */
+  protected function installConfigRecords(array $names): void {
+    $entity_type_manager = $this->container->get('entity_type.manager');
+    \assert($entity_type_manager instanceof EntityTypeManagerInterface);
+    $loader = $this->container->get(ConfigRecordLoader::class);
+    \assert($loader instanceof ConfigRecordLoader);
+
+    // ConfigRecordInstaller is abstract because its subclasses name their
+    // configuration list; the helper passes the names to install() instead.
+    $installer = new class($entity_type_manager, $loader) extends ConfigRecordInstaller {};
+    $installer->install($names);
   }
 
   /**
