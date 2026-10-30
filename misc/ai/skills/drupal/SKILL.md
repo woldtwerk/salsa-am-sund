@@ -6,6 +6,7 @@ description: Additional instructions for working with drupal.
 ## Test
 
 ## Development
+
 - always use oop hooks instead of hooks in .module and .theme
 - custom modules use the `workspace_` prefix: machine name, directory, file names and namespace (`web/modules/custom/workspace_foo`, `workspace_foo.info.yml`, `Drupal\workspace_foo`). a module's `composer.json` is named `workspace/workspace_foo`.
 - a custom module's or theme's `composer.json` always has a `repositories` key with `{"type": "composer", "url": "https://packages.drupal.org/8"}`. composer ignores it in non-root packages, but renovate scans these files on their own and can't look up `drupal/*` dependencies without it. a renovate pr there only bumps the constraint; update the root lock with `ddev composer update workspace/workspace_foo <package> -W`.
@@ -68,3 +69,7 @@ E.g.:
 </details>
 
 ```
+
+## Session
+
+Don't mess with the user sesssion. Instead use the masquerade module to masquereade as the user you need for testing.
