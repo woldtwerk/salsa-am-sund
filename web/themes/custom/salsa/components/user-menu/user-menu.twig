@@ -1,0 +1,48 @@
+{% set is_authenticated = is_authenticated|default(false) %}
+{% set name = name|default('') %}
+{% set initials = initials|default('') %}
+{% set picture = picture|default({}) %}
+
+{% if is_authenticated %}
+  <div class="{{ tw_merge(['salsa-user-menu relative shrink-0', ui.root|default('')]) }}">
+    <button
+      type="button"
+      popovertarget="salsa-user-menu"
+      popovertargetaction="toggle"
+      aria-label="{{ 'User menu'|t }}"
+      aria-controls="salsa-user-menu"
+      class="{{ tw_merge(['salsa-user-menu__trigger inline-flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line text-sand transition-colors hover:border-flame-gold hover:text-flame-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-flame-gold', ui.trigger|default('')]) }}"
+    >
+      {% if picture.src is not empty %}
+        {% include 'canvas:image' ignore missing with {
+          src: picture.src,
+          alt: picture.alt|default(name),
+          width: picture.width,
+          height: picture.height,
+          class: 'h-full w-full object-cover',
+          sizes: '2.75rem',
+          loading: 'lazy',
+        } only %}
+      {% else %}
+        <span class="flex h-full w-full items-center justify-center bg-flame-light font-display text-sm font-black italic text-night" aria-hidden="true">
+          {{ initials }}
+        </span>
+      {% endif %}
+    </button>
+
+    <div
+      id="salsa-user-menu"
+      popover
+      class="{{ tw_merge(['salsa-user-menu__panel salsa-dropdown w-64', ui.menu|default('')]) }}"
+    >
+      <p class="px-3 pb-2 pt-1 font-display text-sm font-bold italic text-sand">{{ name }}</p>
+      <nav aria-label="{{ 'User menu'|t }}">
+        {{ menu|default('') }}
+      </nav>
+    </div>
+  </div>
+{% else %}
+  <div class="{{ tw_merge(['salsa-user-menu__login shrink-0', ui.root|default('')]) }}">
+    {{ menu|default('') }}
+  </div>
+{% endif %}

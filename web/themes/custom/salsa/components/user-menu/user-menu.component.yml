@@ -1,0 +1,36 @@
+$schema: https://git.drupalcode.org/project/drupal/-/raw/HEAD/core/assets/schemas/v1/metadata.schema.json
+name: Benutzermenü
+description: 'Avatar-Schaltfläche mit Kontomenü im Seitenkopf; für anonyme Besucher ein Anmelde-Link.'
+group: 'Salsa am Sund'
+status: stable
+props:
+  type: object
+  properties:
+    is_authenticated:
+      type: boolean
+      title: Angemeldet
+      examples:
+        - true
+    name:
+      type: string
+      title: Name
+      examples:
+        - 'Kerstin Stettner'
+    initials:
+      type: string
+      title: Initialen
+      examples:
+        - 'KS'
+    picture:
+      $ref: json-schema-definitions://canvas.module/image
+      type: object
+      title: Profilbild
+      examples:
+        - src: 'assets/profil.jpg'
+          alt: 'Profilbild von Kerstin Stettner'
+          width: 210
+          height: 293
+slots:
+  menu:
+    title: Kontomenü
+    description: 'Gerenderte Links des Benutzerkontos, zuletzt der Abmelde-Link.'

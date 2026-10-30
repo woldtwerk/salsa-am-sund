@@ -1,11 +1,6 @@
 {% set picture = picture|default({}) %}
 {% set name = name|default('') %}
-{% set words = name|split(' ') %}
-{% set initials = '' %}
-{% for word in words %}
-  {% set initials = initials ~ (word|first) %}
-{% endfor %}
-{% set initials = initials|upper|slice(0, 2) %}
+{% set initials = initials|default('') %}
 
 <section class="{{ tw_merge(['salsa-surface-dark relative overflow-hidden rounded-3xl border border-line bg-ink-2 p-6 shadow-[0_28px_70px_-42px_rgb(224_38_27_/_0.75)] md:p-8', ui.root|default('')]) }}">
   <div class="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">

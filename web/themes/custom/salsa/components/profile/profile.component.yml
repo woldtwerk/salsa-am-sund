@@ -13,6 +13,11 @@ props:
       title: Name
       examples:
         - 'Kerstin Stettner'
+    initials:
+      type: string
+      title: Initialen
+      examples:
+        - 'KS'
     picture:
       $ref: json-schema-definitions://canvas.module/image
       title: Profilbild

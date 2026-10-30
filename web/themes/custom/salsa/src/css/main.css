@@ -76,6 +76,12 @@
 /* -------------------------------------------------------------------------
  * Brand utilities
  * ---------------------------------------------------------------------- */
+/* Dropdown panel shared by the main menu submenus and the user menu. The
+ * glow's spread stays small, so it also shows under one-item panels. */
+@utility salsa-dropdown {
+  @apply rounded-2xl border border-line bg-ink p-2 text-sand shadow-[0_20px_56px_-20px_rgb(224_38_27_/_0.75)];
+}
+
 @utility bg-flame {
   background-color: var(--color-flame-red);
   background-image: linear-gradient(
@@ -612,17 +618,17 @@
     @apply mx-auto w-full max-w-6xl px-5 py-10 md:px-8 md:py-14;
   }
 
+  /* The exposed filter reset is secondary to the submit button. */
+  .views-exposed-form #edit-reset {
+    @apply border border-line bg-transparent text-sand shadow-none hover:bg-flame-gold/10 hover:text-sand;
+  }
+
   /* Native modal dialog used by the gallery lightbox. */
   dialog.salsa-lightbox {
     position: fixed;
     inset: 0;
     margin: auto;
     inline-size: fit-content;
-  /* The exposed filter reset is secondary to the submit button. */
-  .views-exposed-form #edit-reset {
-    @apply border border-line bg-transparent text-sand shadow-none hover:bg-flame-gold/10 hover:text-sand;
-  }
-
     block-size: fit-content;
     max-inline-size: min(92vw, 80rem);
     max-block-size: 92svh;

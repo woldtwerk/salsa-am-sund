@@ -1,0 +1,81 @@
+uuid: a11388f2-cbee-4379-af5a-51f3b3a60841
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.field.media.image.field_media_image
+    - field.field.media.svg_image.field_media_svg_image
+    - image.style.canvas_parametrized_width
+    - media.type.image
+    - media.type.svg_image
+  module:
+    - file
+    - media
+    - media_library
+  theme:
+    - salsa
+active_version: f1995946f4afcbaa
+versioned_properties:
+  active:
+    settings:
+      prop_field_definitions:
+        is_authenticated:
+          required: false
+          field_type: boolean
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: boolean_checkbox
+          default_value:
+            -
+              value: true
+          expression: ℹ︎boolean␟value
+          derived_schema_metadata: {  }
+        name:
+          required: false
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'Kerstin Stettner'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+        initials:
+          required: false
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: KS
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+        picture:
+          required: false
+          field_type: entity_reference
+          field_storage_settings:
+            target_type: media
+          field_instance_settings:
+            handler: 'default:media'
+            handler_settings:
+              target_bundles:
+                image: image
+                svg_image: svg_image
+          field_widget: media_library_widget
+          default_value: {  }
+          expression: 'ℹ︎entity_reference␟entity␜[␜entity:media:image␝field_media_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}][␜entity:media:svg_image␝field_media_svg_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}]'
+          derived_schema_metadata: {  }
+    fallback_metadata:
+      slot_definitions:
+        menu:
+          title: Kontomenü
+          description: 'Gerenderte Links des Benutzerkontos, zuletzt der Abmelde-Link.'
+label: Benutzermenü
+id: sdc.salsa.user-menu
+provider: salsa
+source: sdc
+source_local_id: 'salsa:user-menu'

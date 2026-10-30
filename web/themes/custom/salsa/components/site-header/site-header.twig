@@ -39,15 +39,19 @@
       </div>
     {% endif %}
 
-    <button
-      type="button"
-      popovertarget="salsa-site-nav"
-      popovertargetaction="toggle"
-      class="salsa-site-nav__burger ms-auto inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line text-sand transition-colors hover:border-flame-gold hover:text-flame-gold lg:hidden"
-    >
-      <span class="sr-only">{{ 'Open menu'|t }}</span>
-      <span class="salsa-nav-icon salsa-nav-icon--open">{{ icon('salsa', 'menu', {size: 22}) }}</span>
-      <span class="salsa-nav-icon salsa-nav-icon--close">{{ icon('salsa', 'x', {size: 22}) }}</span>
-    </button>
+    <div class="ms-auto flex shrink-0 items-center gap-2 lg:ms-0">
+      {{ user_menu }}
+
+      <button
+        type="button"
+        popovertarget="salsa-site-nav"
+        popovertargetaction="toggle"
+        class="salsa-site-nav__burger inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-line text-sand transition-colors hover:border-flame-gold hover:text-flame-gold lg:hidden"
+      >
+        <span class="sr-only">{{ 'Open menu'|t }}</span>
+        <span class="salsa-nav-icon salsa-nav-icon--open">{{ icon('salsa', 'menu', {size: 22}) }}</span>
+        <span class="salsa-nav-icon salsa-nav-icon--close">{{ icon('salsa', 'x', {size: 22}) }}</span>
+      </button>
+    </div>
   </div>
 </header>

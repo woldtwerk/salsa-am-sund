@@ -17,6 +17,7 @@
 {% set profile_content = content|without('user_picture', 'member_for', 'mail', 'roles') %}
 {% set profile = {
   name: user.getDisplayName(),
+  initials: salsa_initials|default(''),
   member_since: salsa_member_since|default(''),
   content: profile_content,
 } %}
