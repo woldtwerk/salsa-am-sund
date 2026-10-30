@@ -866,7 +866,7 @@ display:
           replica: false
           query_tags: {  }
       css_class: ''
-      use_ajax: false
+      use_ajax: true
       group_by: false
       show_admin_links: true
       use_more: false

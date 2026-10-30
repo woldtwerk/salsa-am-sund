@@ -679,6 +679,7 @@ display:
           plugin_id: standard
           required: false
       css_class: admin-dblog
+      use_ajax: true
       header: {  }
       footer: {  }
       display_extenders: {  }
