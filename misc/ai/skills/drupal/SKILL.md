@@ -73,4 +73,4 @@ E.g.:
 
 ## Session
 
-Don't mess with the user sesssion. Instead use the masquerade module to masquereade as the user you need for testing.
+Don't mess with the user session. Instead use the masquerade module to masquerade as the user you need for testing.
