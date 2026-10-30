@@ -964,6 +964,7 @@ display:
           entity_field: revision_uid
           plugin_id: standard
           required: false
+      use_ajax: true
       header: {  }
       footer: {  }
       display_extenders: {  }
