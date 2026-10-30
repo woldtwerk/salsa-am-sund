@@ -15,7 +15,7 @@ selection_criteria:
     id: 'entity_bundle:taxonomy_term'
     negate: false
     context_mapping:
-      term: term
+      taxonomy_term: taxonomy_term
     bundles:
       dance_figure: dance_figure
 selection_logic: and
