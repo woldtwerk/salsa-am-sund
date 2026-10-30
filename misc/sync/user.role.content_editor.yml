@@ -48,6 +48,7 @@ permissions:
   - 'access media overview'
   - 'access taxonomy overview'
   - 'access trash'
+  - 'access user profiles'
   - 'administer comments'
   - 'administer menu'
   - 'administer redirects'

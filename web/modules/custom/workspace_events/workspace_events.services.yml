@@ -15,6 +15,10 @@ services:
     autowire: true
   Drupal\workspace_events\LessonGenerator:
     autowire: true
+  Drupal\workspace_events\LearnedFigureFlagger:
+    autowire: true
+  Drupal\workspace_events\MemberProgress:
+    autowire: true
   Drupal\workspace_events\ScheduleMigrator:
     autowire: true
   Drupal\workspace_events\LessonInstaller:

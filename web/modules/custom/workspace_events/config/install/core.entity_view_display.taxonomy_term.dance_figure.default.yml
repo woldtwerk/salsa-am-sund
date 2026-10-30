@@ -36,7 +36,7 @@ content:
     third_party_settings: {  }
     weight: 2
     region: content
-  flag_mastered:
+  flag_learned:
     settings: {  }
     third_party_settings: {  }
     weight: 3

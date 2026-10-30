@@ -7,7 +7,7 @@ dependencies:
     - field.storage.taxonomy_term.field_difficulty
     - field.storage.taxonomy_term.field_video
     - flag.flag.like
-    - flag.flag.mastered
+    - flag.flag.learned
     - image.style.thumbnail
     - node.type.course
     - taxonomy.vocabulary.dance_figure
@@ -241,7 +241,7 @@ display:
           admin_label: ''
           entity_type: flagging
           plugin_id: flag_link
-          label: Gemeistert
+          label: Gelernt
           exclude: false
           alter:
             alter_text: false
@@ -624,13 +624,13 @@ display:
           exposed: true
           expose:
             operator_id: ''
-            label: Gemeistert
+            label: Gelernt
             description: ''
             use_operator: false
             operator: ''
             operator_limit_selection: false
             operator_list: {  }
-            identifier: mastered
+            identifier: learned
             required: false
             remember: false
             multiple: false
@@ -795,11 +795,11 @@ display:
           field: flag_relationship
           relationship: none
           group_type: group
-          admin_label: Gemeistert
+          admin_label: Gelernt
           entity_type: taxonomy_term
           plugin_id: flag_relationship
           required: false
-          flag: mastered
+          flag: learned
           user_scope: current
         flag_relationship_like:
           id: flag_relationship

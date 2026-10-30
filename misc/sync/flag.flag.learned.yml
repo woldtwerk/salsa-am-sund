@@ -1,22 +1,22 @@
-uuid: c42d8b1e-f424-4385-ad06-d1846751cb1f
+uuid: d8fabb8f-7b65-4e85-9c50-dea1fd687db6
 langcode: de
 status: true
 dependencies:
   module:
     - taxonomy
     - workspace_events
-id: mastered
-label: Gemeistert
+id: learned
+label: Gelernt
 bundles:
   - dance_figure
 entity_type: taxonomy_term
 global: false
-flag_short: 'Als gemeistert markieren'
-flag_long: 'Diese Figur zu den gemeisterten Figuren hinzufügen'
-flag_message: 'Die Figur ist jetzt als gemeistert markiert.'
-unflag_short: 'Gemeistert ✓'
-unflag_long: 'Die Markierung als gemeistert entfernen'
-unflag_message: 'Die Markierung als gemeistert wurde entfernt.'
+flag_short: 'Als gelernt markieren'
+flag_long: 'Diese Figur zu den gelernten Figuren hinzufügen'
+flag_message: 'Die Figur ist jetzt als gelernt markiert.'
+unflag_short: 'Gelernt ✓'
+unflag_long: 'Die Markierung als gelernt entfernen'
+unflag_message: 'Die Markierung als gelernt wurde entfernt.'
 unflag_denied_text: ''
 weight: 0
 flag_type: 'entity:taxonomy_term'
