@@ -6,10 +6,13 @@ namespace Drupal\workspace_events\Plugin\Block;
 
 use Drupal\Component\Render\MarkupInterface;
 use Drupal\Component\Utility\Html;
+use Drupal\Component\Utility\NestedArray;
 use Drupal\Core\Block\BlockBase;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Plugin\ContainerFactoryPluginInterface;
+use Drupal\Core\Render\Element\Checkboxes;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\DetailFieldResolver;
@@ -174,19 +177,61 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
   }
 
   /**
+   * Value callback of the term checkboxes in the block configuration form.
+   *
+   * Core's callback combines the submitted values into keys. The Canvas
+   * editor submits unchecked boxes as 0 or FALSE and checked ones as TRUE, so
+   * the keys become 0 and 1, which are no options, and Canvas stores a "value
+   * 0 is not allowed" violation that blocks every later save of the page.
+   * Empty values are dropped and TRUE takes the term ID from its key first.
+   * Canvas may also send the stored list of term IDs back; Canvas then reads
+   * each box from the user input by term ID, so the list is written back to
+   * the user input keyed by term ID.
+   *
+   * @param array<mixed> $element
+   *   The checkboxes element.
+   * @param mixed $input
+   *   The submitted input, or FALSE when there is none.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state.
+   *
+   * @return array<mixed>
+   *   The checked term IDs, keyed by term ID.
+   */
+  public static function checkboxesValue(array &$element, mixed $input, FormStateInterface $form_state): array {
+    if (is_array($input)) {
+      $is_list = array_is_list($input);
+      $normalized = [];
+      foreach (array_filter($input) as $key => $value) {
+        $id = $is_list || $value !== TRUE ? $value : $key;
+        if (is_int($id) || is_string($id)) {
+          $normalized[$id] = $id;
+        }
+      }
+      $input = $normalized;
+      if ($is_list) {
+        $user_input = $form_state->getUserInput();
+        $parents = $element['#parents'] ?? [];
+        if (is_array($user_input) && is_array($parents) && $parents !== []) {
+          NestedArray::setValue($user_input, $parents, $input);
+          $form_state->setUserInput($user_input);
+        }
+      }
+    }
+    $value = Checkboxes::valueCallback($element, $input, $form_state);
+    return is_array($value) ? $value : [];
+  }
+
+  /**
    * Builds the location filter element for the block configuration form.
    *
-   * A multiple select instead of checkboxes: Canvas validates the stored
-   * list of term IDs against the element, and checkboxes validate the keys of
-   * that list (0, 1, ...) instead of the term IDs.
-   *
    * @return array<string, mixed>
-   *   The select form element.
+   *   The checkboxes form element.
    */
   protected function buildLocationsElement(): array {
     return [
-      '#type' => 'select',
-      '#multiple' => TRUE,
+      '#type' => 'checkboxes',
+      '#value_callback' => [static::class, 'checkboxesValue'],
       '#title' => $this->t('Locations'),
       '#description' => $this->t('Leave empty to show all locations.'),
       '#options' => $this->getLocationOptions(),
@@ -205,22 +250,27 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
   }
 
   /**
-   * Extracts the selected term IDs from a multiple select form value.
+   * Extracts the checked term IDs from a checkboxes form value.
    *
-   * The values are the selected term IDs; empty values are dropped.
+   * Checkbox values are keyed by term ID. A browser submission holds the term
+   * ID when checked and 0 when unchecked; the Canvas editor submits TRUE and
+   * FALSE instead, so a TRUE value takes the term ID from its key.
    *
    * @param mixed $value
    *   The submitted form value.
    *
    * @return int[]
-   *   The selected term IDs, as a list.
+   *   The checked term IDs, as a list.
    */
   protected function getSubmittedIds(mixed $value): array {
     if (!is_array($value)) {
       return [];
     }
     $ids = [];
-    foreach (array_filter($value) as $id) {
+    foreach (array_filter($value) as $key => $id) {
+      if ($id === TRUE) {
+        $id = $key;
+      }
       if (is_scalar($id) && is_numeric($id)) {
         $ids[] = (int) $id;
       }
