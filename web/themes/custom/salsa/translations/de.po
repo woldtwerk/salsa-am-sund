@@ -297,3 +297,6 @@ msgstr "Letzte »"
 
 msgid "User menu"
 msgstr "Benutzermenü"
+
+msgid "Unrecognized username or password. <a href=\":password\">Forgot your password?</a>"
+msgstr "Benutzername oder Passwort sind nicht korrekt. <a href=\":password\">Passwort vergessen?</a>"
