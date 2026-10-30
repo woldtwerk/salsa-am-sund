@@ -7,6 +7,7 @@ namespace Drupal\Tests\workspace_events\Kernel;
 use Drupal\node\Entity\Node;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Attendance\PreviousAttendance;
+use Drupal\workspace_events\LessonCourseResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -106,7 +107,10 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
    *   The recommender.
    */
   private function recommender(): PreviousAttendance {
-    return new PreviousAttendance($this->container->get('entity_type.manager'));
+    return new PreviousAttendance(
+      $this->container->get('entity_type.manager'),
+      $this->container->get(LessonCourseResolver::class),
+    );
   }
 
 }
