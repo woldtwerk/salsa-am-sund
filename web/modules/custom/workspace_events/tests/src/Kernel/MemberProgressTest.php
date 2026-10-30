@@ -176,6 +176,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
     $switcher = $this->container->get('account_switcher');
     $switcher->switchTo($owner);
     $build = $this->buildProfile($owner);
+    self::assertTrue($this->containsFlagLinkBuilder($build));
     self::assertContains('user', $build['visited_courses']['#cache']['contexts'] ?? []);
     self::assertContains('user.permissions', $build['visited_courses']['#cache']['contexts'] ?? []);
     $html = $this->renderBuild($build);
@@ -192,7 +193,9 @@ final class MemberProgressTest extends LessonKernelTestBase {
       LessonAccessHooks::EDIT_PERMISSION,
     ]);
     $switcher->switchTo($editor);
-    $html = $this->renderProfile($owner);
+    $build = $this->buildProfile($owner);
+    self::assertFalse($this->containsFlagLinkBuilder($build));
+    $html = $this->renderBuild($build);
     self::assertStringContainsString('Visited courses', $html);
     self::assertStringContainsString('Learned figures', $html);
     self::assertStringContainsString('Liked figures', $html);
@@ -215,6 +218,25 @@ final class MemberProgressTest extends LessonKernelTestBase {
     self::assertStringNotContainsString('Visited courses', $html);
     self::assertStringNotContainsString('Learned figures', $html);
     self::assertStringNotContainsString('Liked figures', $html);
+  }
+
+  /**
+   * Returns whether a render array contains a flag link placeholder.
+   *
+   * @param array<string, mixed> $build
+   *   The render array.
+   *
+   * @return bool
+   *   TRUE when the flag link builder is used.
+   */
+  private function containsFlagLinkBuilder(array $build): bool {
+    $found = FALSE;
+    array_walk_recursive($build, static function (mixed $value) use (&$found): void {
+      if ($value === 'flag.link_builder:build') {
+        $found = TRUE;
+      }
+    });
+    return $found;
   }
 
   /**

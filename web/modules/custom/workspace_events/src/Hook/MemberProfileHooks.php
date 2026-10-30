@@ -12,6 +12,7 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\Core\StringTranslation\TranslationInterface;
+use Drupal\taxonomy\TermInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\MemberProgress;
@@ -33,6 +34,37 @@ final class MemberProfileHooks {
     'learned_figures',
     'liked_figures',
   ];
+
+  /**
+   * The wrapper classes of the dance figure flag buttons.
+   *
+   * Copied from the dance figure detail page, so the buttons look the same.
+   */
+  private const string FIGURE_FLAG_ACTIONS_CLASS = 'flex flex-wrap items-center gap-3'
+    . ' [&_.flag]:contents'
+    . ' [&_a]:inline-flex'
+    . ' [&_a]:w-fit'
+    . ' [&_a]:items-center'
+    . ' [&_a]:justify-center'
+    . ' [&_a]:gap-2.5'
+    . ' [&_a]:rounded-full'
+    . ' [&_a]:px-6'
+    . ' [&_a]:py-3'
+    . ' [&_a]:font-semibold'
+    . ' [&_a]:no-underline'
+    . ' [&_a]:transition'
+    . ' [&_a]:duration-200'
+    . ' [&_a]:ease-out'
+    . ' [&_.flag-learned_a]:bg-flame-deep'
+    . ' [&_.flag-learned_a]:text-white'
+    . ' [&_.flag-learned_a]:shadow-[0_14px_34px_-16px_rgb(143_15_22_/_0.9)]'
+    . ' [&_.flag-learned_a]:hover:brightness-95'
+    . ' [&_.flag-learned_a]:hover:text-white'
+    . ' [&_.flag-like_a]:border'
+    . ' [&_.flag-like_a]:border-line'
+    . ' [&_.flag-like_a]:bg-transparent'
+    . ' [&_.flag-like_a]:text-sand'
+    . ' [&_.flag-like_a]:hover:bg-flame-gold/10';
 
   /**
    * Constructs the member profile hooks.
@@ -141,11 +173,11 @@ final class MemberProfileHooks {
     }
 
     if (in_array('learned_figures', $sections, TRUE)) {
-      $build['learned_figures'] = $this->figureSection($account, DanceFigureFlag::Learned);
+      $build['learned_figures'] = $this->figureSection($account, DanceFigureFlag::Learned, $is_owner);
     }
 
     if (in_array('liked_figures', $sections, TRUE)) {
-      $build['liked_figures'] = $this->figureSection($account, DanceFigureFlag::Like);
+      $build['liked_figures'] = $this->figureSection($account, DanceFigureFlag::Like, $is_owner);
     }
   }
 
@@ -156,15 +188,30 @@ final class MemberProfileHooks {
    *   The user being viewed.
    * @param \Drupal\workspace_events\DanceFigureFlag $flag
    *   The flag of the section.
+   * @param bool $show_flags
+   *   Whether the viewer may toggle the flags of the figures.
    *
    * @return array<string, mixed>
    *   The render array.
    */
-  private function figureSection(UserInterface $account, DanceFigureFlag $flag): array {
+  private function figureSection(UserInterface $account, DanceFigureFlag $flag, bool $show_flags): array {
     $metadata = $this->metadata($account);
     $items = [];
     foreach ($this->memberProgress->flaggedFigures((int) $account->id(), $flag) as $term) {
-      $items[] = Link::fromTextAndUrl((string) $term->label(), $term->toUrl())->toRenderable();
+      $item = [
+        '#type' => 'container',
+        '#attributes' => ['class' => ['flex', 'flex-wrap', 'items-center', 'gap-3']],
+        'link' => Link::fromTextAndUrl((string) $term->label(), $term->toUrl())->toRenderable(),
+      ];
+      if ($show_flags) {
+        $item['flags'] = [
+          '#type' => 'container',
+          '#attributes' => ['class' => [self::FIGURE_FLAG_ACTIONS_CLASS]],
+          'learned' => $this->flagLink($term, DanceFigureFlag::Learned),
+          'like' => $this->flagLink($term, DanceFigureFlag::Like),
+        ];
+      }
+      $items[] = $item;
       $metadata->addCacheableDependency($term);
     }
 
@@ -184,6 +231,27 @@ final class MemberProfileHooks {
       ],
     ];
     return $this->withCacheMetadata($section, $metadata);
+  }
+
+  /**
+   * Builds the lazy placeholder of a figure flag link.
+   *
+   * @param \Drupal\taxonomy\TermInterface $term
+   *   The dance figure term.
+   * @param \Drupal\workspace_events\DanceFigureFlag $flag
+   *   The flag.
+   *
+   * @return array<string, mixed>
+   *   The render array of the flag link placeholder.
+   */
+  private function flagLink(TermInterface $term, DanceFigureFlag $flag): array {
+    return [
+      '#lazy_builder' => [
+        'flag.link_builder:build',
+        ['taxonomy_term', (int) $term->id(), $flag->value],
+      ],
+      '#create_placeholder' => TRUE,
+    ];
   }
 
   /**
