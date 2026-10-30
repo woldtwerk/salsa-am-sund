@@ -10,8 +10,8 @@ label: Mitglied
 weight: 2
 is_admin: false
 permissions:
+  - 'flag learned'
   - 'flag like'
-  - 'flag mastered'
+  - 'unflag learned'
   - 'unflag like'
-  - 'unflag mastered'
   - 'view dance figures'

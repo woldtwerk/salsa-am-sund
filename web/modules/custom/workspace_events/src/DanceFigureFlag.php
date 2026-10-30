@@ -9,8 +9,8 @@ namespace Drupal\workspace_events;
  */
 enum DanceFigureFlag: string {
 
-  // Marks a dance figure as mastered.
-  case Mastered = 'mastered';
+  // Marks a dance figure as learned.
+  case Learned = 'learned';
 
   // Marks a dance figure as liked.
   case Like = 'like';

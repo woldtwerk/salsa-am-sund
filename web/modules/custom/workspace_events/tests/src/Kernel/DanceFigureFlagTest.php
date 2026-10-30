@@ -45,7 +45,7 @@ final class DanceFigureFlagTest extends EventKernelTestBase {
   /**
    * The tested flag.
    */
-  private const DanceFigureFlag FLAG = DanceFigureFlag::Mastered;
+  private const DanceFigureFlag FLAG = DanceFigureFlag::Learned;
 
   /**
    * The flag service.

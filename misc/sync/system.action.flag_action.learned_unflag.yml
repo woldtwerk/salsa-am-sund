@@ -3,13 +3,13 @@ langcode: de
 status: true
 dependencies:
   config:
-    - flag.flag.mastered
+    - flag.flag.learned
   module:
     - flag
-id: flag_action.mastered_unflag
-label: 'Gemeistert ✓'
+id: flag_action.learned_unflag
+label: 'Gelernt ✓'
 type: taxonomy_term
-plugin: 'flag_action:mastered_unflag'
+plugin: 'flag_action:learned_unflag'
 configuration:
-  flag_id: mastered
+  flag_id: learned
   flag_action: unflag

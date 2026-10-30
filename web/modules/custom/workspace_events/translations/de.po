@@ -243,3 +243,23 @@ msgstr "Termin"
 
 msgid "The model %model must not be used for image vision: free models may use uploaded attendance lists for training. Choose a paid model."
 msgstr "Das Modell %model darf nicht für Bildverständnis verwendet werden: Kostenlose Modelle können hochgeladene Anwesenheitslisten zum Training verwenden. Wähle ein kostenpflichtiges Modell."
+
+msgid "Visited courses"
+msgstr "Besuchte Kurse"
+
+msgid "Learned figures"
+msgstr "Gelernte Figuren"
+
+msgid "Liked figures"
+msgstr "Gefällt-mir-Figuren"
+
+msgid "No courses yet."
+msgstr "Noch keine Kurse."
+
+msgid "No figures yet."
+msgstr "Noch keine Figuren."
+
+msgid "@title (@count lesson)"
+msgid_plural "@title (@count lessons)"
+msgstr[0] "@title (@count Unterrichtsstunde)"
+msgstr[1] "@title (@count Unterrichtsstunden)"
