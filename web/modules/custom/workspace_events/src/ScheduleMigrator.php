@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events;
 
-use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Field\FieldItemInterface;
-use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
@@ -34,43 +33,47 @@ final class ScheduleMigrator {
   private const string EVENT_BUNDLE = 'event';
 
   /**
+   * The recurring date field of the events.
+   */
+  private const string EVENT_DATE_FIELD = 'field_event_date';
+
+  /**
    * Constructs a ScheduleMigrator.
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
    *   The site timezone.
-   * @param \Drupal\Component\Datetime\TimeInterface $time
-   *   The time service.
-   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
-   *   The logger factory.
    * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entityFieldManager
    *   The field manager, used to detect the legacy field.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection, used for the exact delta copy.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly SiteTimeZone $siteTimeZone,
-    private readonly TimeInterface $time,
-    private readonly LoggerChannelFactoryInterface $loggerFactory,
     private readonly EntityFieldManagerInterface $entityFieldManager,
+    private readonly Connection $database,
   ) {}
 
   /**
    * Migrates every course and event.
    *
    * @return string
-   *   The update message for the collapsed event series, or an empty string
-   *   when no event had more than one date.
+   *   An empty string. The update hook returns no message because no event
+   *   series is collapsed anymore.
    */
   public function migrate(): string {
     // The migration only runs while the legacy field still exists. After the
-    // smart_date removal update it does nothing.
+    // legacy field removal update it does nothing.
     if (!array_key_exists(self::LEGACY_FIELD_NAME, $this->entityFieldManager->getFieldStorageDefinitions('node'))) {
       return '';
     }
 
     $this->migrateCourses();
-    return $this->migrateEvents();
+    $this->migrateEvents();
+
+    return '';
   }
 
   /**
@@ -166,107 +169,88 @@ final class ScheduleMigrator {
   }
 
   /**
-   * Migrates the event series to a single date.
+   * Copies every legacy event delta to the recurring event date field.
    *
-   * @return string
-   *   One line per event that had more than one date.
+   * The rows are copied as they are, including every translation and revision,
+   * so a series keeps all its dates and its data even when it has already
+   * ended. Afterwards the recurrence rules of the events point at the new
+   * field; saving the rule entities would not regenerate their stored
+   * instances, but a direct update avoids touching them needlessly.
    */
-  private function migrateEvents(): string {
-    $storage = $this->entityTypeManager->getStorage('node');
-    $ids = $storage->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', self::EVENT_BUNDLE)
-      ->execute();
-
-    $messages = [];
-    foreach ($storage->loadMultiple($ids) as $event) {
-      if (!$event instanceof NodeInterface) {
-        continue;
-      }
-      if (!$event->hasField(self::LEGACY_FIELD_NAME) || !$event->hasField('field_event_date')) {
-        continue;
-      }
-      if (!$event->get('field_event_date')->isEmpty()) {
-        continue;
-      }
-
-      $items = $event->get(self::LEGACY_FIELD_NAME);
-      if ($items->isEmpty()) {
-        continue;
-      }
-
-      $now = $this->time->getRequestTime();
-      $next = NULL;
-      $next_timestamp = 0;
-      $last = NULL;
-      $last_timestamp = 0;
-      $timestamps = [];
-      foreach ($items as $item) {
-        $value = (int) $item->get('value')->getString();
-        if ($value <= 0) {
-          continue;
-        }
-        $timestamps[$value] = TRUE;
-        if ($value >= $now && ($next === NULL || $value < $next_timestamp)) {
-          $next = $item;
-          $next_timestamp = $value;
-        }
-        if ($last === NULL || $value > $last_timestamp) {
-          $last = $item;
-          $last_timestamp = $value;
-        }
-      }
-
-      $selected = $next ?? $last;
-      if ($selected === NULL) {
-        continue;
-      }
-
-      $timezone = $this->siteTimeZone->get();
-      $start_timestamp = (int) $selected->get('value')->getString();
-      $start = $this->toDate($start_timestamp, $timezone);
-      $end = $this->readEnd($selected, $timezone) ?? $start;
-
-      $event->set('field_event_date', [
-        'value' => $this->toStorageValue($start),
-        'end_value' => $this->toStorageValue($end),
-      ]);
-      $event->setSyncing(TRUE);
-      $event->setNewRevision(FALSE);
-      $event->save();
-
-      if (count($timestamps) > 1) {
-        $messages[] = $this->logCollapsedSeries($event, count($timestamps), $start);
-      }
+  private function migrateEvents(): void {
+    $source_table = 'node__field_when';
+    $target_table = 'node__field_event_date';
+    $revision_source_table = 'node_revision__field_when';
+    $revision_target_table = 'node_revision__field_event_date';
+    $schema = $this->database->schema();
+    if (!$schema->tableExists($source_table) || !$schema->tableExists($target_table)) {
+      return;
     }
 
-    return implode("\n", $messages);
+    // Values of an earlier run are replaced, so the copy is exact. Event rows
+    // only: field_event_date has no other bundle.
+    $this->database->delete($target_table)
+      ->condition('bundle', self::EVENT_BUNDLE)
+      ->execute();
+    if ($schema->tableExists($revision_source_table) && $schema->tableExists($revision_target_table)) {
+      $this->database->delete($revision_target_table)
+        ->condition('bundle', self::EVENT_BUNDLE)
+        ->execute();
+    }
+
+    $columns = [
+      'bundle' => 'bundle',
+      'deleted' => 'deleted',
+      'entity_id' => 'entity_id',
+      'revision_id' => 'revision_id',
+      'langcode' => 'langcode',
+      'delta' => 'delta',
+      'field_when_value' => 'field_event_date_value',
+      'field_when_end_value' => 'field_event_date_end_value',
+      'field_when_duration' => 'field_event_date_duration',
+      'field_when_rrule' => 'field_event_date_rrule',
+      'field_when_rrule_index' => 'field_event_date_rrule_index',
+      'field_when_timezone' => 'field_event_date_timezone',
+    ];
+    $this->copyFieldRows($source_table, $target_table, $columns);
+    if ($schema->tableExists($revision_source_table) && $schema->tableExists($revision_target_table)) {
+      $this->copyFieldRows($revision_source_table, $revision_target_table, $columns);
+    }
+
+    if ($this->entityTypeManager->hasDefinition('smart_date_rule')) {
+      $this->database->update('smart_date_rule')
+        ->fields(['field_name' => self::EVENT_DATE_FIELD])
+        ->condition('entity_type', 'node')
+        ->condition('bundle', self::EVENT_BUNDLE)
+        ->condition('field_name', self::LEGACY_FIELD_NAME)
+        ->execute();
+    }
+
+    // The copied rows did not go through the entity API, so the node cache has
+    // to forget the events that may have been loaded already.
+    $this->entityTypeManager->getStorage('node')->resetCache();
   }
 
   /**
-   * Logs an event whose series was collapsed to a single date.
+   * Copies all event rows of a legacy field table into the target table.
    *
-   * @param \Drupal\node\NodeInterface $event
-   *   The event node.
-   * @param int $date_count
-   *   The number of dates the event had.
-   * @param \DateTimeImmutable $date
-   *   The date that was kept.
-   *
-   * @return string
-   *   The update message.
+   * @param string $source_table
+   *   The source field data table.
+   * @param string $target_table
+   *   The target field data table.
+   * @param array<string, string> $columns
+   *   The target columns keyed by source column.
    */
-  private function logCollapsedSeries(NodeInterface $event, int $date_count, \DateTimeImmutable $date): string {
-    $message = sprintf(
-      'Event "%s" (%d): %d dates collapsed to %s.',
-      (string) $event->label(),
-      (int) $event->id(),
-      $date_count,
-      $date->format('Y-m-d'),
-    );
-    $this->loggerFactory->get('workspace_events')->notice($message);
+  private function copyFieldRows(string $source_table, string $target_table, array $columns): void {
+    $select = $this->database->select($source_table, 'source');
+    $select->fields('source', array_keys($columns));
+    $select->condition('source.bundle', self::EVENT_BUNDLE);
+    $select->condition('source.deleted', 0);
 
-    return $message;
+    $insert = $this->database->insert($target_table);
+    $insert->fields(array_values($columns));
+    $insert->from($select);
+    $insert->execute();
   }
 
   /**

@@ -8,6 +8,9 @@ use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Cache\Context\CacheContextsManager;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\Query\SelectInterface;
+use Drupal\Core\Database\StatementInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\Query\QueryInterface;
@@ -97,11 +100,25 @@ final class EventsJsonControllerTest extends UnitTestCase {
     $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
     $entity_type_manager->method('getStorage')->with('node')->willReturn($storage);
 
+    $statement = $this->createMock(StatementInterface::class);
+    $statement->method('fetchAll')->willReturn([]);
+    $select = $this->createMock(SelectInterface::class);
+    $select->method('join')->willReturnSelf();
+    $select->method('addField')->willReturnSelf();
+    $select->method('condition')->willReturnSelf();
+    $select->method('orderBy')->willReturnSelf();
+    $select->method('range')->willReturnSelf();
+    $select->method('execute')->willReturn($statement);
+    $connection = $this->createMock(Connection::class);
+    $connection->method('select')->willReturn($select);
+
     return new EventsJsonController(
       new EventOccurrenceRepository(
         $entity_type_manager,
         $this->siteTimeZone(),
         new LessonCourseResolver($entity_type_manager),
+        $connection,
+        $this->createMock(TimeInterface::class),
       ),
       new EventFilterFactory($this->createMock(OrganizerLookupInterface::class)),
     );

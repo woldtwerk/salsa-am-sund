@@ -51,7 +51,10 @@ abstract class EventKernelTestBase extends KernelTestBase {
     'options',
     'datetime',
     'datetime_range',
+    'flag',
     'link',
+    'smart_date',
+    'smart_date_recur',
     'workspace_events',
   ];
 
@@ -86,7 +89,11 @@ abstract class EventKernelTestBase extends KernelTestBase {
     $this->installEntitySchema('node');
     $this->installSchema('node', ['node_access']);
     $this->installEntitySchema('taxonomy_term');
-    $this->installConfig(['system', 'node', 'taxonomy', 'filter']);
+    $this->installEntitySchema('flagging');
+    $this->installSchema('flag', ['flag_counts']);
+    $this->installEntitySchema('smart_date_rule');
+    $this->installEntitySchema('smart_date_override');
+    $this->installConfig(['system', 'node', 'taxonomy', 'filter', 'smart_date']);
     $this->config('system.date')
       ->set('timezone.default', self::TIMEZONE)
       ->save();
@@ -388,18 +395,41 @@ abstract class EventKernelTestBase extends KernelTestBase {
   }
 
   /**
-   * Builds an all-day date range field value.
+   * Builds a Smart Date field value from timestamps.
+   *
+   * @param \DateTimeImmutable $start
+   *   The start.
+   * @param \DateTimeImmutable|null $end
+   *   The end, or NULL for the start.
+   *
+   * @return array<string, mixed>
+   *   The field value.
+   */
+  protected function smartDateRange(\DateTimeImmutable $start, ?\DateTimeImmutable $end = NULL): array {
+    $start_timestamp = $start->getTimestamp();
+    $end_timestamp = ($end ?? $start)->getTimestamp();
+
+    return [
+      'value' => $start_timestamp,
+      'end_value' => $end_timestamp,
+      'duration' => (int) round(($end_timestamp - $start_timestamp) / 60),
+      'timezone' => self::TIMEZONE,
+    ];
+  }
+
+  /**
+   * Builds an all-day Smart Date field value.
    *
    * @param \DateTimeImmutable $day
    *   The first day.
    * @param \DateTimeImmutable|null $lastDay
    *   The last day of a multi-day range, or NULL for a single day.
    *
-   * @return array<string, string>
+   * @return array<string, mixed>
    *   The field value.
    */
-  protected function allDayRange(\DateTimeImmutable $day, ?\DateTimeImmutable $lastDay = NULL): array {
-    return $this->dateRange(
+  protected function allDaySmartDateRange(\DateTimeImmutable $day, ?\DateTimeImmutable $lastDay = NULL): array {
+    return $this->smartDateRange(
       $day->setTime(0, 0),
       ($lastDay ?? $day)->setTime(23, 59),
     );

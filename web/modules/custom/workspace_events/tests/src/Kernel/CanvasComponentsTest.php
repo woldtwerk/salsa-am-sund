@@ -25,6 +25,7 @@ final class CanvasComponentsTest extends CanvasKernelTestBase {
   protected static $modules = [
     ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
     'canvas_test_sdc',
+    'flag',
     'workspace_events',
   ];
 

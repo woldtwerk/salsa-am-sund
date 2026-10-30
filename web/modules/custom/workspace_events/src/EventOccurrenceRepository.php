@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_events;
 
+use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Core\Database\Connection;
+use Drupal\Core\Database\StatementInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
@@ -12,10 +15,11 @@ use Drupal\taxonomy\TermInterface;
 /**
  * Finds event occurrences in the new date fields.
  *
- * Events store a single date range. Courses store their schedule and reference
- * the generated lessons, so a course occurrence is one lesson of a published
- * course. The lesson nodes themselves are access-restricted, but their dates
- * are public: the queries only look at the published course.
+ * Events store their recurring dates as Smart Date timestamps, one delta per
+ * occurrence. Courses store their schedule and reference the generated
+ * lessons, so a course occurrence is one lesson of a published course. The
+ * lesson nodes themselves are access-restricted, but their dates are public:
+ * the queries only look at the published course.
  */
 final class EventOccurrenceRepository {
 
@@ -42,11 +46,17 @@ final class EventOccurrenceRepository {
    *   The timezone of the site.
    * @param \Drupal\workspace_events\LessonCourseResolver $lessonCourseResolver
    *   The resolver of the course of a lesson.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
+   * @param \Drupal\Component\Datetime\TimeInterface $time
+   *   The time service.
    */
   public function __construct(
     protected readonly EntityTypeManagerInterface $entityTypeManager,
     protected readonly SiteTimeZone $siteTimeZone,
     protected readonly LessonCourseResolver $lessonCourseResolver,
+    protected readonly Connection $database,
+    protected readonly TimeInterface $time,
   ) {}
 
   /**
@@ -152,13 +162,7 @@ final class EventOccurrenceRepository {
       if (!$node->isPublished()) {
         return NULL;
       }
-      return $this->buildOccurrence(
-        $node,
-        NULL,
-        'field_event_date',
-        $this->getOrganizer($node),
-        $this->getLocation($node),
-      );
+      return $this->buildNextEventOccurrence($node);
     }
 
     if ($node->bundle() !== 'lesson') {
@@ -287,51 +291,152 @@ final class EventOccurrenceRepository {
    *   The event occurrences.
    */
   private function findEventOccurrences(EventFilter $filter, int $from, int $to, ?int $limit): array {
-    $query = $this->entityTypeManager->getStorage('node')->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', 'event')
-      ->condition('status', NodeInterface::PUBLISHED)
-      ->condition('field_event_date.value', $this->toStorageValue($to), '<=')
-      ->condition('field_event_date.end_value', $this->toStorageValue($from), '>=')
-      ->sort('field_event_date.value')
-      ->sort('nid');
+    $query = $this->database->select('node__field_event_date', 'f');
+    $query->join('node_field_data', 'n', 'n.nid = f.entity_id AND n.default_langcode = 1 AND n.langcode = f.langcode');
+    $query->addField('f', 'entity_id');
+    $query->addField('f', 'delta');
+    $query->addField('f', 'field_event_date_value', 'value');
+    $query->addField('f', 'field_event_date_end_value', 'end_value');
+    $query->condition('f.deleted', 0)
+      ->condition('n.type', 'event')
+      ->condition('n.status', NodeInterface::PUBLISHED)
+      ->condition('f.field_event_date_value', $to, '<=')
+      ->condition('f.field_event_date_end_value', $from, '>=');
     if ($filter->organizerIds !== []) {
-      $query->condition('field_organizer.target_id', $filter->organizerIds, 'IN');
+      $query->join('node__field_organizer', 'o', 'o.entity_id = f.entity_id AND o.langcode = f.langcode AND o.deleted = 0');
+      $query->condition('o.field_organizer_target_id', $filter->organizerIds, 'IN');
     }
     if ($filter->eventIds !== []) {
-      $query->condition('nid', $filter->eventIds, 'IN');
+      $query->condition('f.entity_id', $filter->eventIds, 'IN');
     }
     if ($filter->locationIds !== []) {
-      $query->condition('field_location.target_id', $filter->locationIds, 'IN');
+      $query->join('node__field_location', 'l', 'l.entity_id = f.entity_id AND l.langcode = f.langcode AND l.deleted = 0');
+      $query->condition('l.field_location_target_id', $filter->locationIds, 'IN');
     }
+    $query->orderBy('f.field_event_date_value');
+    $query->orderBy('f.entity_id');
+    $query->orderBy('f.delta');
     if ($limit !== NULL) {
       $query->range(0, max(0, $limit));
     }
 
-    $ids = array_values($query->execute());
-    if ($ids === []) {
+    $statement = $query->execute();
+    \assert($statement instanceof StatementInterface);
+    /** @var array<int, \stdClass> $rows */
+    $rows = $statement->fetchAll();
+    if ($rows === []) {
       return [];
     }
 
-    $occurrences = [];
+    $ids = array_values(array_unique(array_map(
+      static fn (\stdClass $row): int => self::rowInt($row, 'entity_id'),
+      $rows,
+    )));
     $events = $this->entityTypeManager->getStorage('node')->loadMultiple($ids);
-    foreach ($events as $event) {
+
+    $occurrences = [];
+    foreach ($rows as $row) {
+      $event = $events[self::rowInt($row, 'entity_id')] ?? NULL;
       if (!$event instanceof NodeInterface) {
         continue;
       }
-      $occurrence = $this->buildOccurrence(
-        $event,
-        NULL,
-        'field_event_date',
-        $this->getOrganizer($event),
-        $this->getLocation($event),
-      );
-      if ($occurrence !== NULL) {
-        $occurrences[] = $occurrence;
+      $start = self::rowInt($row, 'value');
+      if ($start <= 0) {
+        continue;
       }
+      $occurrences[] = $this->buildEventOccurrence($event, $start, self::rowInt($row, 'end_value'));
     }
 
     return $occurrences;
+  }
+
+  /**
+   * Reads an integer column from a database row.
+   *
+   * @param \stdClass $row
+   *   The database row.
+   * @param string $property
+   *   The column alias.
+   *
+   * @return int
+   *   The integer value, or 0 when the column is missing or not numeric.
+   */
+  private static function rowInt(\stdClass $row, string $property): int {
+    $value = $row->{$property} ?? NULL;
+    return is_numeric($value) ? (int) $value : 0;
+  }
+
+  /**
+   * Builds the next or currently running occurrence of an event.
+   *
+   * A series that has already ended keeps its last date, so the occurrence of
+   * an old event stays available.
+   *
+   * @param \Drupal\node\NodeInterface $event
+   *   The event node.
+   *
+   * @return \Drupal\workspace_events\EventOccurrence|null
+   *   The occurrence, or NULL when the event has no dates.
+   */
+  private function buildNextEventOccurrence(NodeInterface $event): ?EventOccurrence {
+    if (!$event->hasField('field_event_date')) {
+      return NULL;
+    }
+
+    $now = $this->time->getRequestTime();
+    $next = NULL;
+    $last = NULL;
+    foreach ($event->get('field_event_date') as $item) {
+      $value = (int) $item->get('value')->getString();
+      if ($value <= 0) {
+        continue;
+      }
+      $end_value = (int) $item->get('end_value')->getString();
+      $end_value = $end_value > 0 ? $end_value : $value;
+      $candidate = ['value' => $value, 'end_value' => $end_value];
+      if ($end_value >= $now && ($next === NULL || $value < $next['value'])) {
+        $next = $candidate;
+      }
+      if ($last === NULL || $value > $last['value']) {
+        $last = $candidate;
+      }
+    }
+
+    $selected = $next ?? $last;
+    if ($selected === NULL) {
+      return NULL;
+    }
+
+    return $this->buildEventOccurrence($event, $selected['value'], $selected['end_value']);
+  }
+
+  /**
+   * Builds an occurrence from Smart Date timestamps.
+   *
+   * @param \Drupal\node\NodeInterface $event
+   *   The event node.
+   * @param int $start_timestamp
+   *   The start timestamp.
+   * @param int $end_timestamp
+   *   The end timestamp, or 0 when the date has no end.
+   *
+   * @return \Drupal\workspace_events\EventOccurrence
+   *   The occurrence.
+   */
+  private function buildEventOccurrence(NodeInterface $event, int $start_timestamp, int $end_timestamp): EventOccurrence {
+    $start = $this->dateFromTimestamp($start_timestamp);
+    $end = $end_timestamp > 0 ? $this->dateFromTimestamp($end_timestamp) : NULL;
+
+    return new EventOccurrence(
+      $event,
+      NULL,
+      $start,
+      $end,
+      self::isAllDay($start, $end),
+      $this->getOrganizer($event),
+      $this->getLocation($event),
+      FALSE,
+    );
   }
 
   /**
@@ -462,6 +567,20 @@ final class EventOccurrenceRepository {
    */
   private function dateFromStorage(string $value): \DateTimeImmutable {
     return (new \DateTimeImmutable($value, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE)))
+      ->setTimezone($this->siteTimeZone->get());
+  }
+
+  /**
+   * Converts a Smart Date timestamp to the site timezone.
+   *
+   * @param int $timestamp
+   *   The timestamp.
+   *
+   * @return \DateTimeImmutable
+   *   The date in the site timezone.
+   */
+  private function dateFromTimestamp(int $timestamp): \DateTimeImmutable {
+    return (new \DateTimeImmutable('@' . $timestamp))
       ->setTimezone($this->siteTimeZone->get());
   }
 

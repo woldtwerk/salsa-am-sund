@@ -72,9 +72,6 @@ final class LearnedFigureFlaggerTest extends LessonKernelTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $this->installEntitySchema('flagging');
-    $this->installSchema('flag', ['flag_counts']);
-
     Vocabulary::create([
       'vid' => DanceFigureAccessHooks::VOCABULARY,
       'name' => 'Tanzfiguren',

@@ -7,6 +7,7 @@ namespace Drupal\Tests\workspace_events\Unit;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Tests\UnitTestCase;
@@ -118,6 +119,8 @@ final class EventBlockIdsTest extends UnitTestCase {
       $entity_type_manager,
       $this->siteTimeZone(),
       new LessonCourseResolver($entity_type_manager),
+      $this->createMock(Connection::class),
+      $this->createMock(TimeInterface::class),
     );
     $formatter = new EventDescriptionFormatter(
       $this->createMock(RendererInterface::class),
