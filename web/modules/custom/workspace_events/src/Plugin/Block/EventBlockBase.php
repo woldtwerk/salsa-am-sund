@@ -180,10 +180,11 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
    * Value callback of the term checkboxes in the block configuration form.
    *
    * Core's callback combines the submitted values into keys. The Canvas
-   * editor submits unchecked boxes as 0 or FALSE and checked ones as TRUE, so
-   * the keys become 0 and 1, which are no options, and Canvas stores a "value
-   * 0 is not allowed" violation that blocks every later save of the page.
-   * Empty values are dropped and TRUE takes the term ID from its key first.
+   * editor submits unchecked boxes as 0, FALSE or 'false' and checked ones as
+   * TRUE or 'true', so the keys become 0, 1, 'true' or 'false', which are no
+   * options, and Canvas stores a "value … is not allowed" violation that
+   * blocks every later save of the page. Unchecked values are dropped and
+   * checked ones take the term ID from their key first.
    * Canvas may also send the stored list of term IDs back; Canvas then reads
    * each box from the user input by term ID, so the list is written back to
    * the user input keyed by term ID.
@@ -202,8 +203,11 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     if (is_array($input)) {
       $is_list = array_is_list($input);
       $normalized = [];
-      foreach (array_filter($input) as $key => $value) {
-        $id = $is_list || $value !== TRUE ? $value : $key;
+      foreach ($input as $key => $value) {
+        if (empty($value) || $value === 'false') {
+          continue;
+        }
+        $id = !$is_list && ($value === TRUE || $value === 'true') ? $key : $value;
         if (is_int($id) || is_string($id)) {
           $normalized[$id] = $id;
         }
@@ -253,8 +257,9 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
    * Extracts the checked term IDs from a checkboxes form value.
    *
    * Checkbox values are keyed by term ID. A browser submission holds the term
-   * ID when checked and 0 when unchecked; the Canvas editor submits TRUE and
-   * FALSE instead, so a TRUE value takes the term ID from its key.
+   * ID when checked and 0 when unchecked; the Canvas editor submits TRUE or
+   * 'true' and FALSE or 'false' instead, so a checked value takes the term ID
+   * from its key.
    *
    * @param mixed $value
    *   The submitted form value.
@@ -268,7 +273,10 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     }
     $ids = [];
     foreach (array_filter($value) as $key => $id) {
-      if ($id === TRUE) {
+      if ($id === 'false') {
+        continue;
+      }
+      if ($id === TRUE || $id === 'true') {
         $id = $key;
       }
       if (is_scalar($id) && is_numeric($id)) {
