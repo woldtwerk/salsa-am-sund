@@ -3,6 +3,10 @@
  * @file
  * On-brand status messages.
  *
+ * The messages sit above the page content in a narrow, centered column, so
+ * they read as a notice instead of a full-width bar. Each type gets its own
+ * tone and icon.
+ *
  * Available variables:
  * - message_list: Messages grouped by type.
  * - status_headings: Human readable heading per message type.
@@ -10,24 +14,30 @@
  */
 #}
 {% if message_list is not empty %}
-  <div data-drupal-messages class="mb-6 flex flex-col gap-3" role="status" aria-live="polite">
+  {% set tones = {
+    status: {box: 'border-sea/50 bg-sea-deep/40', badge: 'bg-sea/20 text-sea', icon: 'circle-check'},
+    info: {box: 'border-sea/50 bg-sea/10', badge: 'bg-sea/20 text-sea', icon: 'info'},
+    warning: {box: 'border-flame-gold/60 bg-flame-gold/10', badge: 'bg-flame-gold/20 text-flame-gold', icon: 'triangle-alert'},
+    error: {box: 'border-flame-red/70 bg-flame-red/10', badge: 'bg-flame-red/20 text-flame-red', icon: 'circle-alert'},
+  } %}
+  <div data-drupal-messages class="mx-auto flex w-full max-w-2xl flex-col gap-3 px-5 pt-8 md:px-8 md:pt-10" role="status" aria-live="polite">
     {% for type, messages in message_list %}
-      {% set tone = {
-        status: 'border-sea/60 bg-sea-deep/50 text-sand',
-        info: 'border-sea/60 bg-sea/10 text-sand',
-        warning: 'border-flame-gold/70 bg-flame-gold/10 text-sand',
-        error: 'border-flame-red/80 bg-flame-red/15 text-sand',
-      } %}
+      {% set tone = tones[type]|default({box: 'border-line bg-ink', badge: 'bg-sand/10 text-sand', icon: 'info'}) %}
       <div
-        class="rounded-xl border-s-4 px-4 py-3 shadow-lg {{ tone[type]|default('border-line bg-ink text-sand') }}"
+        class="flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-sand shadow-lg {{ tone.box }}"
         {% if type == 'error' or type == 'warning' %}role="alert"{% endif %}
       >
-        <h2 class="visually-hidden">{{ status_headings[type]|default(type|t) }}</h2>
-        <ul class="m-0 list-none space-y-1 p-0">
-          {% for message in messages %}
-            <li class="text-sm leading-relaxed">{{ message }}</li>
-          {% endfor %}
-        </ul>
+        <span class="flex size-8 shrink-0 items-center justify-center rounded-full {{ tone.badge }}" aria-hidden="true">
+          {{ icon('salsa', tone.icon, {size: 18}) }}
+        </span>
+        <div class="min-w-0 pt-1">
+          <h2 class="visually-hidden">{{ status_headings[type]|default(type|t) }}</h2>
+          <ul class="m-0 list-none space-y-1.5 p-0">
+            {% for message in messages %}
+              <li class="text-sm leading-relaxed [&_a]:font-semibold [&_a]:text-flame-gold [&_a]:underline [&_a]:underline-offset-2">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
     {% endfor %}
   </div>
