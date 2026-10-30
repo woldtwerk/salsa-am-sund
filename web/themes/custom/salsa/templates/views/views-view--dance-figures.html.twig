@@ -1,0 +1,58 @@
+{#
+/**
+ * @file
+ * Dance figure overview.
+ *
+ * The page title block prints the overview title, so this template only wraps
+ * the exposed filters, the card grid and the empty state.
+ *
+ * Available variables:
+ * - attributes: Attributes for the view wrapper.
+ * - dom_id: Unique id for the view.
+ * - title_prefix, title, title_suffix: Title output.
+ * - header, footer: Optional view areas.
+ * - exposed: The exposed filter form.
+ * - rows: The rendered card grid.
+ * - empty: The optional empty area.
+ * - pager, more: Pager and more link.
+ * - attachment_before, attachment_after: Attachment views.
+ * - feed_icons: Feed icons.
+ */
+#}
+{%
+  set classes = [
+    dom_id ? 'js-view-dom-id-' ~ dom_id,
+  ]
+%}
+<div{{ attributes.addClass(classes) }}>
+  {{ title_prefix }}
+  {{ title }}
+  {{ title_suffix }}
+
+  {% if header %}
+    <header>{{ header }}</header>
+  {% endif %}
+
+  {{ exposed }}
+  {{ attachment_before }}
+
+  {% if rows %}
+    {{ rows }}
+  {% elseif empty %}
+    {{ empty }}
+  {% else %}
+    <p class="mt-8 rounded-2xl border border-dashed border-line/70 bg-ink-2/30 p-6 text-sm leading-relaxed text-mist">
+      {{ 'No dance figures match your filters.'|t }}
+    </p>
+  {% endif %}
+  {{ pager }}
+
+  {{ attachment_after }}
+  {{ more }}
+
+  {% if footer %}
+    <footer>{{ footer }}</footer>
+  {% endif %}
+
+  {{ feed_icons }}
+</div>

@@ -618,6 +618,11 @@
     inset: 0;
     margin: auto;
     inline-size: fit-content;
+  /* The exposed filter reset is secondary to the submit button. */
+  .views-exposed-form #edit-reset {
+    @apply border border-line bg-transparent text-sand shadow-none hover:bg-flame-gold/10 hover:text-sand;
+  }
+
     block-size: fit-content;
     max-inline-size: min(92vw, 80rem);
     max-block-size: 92svh;

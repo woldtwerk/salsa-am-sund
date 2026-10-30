@@ -1,0 +1,18 @@
+{#
+/**
+ * @file
+ * Card grid of the dance figure overview.
+ *
+ * Available variables:
+ * - rows: The view rows.
+ * - title: The optional view title.
+ */
+#}
+{% if title %}
+  <h2 class="mb-6 font-display text-3xl font-bold italic text-balance text-sand">{{ title }}</h2>
+{% endif %}
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+  {% for row in rows %}
+    {{ row.content }}
+  {% endfor %}
+</div>

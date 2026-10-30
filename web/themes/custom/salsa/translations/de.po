@@ -214,6 +214,9 @@ msgstr "Zurück zu den Kursen"
 msgid "Back to dance figures"
 msgstr "Zurück zu den Tanzfiguren"
 
+msgid "No dance figures match your filters."
+msgstr "Keine Tanzfiguren passen zu deinen Filtern."
+
 msgid "Dates"
 msgstr "Termine"
 
