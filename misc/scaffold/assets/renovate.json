@@ -1,7 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>woldtwerk-websites/renovate-config"],
-  "platformAutomerge": false,
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
