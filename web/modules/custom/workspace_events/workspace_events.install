@@ -20,6 +20,7 @@ use Drupal\workspace_events\AttendanceRecognition;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
+use Drupal\workspace_events\LessonGenerator;
 use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\OrganizerResolver;
 use Drupal\workspace_events\ScheduleMigrator;
@@ -125,6 +126,11 @@ function workspace_events_update_10007(): ?string {
   \assert($migrator instanceof ScheduleMigrator);
   $message = $migrator->migrate();
 
+  // Lessons redirect to their course and must not have a URL alias. The
+  // generator already skips Pathauto, but the old pattern may have created
+  // aliases before this update, so remove them in batches as well.
+  workspace_events_delete_lesson_aliases();
+
   // The module now implements node grants, so every node needs its grant
   // records: the lessons get theirs, all other bundles get the default grant.
   \Drupal::service(NodeAccessRebuild::class)->rebuild();
@@ -174,12 +180,6 @@ function workspace_events_delete_course_date_rules(): void {
   if (!$entity_type_manager->hasDefinition('smart_date_rule')) {
     return;
   }
-}
-
-/**
- * Implements hook_update_N().
- *
- * Removes content moderation from the site.
   $storage = $entity_type_manager->getStorage('smart_date_rule');
   $ids = $storage->getQuery()
     ->accessCheck(FALSE)
@@ -191,6 +191,12 @@ function workspace_events_delete_course_date_rules(): void {
     return;
   }
   $storage->delete($storage->loadMultiple($ids));
+}
+
+/**
+ * Implements hook_update_N().
+ *
+ * Removes content moderation from the site.
  *
  * The editorial workflow only moderated the page content type and none of the
  * pages has an unpublished draft, so no draft revision is lost. The ECA model
@@ -247,6 +253,39 @@ function workspace_events_purge_deleted_fields(): void {
       break;
     }
     $purger->purgeBatch(50);
+  }
+}
+
+/**
+ * Deletes the URL aliases of all lesson nodes in batches.
+ *
+ * Lessons redirect to their course, so a /node/{nid} alias must not exist.
+ * The alias paths are matched in chunks, which avoids one query per lesson.
+ */
+function workspace_events_delete_lesson_aliases(): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+  if (!$entity_type_manager->hasDefinition('path_alias')) {
+    return;
+  }
+
+  $lesson_ids = $entity_type_manager->getStorage('node')->getQuery()
+    ->accessCheck(FALSE)
+    ->condition('type', LessonGenerator::LESSON_BUNDLE)
+    ->execute();
+  if ($lesson_ids === []) {
+    return;
+  }
+
+  $alias_storage = $entity_type_manager->getStorage('path_alias');
+  foreach (array_chunk(array_map(static fn (mixed $id): int => (int) $id, array_values($lesson_ids)), 100) as $chunk) {
+    $paths = array_map(static fn (int $id): string => '/node/' . $id, $chunk);
+    $alias_ids = $alias_storage->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('path', $paths, 'IN')
+      ->execute();
+    if ($alias_ids !== []) {
+      $alias_storage->delete($alias_storage->loadMultiple($alias_ids));
+    }
   }
 }
 
@@ -456,6 +495,7 @@ function workspace_events_editor_permissions(): array {
     'access taxonomy overview',
     'edit any lesson content',
     'delete any lesson content',
+    'make smart dates recur',
     DanceFigureAccessHooks::VIEW_PERMISSION,
     AttendanceRecognition::PERMISSION,
   ];
@@ -495,7 +535,6 @@ function workspace_events_revoke_editor_permissions(): void {
 function workspace_events_revoke_flag_permissions(): void {
   $role = Role::load('member');
   if ($role === NULL) {
-    'make smart dates recur',
     return;
   }
   foreach (DanceFigureFlag::cases() as $flag) {
