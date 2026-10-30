@@ -467,7 +467,7 @@ display:
             widget: select
             multiple: false
             remember: false
-            default_group: All
+            default_group: '1'
             default_group_multiple: {  }
             group_items:
               1:
@@ -641,6 +641,7 @@ display:
           admin_label: author
           plugin_id: standard
           required: true
+      use_ajax: true
       show_admin_links: false
       display_extenders: {  }
     cache_metadata:

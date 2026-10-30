@@ -784,6 +784,7 @@ display:
           group_type: group
           admin_label: 'File usage'
           required: true
+      use_ajax: true
       group_by: true
       show_admin_links: true
       header: {  }
