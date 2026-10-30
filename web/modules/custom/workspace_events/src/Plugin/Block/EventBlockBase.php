@@ -176,12 +176,17 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
   /**
    * Builds the location filter element for the block configuration form.
    *
+   * A multiple select instead of checkboxes: Canvas validates the stored
+   * list of term IDs against the element, and checkboxes validate the keys of
+   * that list (0, 1, ...) instead of the term IDs.
+   *
    * @return array<string, mixed>
-   *   The checkboxes form element.
+   *   The select form element.
    */
   protected function buildLocationsElement(): array {
     return [
-      '#type' => 'checkboxes',
+      '#type' => 'select',
+      '#multiple' => TRUE,
       '#title' => $this->t('Locations'),
       '#description' => $this->t('Leave empty to show all locations.'),
       '#options' => $this->getLocationOptions(),
@@ -200,16 +205,15 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
   }
 
   /**
-   * Extracts the checked term IDs from a checkboxes form value.
+   * Extracts the selected term IDs from a multiple select form value.
    *
-   * Checkbox values are keyed by term ID and hold the term ID when checked
-   * and 0 when unchecked.
+   * The values are the selected term IDs; empty values are dropped.
    *
    * @param mixed $value
    *   The submitted form value.
    *
    * @return int[]
-   *   The checked term IDs, as a list.
+   *   The selected term IDs, as a list.
    */
   protected function getSubmittedIds(mixed $value): array {
     if (!is_array($value)) {
