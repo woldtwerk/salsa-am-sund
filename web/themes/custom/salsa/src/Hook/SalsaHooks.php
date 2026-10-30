@@ -38,6 +38,16 @@ final class SalsaHooks {
   /**
    * OpenID Connect client IDs mapped to their CoreUI brand icon ID.
    */
+  /**
+   * Node bundles whose full template renders its own full-width hero.
+   *
+   * Their pages are not wrapped in the route content container, so the hero
+   * spans the whole viewport like the hero of a Canvas page.
+   *
+   * @var string[]
+   */
+  private const FULL_BLEED_BUNDLES = ['course', 'event'];
+
   private const PROVIDER_ICONS = [
     'google' => 'google',
     'github' => 'github',
@@ -312,7 +322,7 @@ final class SalsaHooks {
     $this->addConfigCacheTag($variables);
     $this->injectComponentProp($content, 'salsa:site-header', 'front_url', $front_url);
 
-    if ($this->isCanvasRenderedRoute()) {
+    if ($this->isCanvasRenderedRoute() || $this->isFullBleedNodeRoute()) {
       return;
     }
 
@@ -814,6 +824,25 @@ final class SalsaHooks {
     $contexts[] = 'route';
     $cache['contexts'] = $contexts;
     $variables['#cache'] = $cache;
+  }
+
+  /**
+   * Checks whether the route renders a node with its own full-width hero.
+   *
+   * Covers the canonical, revision and preview routes, which all render the
+   * node's full template.
+   *
+   * @return bool
+   *   TRUE for course and event nodes.
+   */
+  private function isFullBleedNodeRoute(): bool {
+    foreach ($this->routeMatch->getParameters() as $parameter) {
+      if ($parameter instanceof NodeInterface && in_array($parameter->bundle(), self::FULL_BLEED_BUNDLES, TRUE)) {
+        return TRUE;
+      }
+    }
+
+    return FALSE;
   }
 
   /**
