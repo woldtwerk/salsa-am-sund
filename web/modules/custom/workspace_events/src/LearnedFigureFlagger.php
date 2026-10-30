@@ -32,12 +32,12 @@ final class LearnedFigureFlagger {
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
-   * @param \Drupal\flag\FlagServiceInterface $flagService
-   *   The flag service.
+   * @param \Drupal\flag\FlagServiceInterface|null $flagService
+   *   The flag service, or NULL when the Flag module is not installed yet.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
-    private readonly FlagServiceInterface $flagService,
+    private readonly ?FlagServiceInterface $flagService,
   ) {}
 
   /**
@@ -47,6 +47,9 @@ final class LearnedFigureFlagger {
    *   The lesson that was saved.
    */
   public function flag(NodeInterface $lesson): void {
+    if ($this->flagService === NULL) {
+      return;
+    }
     if ($lesson->bundle() !== LessonGenerator::LESSON_BUNDLE) {
       return;
     }
