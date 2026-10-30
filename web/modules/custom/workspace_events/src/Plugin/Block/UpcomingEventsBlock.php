@@ -49,10 +49,9 @@ final class UpcomingEventsBlock extends EventBlockBase {
    *   The block configuration form.
    */
   public function blockForm($form, FormStateInterface $form_state): array {
-    // A multiple select, see EventBlockBase::buildLocationsElement().
     $form['organizers'] = [
-      '#type' => 'select',
-      '#multiple' => TRUE,
+      '#type' => 'checkboxes',
+      '#value_callback' => [static::class, 'checkboxesValue'],
       '#title' => $this->t('Organizers'),
       '#description' => $this->t('Leave empty to show all organizers.'),
       '#options' => $this->getOrganizerOptions(),
