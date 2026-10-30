@@ -15,7 +15,6 @@ use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\DanceFigureFlag;
-use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\Hook\LessonAccessHooks;
 use Drupal\workspace_events\Hook\MemberProfileHooks;
@@ -70,9 +69,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
       'vid' => DanceFigureAccessHooks::VOCABULARY,
       'name' => 'Tanzfiguren',
     ])->save();
-    $installer = $this->container->get(DanceFigureInstaller::class);
-    \assert($installer instanceof DanceFigureInstaller);
-    $installer->install(array_map(
+    $this->installConfigRecords(array_map(
       static fn (DanceFigureFlag $flag): string => $flag->configName(),
       DanceFigureFlag::cases(),
     ));

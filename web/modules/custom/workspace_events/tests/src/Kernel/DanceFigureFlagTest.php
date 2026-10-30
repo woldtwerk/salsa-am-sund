@@ -15,7 +15,6 @@ use Drupal\user\Entity\Role;
 use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\DanceFigureFlag;
-use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\EventSubscriber\HtmxFlagResponseSubscriber;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\Plugin\ActionLink\HtmxLink;
@@ -67,9 +66,7 @@ final class DanceFigureFlagTest extends EventKernelTestBase {
       'vid' => DanceFigureAccessHooks::VOCABULARY,
       'name' => 'Tanzfiguren',
     ])->save();
-    $installer = $this->container->get(DanceFigureInstaller::class);
-    \assert($installer instanceof DanceFigureInstaller);
-    $installer->install([self::FLAG->configName()]);
+    $this->installConfigRecords([self::FLAG->configName()]);
 
     $service = $this->container->get('flag');
     \assert($service instanceof FlagServiceInterface);

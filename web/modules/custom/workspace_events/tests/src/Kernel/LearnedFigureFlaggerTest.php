@@ -12,7 +12,6 @@ use Drupal\taxonomy\TermInterface;
 use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\DanceFigureFlag;
-use Drupal\workspace_events\DanceFigureInstaller;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\Hook\LessonLearnedFiguresHooks;
 use Drupal\workspace_events\LearnedFigureFlagger;
@@ -76,9 +75,7 @@ final class LearnedFigureFlaggerTest extends LessonKernelTestBase {
       'vid' => DanceFigureAccessHooks::VOCABULARY,
       'name' => 'Tanzfiguren',
     ])->save();
-    $installer = $this->container->get(DanceFigureInstaller::class);
-    \assert($installer instanceof DanceFigureInstaller);
-    $installer->install([DanceFigureFlag::Learned->configName()]);
+    $this->installConfigRecords([DanceFigureFlag::Learned->configName()]);
 
     $flag_service = $this->container->get('flag');
     \assert($flag_service instanceof FlagServiceInterface);
