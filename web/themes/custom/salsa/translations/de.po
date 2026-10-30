@@ -294,3 +294,6 @@ msgstr "Letzte Seite"
 
 msgid "Last »"
 msgstr "Letzte »"
+
+msgid "User menu"
+msgstr "Benutzermenü"

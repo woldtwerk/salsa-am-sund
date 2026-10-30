@@ -14,9 +14,68 @@ dependencies:
     - media_library
   theme:
     - salsa
-active_version: 5e6464c9742ee957
+active_version: 8e0f69f5d5f304eb
 versioned_properties:
   active:
+    settings:
+      prop_field_definitions:
+        name:
+          required: true
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'Kerstin Stettner'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+        initials:
+          required: false
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: KS
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+        picture:
+          required: false
+          field_type: entity_reference
+          field_storage_settings:
+            target_type: media
+          field_instance_settings:
+            handler: 'default:media'
+            handler_settings:
+              target_bundles:
+                image: image
+                svg_image: svg_image
+          field_widget: media_library_widget
+          default_value: {  }
+          expression: 'ℹ︎entity_reference␟entity␜[␜entity:media:image␝field_media_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}][␜entity:media:svg_image␝field_media_svg_image␞␟{src↠src_with_alternate_widths,alt↠alt,width↠width,height↠height}]'
+          derived_schema_metadata: {  }
+        member_since:
+          required: false
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'Mitglied seit 12.03.2021 (vor 5 Jahren)'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+    fallback_metadata:
+      slot_definitions:
+        content:
+          title: Inhalt
+          description: 'Weitere Profilfelder unter der Kopfzeile.'
+  5e6464c9742ee957:
     settings:
       prop_field_definitions:
         name:

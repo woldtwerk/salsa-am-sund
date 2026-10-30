@@ -18,3 +18,6 @@ slots:
   actions:
     title: Aktionen
     description: 'Optionaler Button rechts im Seitenkopf.'
+  user_menu:
+    title: Benutzermenü
+    description: 'Avatar-Schaltfläche mit Kontomenü rechts im Seitenkopf.'

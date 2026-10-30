@@ -4,9 +4,35 @@ status: true
 dependencies:
   theme:
     - salsa
-active_version: 92a8760b9a931edf
+active_version: 2c30472cabba761f
 versioned_properties:
   active:
+    settings:
+      prop_field_definitions:
+        tagline:
+          required: false
+          field_type: string
+          field_storage_settings: {  }
+          field_instance_settings: {  }
+          field_widget: string_textfield
+          default_value:
+            -
+              value: 'Salsa in Stralsund'
+          expression: ℹ︎string␟value
+          derived_schema_metadata:
+            string_shape: {  }
+    fallback_metadata:
+      slot_definitions:
+        navigation:
+          title: Navigation
+          description: 'Hauptmenü, üblicherweise der Menüblock „Main navigation“.'
+        actions:
+          title: Aktionen
+          description: 'Optionaler Button rechts im Seitenkopf.'
+        user_menu:
+          title: Benutzermenü
+          description: 'Avatar-Schaltfläche mit Kontomenü rechts im Seitenkopf.'
+  92a8760b9a931edf:
     settings:
       prop_field_definitions:
         tagline:

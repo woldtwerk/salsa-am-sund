@@ -1,0 +1,116 @@
+/* Account menu dropdown: the trigger anchors the native popover below itself.
+ * Without anchor positioning the panel falls back to the right edge of the
+ * header, which is where the avatar sits on wide screens. */
+.salsa-user-menu__trigger {
+  anchor-name: --salsa-user-menu;
+}
+
+.salsa-user-menu__panel[popover] {
+  position: fixed;
+  inset-block-start: calc(
+    var(--drupal-displace-offset-top, 0px) + var(--salsa-header-h)
+  );
+  inset-inline-end: 1.25rem;
+  inset-inline-start: auto;
+  inset-block-end: auto;
+  margin: 0.5rem 0 0;
+  max-inline-size: min(20rem, calc(100vw - 2.5rem));
+}
+
+@media (width >= 48rem) {
+  .salsa-user-menu__panel[popover] {
+    inset-inline-end: 2rem;
+  }
+}
+
+@supports (position-anchor: --salsa-user-menu) {
+  .salsa-user-menu__panel[popover] {
+    position-anchor: --salsa-user-menu;
+    inset: auto;
+    /* Right edge under the avatar's right edge, so the panel opens leftwards
+     * into the page instead of overflowing the viewport. */
+    top: anchor(bottom);
+    right: anchor(right);
+    margin-block-start: 0.5rem;
+    margin-inline: 0;
+  }
+}
+
+/* The links come from core's menu.html.twig, so the dropdown styles them by
+ * their element selectors instead of wrapping every link in component markup. */
+.salsa-user-menu nav ul,
+.salsa-user-menu__login ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.salsa-user-menu nav li,
+.salsa-user-menu__login li {
+  margin: 0;
+}
+
+.salsa-user-menu nav li > a {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-lg);
+  color: var(--color-sand);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.salsa-user-menu nav li > a:hover {
+  background-color: color-mix(in srgb, var(--color-sand) 10%, transparent);
+  color: var(--color-flame-gold);
+}
+
+.salsa-user-menu nav li > a:focus-visible {
+  outline: 2px solid var(--color-flame-gold);
+  outline-offset: 2px;
+}
+
+/* Keep logout out of the navigation group even when an editor reorders the
+ * account menu. */
+.salsa-user-menu nav .salsa-user-menu__logout {
+  margin-block-start: 0.25rem;
+  border-block-start: 1px solid
+    color-mix(in srgb, var(--color-line) 70%, transparent);
+  padding-block-start: 0.25rem;
+}
+
+/* Anonymous: the menu's single "Sign in" link becomes a compact header
+ * button, matching the burger's hit area. */
+.salsa-user-menu__login ul {
+  flex-direction: row;
+}
+
+.salsa-user-menu__login li > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 2.75rem;
+  padding-inline: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-sand);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.salsa-user-menu__login li > a:hover {
+  border-color: var(--color-flame-gold);
+  color: var(--color-flame-gold);
+}
+
+.salsa-user-menu__login li > a:focus-visible {
+  outline: 2px solid var(--color-flame-gold);
+  outline-offset: 2px;
+}

@@ -29,7 +29,7 @@
     {% if level == 1 %}
       <ul{{ attributes.addClass('salsa-menu', 'm-0', 'flex', 'list-none', 'flex-col', 'gap-1', 'p-0', 'lg:flex-row', 'lg:items-center') }}>
     {% elseif level == 2 %}
-      <ul id="{{ submenu_id }}" popover="auto" style="position-anchor: --{{ submenu_id }}" class="salsa-menu__submenu m-0 mt-1 flex list-none flex-col gap-1 p-0 ps-4 lg:mt-2 lg:min-w-56 lg:rounded-xl lg:border lg:border-line lg:bg-ink-2 lg:p-2 lg:ps-2 lg:shadow-2xl">
+      <ul id="{{ submenu_id }}" popover="auto" style="position-anchor: --{{ submenu_id }}" class="salsa-menu__submenu m-0 mt-1 flex list-none flex-col gap-1 p-0 ps-4 lg:mt-2 lg:min-w-56 lg:salsa-dropdown lg:ps-2">
     {% else %}
       <ul class="m-0 mt-1 flex list-none flex-col gap-1 p-0 ps-4">
     {% endif %}

@@ -4,6 +4,7 @@ status: true
 dependencies:
   config:
     - canvas.component.block.page_title_block
+    - canvas.component.block.system_menu_block.account
     - canvas.component.block.system_menu_block.footer
     - canvas.component.block.system_menu_block.main
     - canvas.component.block.system_messages_block
@@ -25,7 +26,7 @@ component_tree:
   66e1eab9-2a4f-4e2b-b23d-5470e09da116:
     uuid: 66e1eab9-2a4f-4e2b-b23d-5470e09da116
     component_id: sdc.salsa.site-header
-    component_version: 92a8760b9a931edf
+    component_version: 2c30472cabba761f
     inputs:
       tagline: 'Salsa · Bachata · Merengue in Stralsund'
   12881c61-2656-40bf-b6c5-a6baf2411a04:
@@ -40,6 +41,18 @@ component_tree:
       level: 1
       depth: 2
       expand_all_items: true
+  c430ca70-09e2-4bcb-9f85-ed7ac93f53ef:
+    parent_uuid: 66e1eab9-2a4f-4e2b-b23d-5470e09da116
+    slot: user_menu
+    uuid: c430ca70-09e2-4bcb-9f85-ed7ac93f53ef
+    component_id: block.system_menu_block.account
+    component_version: 8fa7748ce27c1be1
+    inputs:
+      label: Benutzerkonto
+      label_display: '0'
+      level: 1
+      depth: 1
+      expand_all_items: false
   98a5ce8f-5e23-49dd-beb9-4fd9194b29be:
     parent_uuid: 66e1eab9-2a4f-4e2b-b23d-5470e09da116
     slot: actions

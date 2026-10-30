@@ -1,6 +1,10 @@
 services:
   Drupal\workspace_site\PageCommentsResolver:
     autowire: true
+  Drupal\workspace_site\UserAvatar:
+    autowire: true
+  Drupal\workspace_site\UserMenuBuilder:
+    autowire: true
   Drupal\workspace_site\EventSubscriber\PageVariantThemeGuardSubscriber:
     autowire: true
     tags:
