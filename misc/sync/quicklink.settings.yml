@@ -4,8 +4,8 @@ ignore_admin_paths: true
 ignore_ajax_links: true
 ignore_hashes: true
 ignore_file_ext: true
-url_patterns_to_ignore: "/user/logout\r\n/user/\r\n/edit"
-ignore_selectors: 'a[data-noprefetch]'
+url_patterns_to_ignore: "/user/logout\r\n/user/\r\n/edit\r\n/flag/"
+ignore_selectors: "a[data-noprefetch]\r\na[data-hx-post]"
 selector: ''
 allowed_domains: ''
 prefetch_only_paths: ''
