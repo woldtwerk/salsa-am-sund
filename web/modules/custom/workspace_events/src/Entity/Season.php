@@ -15,6 +15,7 @@ use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\node\NodeInterface;
+use Drupal\smart_date_recur\Entity\SmartDateRule;
 use Drupal\user\EntityOwnerTrait;
 use Drupal\views\EntityViewsData;
 use Drupal\workspace_events\Form\SeasonForm;
@@ -107,30 +108,6 @@ class Season extends ContentEntityBase implements SeasonInterface {
       ])
       ->setTranslatable(FALSE);
 
-    $fields['last'] = BaseFieldDefinition::create('datetime')
-      ->setLabel(new TranslatableMarkup('Last lesson'))
-      ->setRequired(TRUE)
-      ->setSetting('datetime_type', 'date')
-      ->setDisplayOptions('form', [
-        'type' => 'datetime_default',
-        'weight' => 1,
-      ])
-      ->setTranslatable(FALSE);
-
-    $fields['interval'] = BaseFieldDefinition::create('list_integer')
-      ->setLabel(new TranslatableMarkup('Interval'))
-      ->setRequired(TRUE)
-      ->setDefaultValue(1)
-      ->setSetting('allowed_values', [
-        1 => new TranslatableMarkup('Weekly'),
-        2 => new TranslatableMarkup('Every 2 weeks'),
-      ])
-      ->setDisplayOptions('form', [
-        'type' => 'options_select',
-        'weight' => 2,
-      ])
-      ->setTranslatable(FALSE);
-
     $fields['location'] = BaseFieldDefinition::create('entity_reference')
       ->setLabel(new TranslatableMarkup('Location'))
       ->setRequired(TRUE)
@@ -177,6 +154,84 @@ class Season extends ContentEntityBase implements SeasonInterface {
   /**
    * {@inheritdoc}
    */
+  public function getFirstLessonStart(): ?int {
+    if (!$this->hasField('field_schedule')) {
+      return NULL;
+    }
+
+    $first = NULL;
+    foreach ($this->get('field_schedule') as $item) {
+      $value = (int) $item->get('value')->getString();
+      if ($value <= 0) {
+        continue;
+      }
+      $first = $first === NULL ? $value : min($first, $value);
+    }
+
+    return $first;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getLastLessonEnd(): ?int {
+    if (!$this->hasField('field_schedule')) {
+      return NULL;
+    }
+
+    $last = NULL;
+    foreach ($this->get('field_schedule') as $item) {
+      $value = (int) $item->get('value')->getString();
+      if ($value <= 0) {
+        continue;
+      }
+      $end = (int) $item->get('end_value')->getString();
+      if ($end <= 0) {
+        $end = $value;
+      }
+      $last = $last === NULL ? $end : max($last, $end);
+    }
+
+    return $last;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getInterval(): int {
+    if (!$this->hasField('field_schedule')) {
+      return 1;
+    }
+
+    $rule_id = 0;
+    foreach ($this->get('field_schedule') as $item) {
+      $rrule = (int) $item->get('rrule')->getString();
+      if ($rrule > 0) {
+        $rule_id = $rrule;
+        break;
+      }
+    }
+    if ($rule_id <= 0 || !\Drupal::entityTypeManager()->hasDefinition('smart_date_rule')) {
+      return 1;
+    }
+
+    $rule = \Drupal::entityTypeManager()->getStorage('smart_date_rule')->load($rule_id);
+    if (!$rule instanceof SmartDateRule) {
+      return 1;
+    }
+
+    $parameters = $rule->getParametersArray();
+    if (!is_array($parameters)) {
+      return 1;
+    }
+    $interval = $parameters['interval'] ?? NULL;
+
+    return is_numeric($interval) ? max(1, (int) $interval) : 1;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function hasScheduleChanged(): bool {
     $original = $this->getOriginal();
     if (!$original instanceof self) {
@@ -202,55 +257,45 @@ class Season extends ContentEntityBase implements SeasonInterface {
    *   The title, or NULL when the schedule is incomplete.
    */
   private function buildTitle(): ?string {
-    if (!$this->hasField('field_schedule')) {
-      return NULL;
-    }
-
-    $schedule = $this->get('field_schedule')->first();
-    $last = $this->get('last')->first();
-    if ($schedule === NULL || $last === NULL) {
-      return NULL;
-    }
-
-    $start_value = $schedule->get('value')->getString();
-    $last_value = $last->get('value')->getString();
-    if ($start_value === '' || $last_value === '') {
+    $first = $this->getFirstLessonStart();
+    $last = $this->getLastLessonEnd();
+    if ($first === NULL || $last === NULL) {
       return NULL;
     }
 
     $site_timezone = \Drupal::service(SiteTimeZone::class);
     \assert($site_timezone instanceof SiteTimeZone);
     $timezone = $site_timezone->get();
-    $start = $site_timezone->fromStorageValue($start_value);
-    $last_day = \DateTimeImmutable::createFromFormat('!Y-m-d', $last_value, $timezone);
-    if ($last_day === FALSE) {
-      return NULL;
-    }
-
     $formatter = \Drupal::service('date.formatter');
     \assert($formatter instanceof DateFormatterInterface);
+
     return sprintf(
       '%s – %s',
-      $formatter->format($start->getTimestamp(), 'custom', 'M Y', $timezone->getName()),
-      $formatter->format($last_day->getTimestamp(), 'custom', 'M Y', $timezone->getName()),
+      $formatter->format($first, 'custom', 'M Y', $timezone->getName()),
+      $formatter->format($last, 'custom', 'M Y', $timezone->getName()),
     );
   }
 
   /**
-   * Returns the schedule values that decide whether lessons are regenerated.
+   * Returns the schedule values that decide whether lessons are synchronized.
    *
-   * @return array<string, string>
-   *   The schedule values, keyed by field and property.
+   * @return array<int, array{value: string, end_value: string}>
+   *   The start and end value of every date.
    */
   private function scheduleValues(): array {
-    $schedule = $this->hasField('field_schedule') ? $this->get('field_schedule')->first() : NULL;
+    if (!$this->hasField('field_schedule')) {
+      return [];
+    }
 
-    return [
-      'field_schedule.value' => $schedule?->get('value')->getString() ?? '',
-      'field_schedule.end_value' => $schedule?->get('end_value')->getString() ?? '',
-      'last' => $this->get('last')->getString(),
-      'interval' => $this->get('interval')->getString(),
-    ];
+    $values = [];
+    foreach ($this->get('field_schedule') as $item) {
+      $values[] = [
+        'value' => $item->get('value')->getString(),
+        'end_value' => $item->get('end_value')->getString(),
+      ];
+    }
+
+    return $values;
   }
 
 }

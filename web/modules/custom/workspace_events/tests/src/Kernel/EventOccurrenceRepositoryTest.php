@@ -484,21 +484,17 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
   public function testLocationFilterUsesTheSeasonOfTheLesson(): void {
     $course = $this->createCourse(['title' => 'Zwei Säle']);
     $season_a = $this->createSeason($course, [
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('2026-10-05', '18:00'),
-        $this->date('2026-10-05', '19:00'),
+        $this->date('2026-10-26', '19:00'),
       ),
-      'last' => ['value' => $this->date('2026-10-26')->format('Y-m-d')],
-      'interval' => 1,
       'location' => $this->locationA,
     ]);
     $season_b = $this->createSeason($course, [
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('2026-10-06', '18:00'),
-        $this->date('2026-10-06', '19:00'),
+        $this->date('2026-10-27', '19:00'),
       ),
-      'last' => ['value' => $this->date('2026-10-27')->format('Y-m-d')],
-      'interval' => 1,
       'location' => $this->locationB,
     ]);
 

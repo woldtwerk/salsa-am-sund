@@ -94,11 +94,11 @@ msgstr "Filtert Unterrichtsstunden nach ihrem Kurs."
 msgid "Lessons (@count)"
 msgstr "Stunden (@count)"
 
-msgid "Lessons are generated from the start, end and rhythm when saving the season."
-msgstr "Die Stunden werden beim Speichern der Saison aus Beginn, Ende und Rhythmus erzeugt."
+msgid "Lessons are generated from the dates when saving the season."
+msgstr "Die Stunden werden beim Speichern der Saison aus den Terminen erzeugt."
 
-msgid "Changing the dates regenerates the lessons. Once a lesson has participants, figures or a cancellation, the dates are locked."
-msgstr "Termine ändern: Die Stunden werden neu erzeugt. Sobald eine Stunde Teilnehmer, Figuren oder eine Absage hat, sind die Termine gesperrt."
+msgid "Changing the dates updates the lessons. Lessons with participants, figures or a cancellation keep their date."
+msgstr "Termine ändern: Die Stunden werden aktualisiert. Stunden mit Teilnehmern, Figuren oder einer Absage behalten ihr Datum."
 
 msgid "Date"
 msgstr "Datum"
@@ -260,23 +260,13 @@ msgstr "Die Saison %label wurde gespeichert."
 msgid "First lesson"
 msgstr "Erste Stunde"
 
-msgid "Date, start and end time of the first lesson."
-msgstr "Datum, Beginn und Ende der ersten Stunde."
-
-msgid "Last lesson"
-msgstr "Letzte Stunde"
-
-msgid "Interval"
-msgstr "Rhythmus"
-
 msgid "Location"
 msgstr "Ort"
 
 msgid "Weekly"
-msgstr "Wöchentlich"
-
-msgid "Every 2 weeks"
-msgstr "Alle 2 Wochen"
+msgid_plural "Every @count weeks"
+msgstr[0] "Wöchentlich"
+msgstr[1] "Alle @count Wochen"
 
 msgid "Add season"
 msgstr "Saison hinzufügen"
@@ -284,11 +274,11 @@ msgstr "Saison hinzufügen"
 msgid "Save the course first, then add its seasons."
 msgstr "Speichere zuerst den Kurs, dann kannst du Saisons hinzufügen."
 
-msgid "The dates can't be changed because lessons of this season already have participants, figures or a cancellation."
-msgstr "Die Termine können nicht geändert werden, weil Stunden dieser Saison bereits Teilnehmer, Figuren oder eine Absage haben."
+msgid "The dates of lessons with participants, figures or a cancellation cannot be removed: @dates."
+msgstr "Die Termine von Stunden mit Teilnehmern, Figuren oder einer Absage dürfen nicht entfernt werden: @dates."
 
-msgid "The last lesson must not be before the first lesson."
-msgstr "Die letzte Stunde darf nicht vor der ersten Stunde liegen."
+msgid "Lessons repeat weekly and need an end date or a number of lessons."
+msgstr "Der Unterricht wiederholt sich wöchentlich und braucht ein Enddatum oder eine Anzahl an Stunden."
 
 msgid "No seasons yet."
 msgstr "Noch keine Saisons."

@@ -10,24 +10,24 @@ use Symfony\Component\Validator\Attribute\HasNamedArguments;
 use Symfony\Component\Validator\Constraint as SymfonyConstraint;
 
 /**
- * Keeps the schedule of a season that already has recorded lesson data.
+ * Validates the schedule of a course season.
  */
 #[Constraint(
   id: 'SeasonScheduleLocked',
-  label: new TranslatableMarkup('Season schedule locked', [], ['context' => 'Validation']),
+  label: new TranslatableMarkup('Season schedule', [], ['context' => 'Validation']),
   type: ['entity']
 )]
 class SeasonScheduleLocked extends SymfonyConstraint {
 
   /**
-   * The message when recorded lessons block a schedule change.
+   * The message when recorded lessons block the removal of their dates.
    */
-  public string $message = "The dates can't be changed because lessons of this season already have participants, figures or a cancellation.";
+  public string $message = 'The dates of lessons with participants, figures or a cancellation cannot be removed: @dates.';
 
   /**
-   * The message when the last lesson is before the first lesson.
+   * The message when a recurrence is not weekly or has no end.
    */
-  public string $lastMessage = 'The last lesson must not be before the first lesson.';
+  public string $recurrenceMessage = 'Lessons repeat weekly and need an end date or a number of lessons.';
 
   /**
    * {@inheritdoc}
@@ -36,15 +36,15 @@ class SeasonScheduleLocked extends SymfonyConstraint {
   public function __construct(
     mixed $options = NULL,
     ?string $message = NULL,
-    ?string $lastMessage = NULL,
+    ?string $recurrenceMessage = NULL,
     ?array $groups = NULL,
     mixed $payload = NULL,
   ) {
     if ($message !== NULL) {
       $this->message = $message;
     }
-    if ($lastMessage !== NULL) {
-      $this->lastMessage = $lastMessage;
+    if ($recurrenceMessage !== NULL) {
+      $this->recurrenceMessage = $recurrenceMessage;
     }
     parent::__construct($options, $groups, $payload);
   }

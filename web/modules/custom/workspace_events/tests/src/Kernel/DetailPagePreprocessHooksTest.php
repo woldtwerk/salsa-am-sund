@@ -7,6 +7,8 @@ namespace Drupal\Tests\workspace_events\Kernel;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Routing\RouteObjectInterface;
 use Drupal\node\NodeInterface;
+use Drupal\smart_date_recur\Entity\SmartDateRule;
+use Drupal\workspace_events\Entity\SeasonInterface;
 use Drupal\workspace_events\Hook\DetailPagePreprocessHooks;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -66,6 +68,9 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     $lessons[0]->set('field_cancelled', TRUE);
     $lessons[0]->save();
 
+    $season = $this->loadSeason($course);
+    $this->addRule($season, 'INTERVAL=2', 'COUNT=3');
+
     $this->setRoute('entity.node.canonical', $course);
     $variables = [
       'node' => $course,
@@ -82,7 +87,6 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
       $start->getTimezone()->getName(),
     );
 
-    $season = $this->loadSeason($course);
     self::assertSame('Level 1–3', $variables['course_level']);
     self::assertSame('Every 2 weeks · ' . $weekday . ' · 19:30 to 20:30', $variables['course_schedule']);
     $dates = $variables['course_next_dates'];
@@ -152,36 +156,30 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
   public function testCourseSeasons(): void {
     $course = $this->createCourse(['title' => 'Saisons']);
     $this->createSeason($course, [
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('-20 weeks', '18:00'),
-        $this->date('-20 weeks', '19:00'),
+        $this->date('-16 weeks', '19:00'),
       ),
-      'last' => ['value' => $this->date('-16 weeks')->format('Y-m-d')],
-      'interval' => 1,
     ]);
     $current = $this->createSeason($course, [
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('-2 weeks', '18:00'),
-        $this->date('-2 weeks', '19:00'),
+        $this->date('+2 weeks', '19:00'),
+        2,
       ),
-      'last' => ['value' => $this->date('+2 weeks')->format('Y-m-d')],
-      'interval' => 2,
     ]);
+    $this->addRule($current, 'INTERVAL=2', 'COUNT=3');
     $next = $this->createSeason($course, [
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('+3 weeks', '20:00'),
-        $this->date('+3 weeks', '21:00'),
+        $this->date('+7 weeks', '21:00'),
       ),
-      'last' => ['value' => $this->date('+7 weeks')->format('Y-m-d')],
-      'interval' => 1,
     ]);
     $this->createSeason($course, [
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('+10 weeks', '18:00'),
-        $this->date('+10 weeks', '19:00'),
+        $this->date('+14 weeks', '19:00'),
       ),
-      'last' => ['value' => $this->date('+14 weeks')->format('Y-m-d')],
-      'interval' => 1,
     ]);
     $current->set('field_prices', [
       ['category' => 'normal', 'amount' => '12.00'],
@@ -375,6 +373,42 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
       \assert(is_array($attached));
       self::assertArrayNotHasKey('html_head', $attached);
     }
+  }
+
+  /**
+   * Adds a weekly recurrence rule to the dates of a season.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   * @param string $parameters
+   *   The recurrence parameters, for example INTERVAL=2.
+   * @param string $limit
+   *   The recurrence limit, for example COUNT=3.
+   */
+  private function addRule(SeasonInterface $season, string $parameters, string $limit): void {
+    $items = $season->get('field_schedule');
+    $first = $items->first();
+    $last = $items->last();
+    \assert($first !== NULL && $last !== NULL);
+
+    $rule = SmartDateRule::create([
+      'freq' => 'WEEKLY',
+      'limit' => $limit,
+      'unlimited' => FALSE,
+      'entity_type' => 'course_season',
+      'bundle' => 'course_season',
+      'field_name' => 'field_schedule',
+      'start' => (int) $first->get('value')->getString(),
+      'end' => (int) $first->get('end_value')->getString(),
+      'parameters' => $parameters,
+    ]);
+    $rule->save();
+
+    foreach ($items as $index => $item) {
+      $item->set('rrule', (int) $rule->id());
+      $item->set('rrule_index', $index);
+    }
+    $season->save();
   }
 
   /**

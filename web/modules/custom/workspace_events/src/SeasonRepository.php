@@ -47,10 +47,10 @@ final class SeasonRepository {
   /**
    * Returns the current and the next season of a course.
    *
-   * A season is current or upcoming while its last lesson has not passed. The
-   * query returns at most two seasons in schedule order, so a course with
-   * several future seasons only shows the two nearest ones. The result is
-   * memoized for the request.
+   * A season is current or upcoming while its last lesson has not ended. The
+   * query returns every such season, sorted by first lesson; only the two
+   * nearest are kept, so a course with several future seasons only shows the
+   * two nearest ones. The result is memoized for the request.
    *
    * @param \Drupal\node\NodeInterface $course
    *   The course.
@@ -68,14 +68,12 @@ final class SeasonRepository {
       return $this->currentAndNextCache[$course_id];
     }
 
-    $today = $this->siteTimeZone->now()->format('Y-m-d');
+    $now = $this->siteTimeZone->now()->getTimestamp();
     $storage = $this->entityTypeManager->getStorage('course_season');
     $ids = $storage->getQuery()
       ->accessCheck(FALSE)
       ->condition('course', $course_id)
-      ->condition('last', $today, '>=')
-      ->sort('field_schedule.value', 'ASC')
-      ->range(0, 2)
+      ->condition('field_schedule.end_value', $now, '>=')
       ->execute();
     if ($ids === []) {
       return $this->currentAndNextCache[$course_id] = [];
@@ -87,8 +85,9 @@ final class SeasonRepository {
         $seasons[] = $season;
       }
     }
+    usort($seasons, static fn (SeasonInterface $a, SeasonInterface $b): int => ($a->getFirstLessonStart() ?? 0) <=> ($b->getFirstLessonStart() ?? 0));
 
-    return $this->currentAndNextCache[$course_id] = $seasons;
+    return $this->currentAndNextCache[$course_id] = array_slice($seasons, 0, 2);
   }
 
   /**

@@ -6,7 +6,7 @@ dependencies:
     - field.field.course_season.course_season.field_prices
     - field.field.course_season.course_season.field_schedule
   module:
-    - datetime_range
+    - smart_date
     - workspace_events
 id: course_season.course_season.default
 targetEntityType: course_season
@@ -21,9 +21,24 @@ content:
     weight: 0
     region: content
   field_schedule:
-    type: daterange_default
+    type: smartdate_default
     label: inline
-    settings: {  }
+    settings:
+      timezone_override: ''
+      format_type: medium
+      format: default
+      force_chronological: false
+      add_classes: false
+      time_wrapper: true
+      localize: false
+      parts:
+        - start
+        - end
+      duration:
+        separator: ' | '
+        unit: ''
+        decimals: 2
+        suffix: h
     third_party_settings: {  }
     weight: -1
     region: content

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Plugin\Validation\Constraint;
 
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\smart_date_recur\Entity\SmartDateRule;
 use Drupal\workspace_events\Entity\SeasonInterface;
-use Drupal\workspace_events\SeasonRepository;
+use Drupal\workspace_events\LessonGenerator;
 use Drupal\workspace_events\SiteTimeZone;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Validator\Constraint;
@@ -20,26 +22,31 @@ final class SeasonScheduleLockedValidator extends ConstraintValidator implements
   /**
    * Constructs a SeasonScheduleLockedValidator.
    *
-   * @param \Drupal\workspace_events\SeasonRepository $seasonRepository
-   *   The season repository.
+   * @param \Drupal\workspace_events\LessonGenerator $lessonGenerator
+   *   The lesson generator.
    * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
    *   The site timezone.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   The entity type manager.
    */
   public function __construct(
-    private readonly SeasonRepository $seasonRepository,
+    private readonly LessonGenerator $lessonGenerator,
     private readonly SiteTimeZone $siteTimeZone,
+    private readonly EntityTypeManagerInterface $entityTypeManager,
   ) {}
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container): static {
-    $repository = $container->get(SeasonRepository::class);
-    \assert($repository instanceof SeasonRepository);
+    $lesson_generator = $container->get(LessonGenerator::class);
+    \assert($lesson_generator instanceof LessonGenerator);
     $site_timezone = $container->get(SiteTimeZone::class);
     \assert($site_timezone instanceof SiteTimeZone);
+    $entity_type_manager = $container->get('entity_type.manager');
+    \assert($entity_type_manager instanceof EntityTypeManagerInterface);
 
-    return new static($repository, $site_timezone);
+    return new static($lesson_generator, $site_timezone, $entity_type_manager);
   }
 
   /**
@@ -51,11 +58,11 @@ final class SeasonScheduleLockedValidator extends ConstraintValidator implements
     }
 
     $this->validateRecordedLessons($value, $constraint);
-    $this->validateLastLesson($value, $constraint);
+    $this->validateRecurrence($value, $constraint);
   }
 
   /**
-   * Refuses a schedule change when a lesson already has recorded data.
+   * Refuses to remove the dates of lessons that already have recorded data.
    *
    * @param \Drupal\workspace_events\Entity\SeasonInterface $season
    *   The season.
@@ -63,44 +70,76 @@ final class SeasonScheduleLockedValidator extends ConstraintValidator implements
    *   The constraint.
    */
   private function validateRecordedLessons(SeasonInterface $season, SeasonScheduleLocked $constraint): void {
-    if ($season->isNew() || !$season->hasScheduleChanged() || !$this->seasonRepository->hasRecordedLessons($season)) {
+    if ($season->isNew() || !$season->hasScheduleChanged()) {
+      return;
+    }
+
+    $blocked = $this->lessonGenerator->blockedLessons($season);
+    if ($blocked === []) {
+      return;
+    }
+
+    $dates = [];
+    foreach ($blocked as $lesson) {
+      $item = $lesson->get('field_lesson_date')->first();
+      if ($item === NULL) {
+        continue;
+      }
+      $value = (string) $item->get('value')->getString();
+      if ($value === '') {
+        continue;
+      }
+      $dates[] = $this->siteTimeZone->fromStorageValue($value)->format('d.m.Y');
+    }
+    if ($dates === []) {
       return;
     }
 
     $this->context->buildViolation($constraint->message)
+      ->setParameter('@dates', implode(', ', array_unique($dates)))
       ->atPath('field_schedule')
       ->addViolation();
   }
 
   /**
-   * Refuses a last lesson before the first lesson.
+   * Refuses a recurrence that is not weekly or has no end.
    *
    * @param \Drupal\workspace_events\Entity\SeasonInterface $season
    *   The season.
    * @param \Drupal\workspace_events\Plugin\Validation\Constraint\SeasonScheduleLocked $constraint
    *   The constraint.
    */
-  private function validateLastLesson(SeasonInterface $season, SeasonScheduleLocked $constraint): void {
-    $schedule = $season->get('field_schedule')->first();
-    $last = $season->get('last')->first();
-    if ($schedule === NULL || $last === NULL) {
+  private function validateRecurrence(SeasonInterface $season, SeasonScheduleLocked $constraint): void {
+    if (!$season->hasField('field_schedule')) {
       return;
     }
 
-    $first_value = $schedule->get('value')->getString();
-    $last_value = $last->get('value')->getString();
-    if ($first_value === '' || $last_value === '') {
+    $rule_ids = [];
+    foreach ($season->get('field_schedule') as $item) {
+      $rule_id = (int) $item->get('rrule')->getString();
+      if ($rule_id > 0) {
+        $rule_ids[$rule_id] = $rule_id;
+      }
+    }
+    if ($rule_ids === [] || !$this->entityTypeManager->hasDefinition('smart_date_rule')) {
       return;
     }
 
-    $first_day = $this->siteTimeZone->fromStorageValue($first_value)->format('Y-m-d');
-    if ($last_value >= $first_day) {
+    $rules = $this->entityTypeManager->getStorage('smart_date_rule')->loadMultiple($rule_ids);
+    foreach ($rules as $rule) {
+      if (!$rule instanceof SmartDateRule) {
+        continue;
+      }
+      $unlimited = $rule->get('unlimited')->getString() === '1';
+      if ($rule->get('freq')->getString() === 'WEEKLY' && !$unlimited) {
+        continue;
+      }
+
+      $this->context->buildViolation($constraint->recurrenceMessage)
+        ->atPath('field_schedule')
+        ->addViolation();
       return;
     }
-
-    $this->context->buildViolation($constraint->lastMessage)
-      ->atPath('last')
-      ->addViolation();
   }
 
 }

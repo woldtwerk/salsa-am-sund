@@ -5,7 +5,8 @@ dependencies:
     - field.field.course_season.course_season.field_prices
     - field.field.course_season.course_season.field_schedule
   module:
-    - datetime_range
+    - smart_date
+    - smart_date_recur
     - workspace_events
 id: course_season.course_season.default
 targetEntityType: course_season
@@ -19,10 +20,27 @@ content:
     settings: {  }
     third_party_settings: {  }
   field_schedule:
-    type: daterange_default
+    type: smartdate_default
     weight: -1
     region: content
-    settings: {  }
-    third_party_settings: {  }
+    settings:
+      modal: false
+      default_duration: 90
+      default_duration_increments: |-
+        60|1 Stunde
+        90|1,5 Stunden
+        120|2 Stunden
+        custom
+      show_extra: false
+      hide_date: true
+      allday: false
+      remove_seconds: true
+      duration_overlay: true
+    third_party_settings:
+      smart_date_recur:
+        modal: false
+        show_single: false
+        allowed_recur_freq_values:
+          WEEKLY: WEEKLY
 hidden:
   langcode: true

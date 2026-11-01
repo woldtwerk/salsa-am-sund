@@ -93,17 +93,7 @@ final class SeasonHooks {
       return;
     }
 
-    // Validation refuses a schedule change with recorded lessons. An API save
-    // can bypass validation, so keep the lessons in that case as well.
-    if ($this->seasonRepository->hasRecordedLessons($season)) {
-      $this->loggerFactory->get('workspace_events')->warning(
-        'Kept the lessons of season %season because they have recorded data; the changed schedule was not applied to them.',
-        ['%season' => $season->id()],
-      );
-      return;
-    }
-
-    $this->lessonGenerator->regenerate($season);
+    $this->lessonGenerator->sync($season);
   }
 
   /**
@@ -306,7 +296,6 @@ final class SeasonHooks {
     $ids = $storage->getQuery()
       ->accessCheck(FALSE)
       ->condition('course', $course->id())
-      ->sort('field_schedule.value', 'DESC')
       ->execute();
     if ($ids === []) {
       return [];
@@ -318,6 +307,7 @@ final class SeasonHooks {
         $seasons[] = $season;
       }
     }
+    usort($seasons, static fn (SeasonInterface $a, SeasonInterface $b): int => ($b->getFirstLessonStart() ?? 0) <=> ($a->getFirstLessonStart() ?? 0));
 
     return $seasons;
   }
@@ -332,16 +322,12 @@ final class SeasonHooks {
    *   The formatted first lesson, or an empty string without a schedule.
    */
   private function firstLesson(SeasonInterface $season): string {
-    $item = $season->get('field_schedule')->first();
-    if ($item === NULL) {
-      return '';
-    }
-    $value = $item->get('value')->getString();
-    if ($value === '') {
+    $value = $season->getFirstLessonStart();
+    if ($value === NULL) {
       return '';
     }
 
-    $date = $this->siteTimeZone->fromStorageValue($value);
+    $date = $this->siteTimeZone->fromTimestamp($value);
     return $this->dateFormatter->format(
       $date->getTimestamp(),
       'custom',

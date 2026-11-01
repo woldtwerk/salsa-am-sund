@@ -550,19 +550,11 @@ abstract class EventKernelTestBase extends KernelTestBase {
     if (isset($values['season_schedule'])) {
       $season_values['field_schedule'] = $values['season_schedule'];
     }
-    if (isset($values['season_last'])) {
-      $season_values['last'] = $values['season_last'];
-    }
-    if (isset($values['season_interval'])) {
-      $season_values['interval'] = $values['season_interval'];
-    }
     if (isset($values['season_location'])) {
       $season_values['location'] = $values['season_location'];
     }
     unset(
       $values['season_schedule'],
-      $values['season_last'],
-      $values['season_interval'],
       $values['season_location'],
     );
 
@@ -596,7 +588,6 @@ abstract class EventKernelTestBase extends KernelTestBase {
     $values += [
       'course' => $course->id(),
       'uid' => $course->getOwnerId(),
-      'interval' => 1,
     ];
     $season = $this->seasonStorage->create($values);
     \assert($season instanceof SeasonInterface);
@@ -620,11 +611,34 @@ abstract class EventKernelTestBase extends KernelTestBase {
    *   The node values.
    */
   protected function courseSchedule(\DateTimeImmutable $first, \DateTimeImmutable $last, int $interval = 1, ?\DateTimeImmutable $end = NULL): array {
-    return [
-      'season_schedule' => $this->dateRange($first, $end ?? $first->modify('+1 hour')),
-      'season_last' => ['value' => $last->format('Y-m-d')],
-      'season_interval' => $interval,
-    ];
+    return ['season_schedule' => $this->smartDateDeltas($first, $last, $interval, $end)];
+  }
+
+  /**
+   * Builds the dates of a weekly schedule as Smart Date deltas.
+   *
+   * @param \DateTimeImmutable $first
+   *   The start of the first lesson.
+   * @param \DateTimeImmutable $last
+   *   The start of the last lesson, inclusive.
+   * @param int $interval
+   *   The interval in weeks.
+   * @param \DateTimeImmutable|null $end
+   *   The end of the first lesson, or NULL to use one hour after the start.
+   *
+   * @return array<int, array<string, mixed>>
+   *   The field values of the dates.
+   */
+  protected function smartDateDeltas(\DateTimeImmutable $first, \DateTimeImmutable $last, int $interval = 1, ?\DateTimeImmutable $end = NULL): array {
+    $first_end = $end ?? $first->modify('+1 hour');
+    $duration = $first_end->getTimestamp() - $first->getTimestamp();
+
+    $deltas = [];
+    for ($start = $first; $start <= $last; $start = $start->modify('+' . $interval . ' weeks')) {
+      $deltas[] = $this->smartDateRange($start, $start->modify('+' . $duration . ' seconds'));
+    }
+
+    return $deltas;
   }
 
 }

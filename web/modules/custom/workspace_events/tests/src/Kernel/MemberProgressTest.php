@@ -150,21 +150,17 @@ final class MemberProgressTest extends LessonKernelTestBase {
     $course = $this->createCourse(['title' => 'Salsa']);
     $winter = $this->createSeason($course, [
       'title' => 'Winter',
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('2026-10-05', '18:00'),
-        $this->date('2026-10-05', '19:00'),
+        $this->date('2026-10-19', '19:00'),
       ),
-      'last' => ['value' => $this->date('2026-10-19')->format('Y-m-d')],
-      'interval' => 1,
     ]);
     $summer = $this->createSeason($course, [
       'title' => 'Sommer',
-      'field_schedule' => $this->dateRange(
+      'field_schedule' => $this->smartDateDeltas(
         $this->date('2027-04-05', '18:00'),
         $this->date('2027-04-05', '19:00'),
       ),
-      'last' => ['value' => $this->date('2027-04-05')->format('Y-m-d')],
-      'interval' => 1,
     ]);
 
     $winter_lessons = $this->loadSeasonLessons($winter);

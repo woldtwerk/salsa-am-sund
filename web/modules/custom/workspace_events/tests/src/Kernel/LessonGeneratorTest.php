@@ -63,8 +63,12 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
     self::assertSame($original_ids, $this->lessonIds($this->loadCourseLessons($course)));
 
     // Changing the dates replaces the lessons of the season.
-    $season->set('field_schedule', $this->dateRange($first->modify('+1 day'), $first->modify('+1 day')->modify('+1 hour')));
-    $season->set('last', ['value' => $first->modify('+4 weeks')->modify('+1 day')->format('Y-m-d')]);
+    $season->set('field_schedule', $this->smartDateDeltas(
+      $first->modify('+1 day'),
+      $first->modify('+4 weeks')->modify('+1 day'),
+      1,
+      $first->modify('+1 day')->modify('+1 hour'),
+    ));
     $season->save();
 
     $new_lessons = $this->loadCourseLessons($course);
