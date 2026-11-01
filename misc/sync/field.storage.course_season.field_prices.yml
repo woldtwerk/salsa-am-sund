@@ -14,7 +14,7 @@ settings:
     student: Student
 module: workspace_events
 locked: false
-cardinality: -1
+cardinality: 5
 translatable: false
 indexes: {  }
 persist_with_no_fields: false
