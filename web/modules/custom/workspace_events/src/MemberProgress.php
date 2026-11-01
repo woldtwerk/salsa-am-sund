@@ -120,10 +120,7 @@ final class MemberProgress {
 
     $visited = array_values($grouped);
     foreach ($visited as &$entry) {
-      usort($entry['seasons'], static fn (array $a, array $b): int => strcmp(
-        (string) $b['season']->get('field_schedule')->getString(),
-        (string) $a['season']->get('field_schedule')->getString(),
-      ));
+      usort($entry['seasons'], static fn (array $a, array $b): int => ($b['season']->getFirstLessonStart() ?? 0) <=> ($a['season']->getFirstLessonStart() ?? 0));
     }
     unset($entry);
     usort($visited, static fn (array $a, array $b): int => strcasecmp((string) $a['course']->label(), (string) $b['course']->label()));

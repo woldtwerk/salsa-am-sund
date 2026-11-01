@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Hook;
 
 use Drupal\Component\Datetime\TimeInterface;
-use Drupal\Component\Render\MarkupInterface;
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Datetime\DateFormatterInterface;
@@ -446,7 +445,7 @@ final class DetailPagePreprocessHooks {
    */
   private function buildHeaderSchedule(SeasonInterface $season, array $item): string {
     $parts = [];
-    $interval = (int) $season->get('interval')->getString();
+    $interval = $season->getInterval();
     if ($interval > 1 && $item['interval'] !== '') {
       $parts[] = $item['interval'];
     }
@@ -470,35 +469,28 @@ final class DetailPagePreprocessHooks {
     if ($item === NULL) {
       return '';
     }
-    $value = $item->get('value')->getString();
-    if ($value === '') {
+    $value = (int) $item->get('value')->getString();
+    if ($value <= 0) {
       return '';
     }
 
-    $start = $this->siteTimeZone->fromStorageValue($value);
-    $end_value = $item->get('end_value')->getString();
-    $end = $end_value === '' ? NULL : $this->siteTimeZone->fromStorageValue($end_value);
+    $start = $this->siteTimeZone->fromTimestamp($value);
+    $end_value = (int) $item->get('end_value')->getString();
+    $end = $end_value <= 0 ? NULL : $this->siteTimeZone->fromTimestamp($end_value);
     return $this->formatScheduleLine($start, $end);
   }
 
   /**
-   * Returns the configured label of a season interval.
+   * Returns the label of the recurrence interval of a season.
    *
    * @param \Drupal\workspace_events\Entity\SeasonInterface $season
    *   The season.
    *
    * @return string
-   *   The label, or an empty string when the field has no label for the value.
+   *   The label in the current interface language.
    */
   private function getSeasonIntervalLabel(SeasonInterface $season): string {
-    $value = (int) $season->get('interval')->getString();
-    $definition = $season->get('interval')->getFieldDefinition();
-    $allowed = $definition->getFieldStorageDefinition()->getSetting('allowed_values');
-    if (!is_array($allowed) || !isset($allowed[$value])) {
-      return '';
-    }
-    $label = $allowed[$value];
-    return is_scalar($label) || $label instanceof MarkupInterface ? (string) $label : '';
+    return (string) $this->formatPlural($season->getInterval(), 'Weekly', 'Every @count weeks');
   }
 
   /**
@@ -558,11 +550,7 @@ final class DetailPagePreprocessHooks {
    *   The timestamp, or NULL without a first lesson.
    */
   private function seasonStartTimestamp(SeasonInterface $season): ?int {
-    $value = $season->get('field_schedule')->first()?->get('value')->getString();
-    if ($value === NULL || $value === '') {
-      return NULL;
-    }
-    return $this->siteTimeZone->fromStorageValue($value)->getTimestamp();
+    return $season->getFirstLessonStart();
   }
 
   /**
@@ -590,12 +578,9 @@ final class DetailPagePreprocessHooks {
       $max_age = min($max_age, $start - $now);
     }
     else {
-      $last = $seasons[0]->get('last')->getString();
-      if ($last !== '') {
-        $last_day = \DateTimeImmutable::createFromFormat('!Y-m-d', $last, $this->siteTimeZone->get());
-        if ($last_day !== FALSE) {
-          $max_age = min($max_age, max(0, $last_day->modify('+1 day')->getTimestamp() - $now));
-        }
+      $end = $seasons[0]->getLastLessonEnd();
+      if ($end !== NULL) {
+        $max_age = min($max_age, max(0, $end - $now));
       }
     }
 

@@ -104,8 +104,8 @@ function workspace_events_update_10004(): void {
  * fields reference the season. Scheduler's fields are added to lessons after
  * both entity types exist, before the lesson field configuration is created.
  *
- * Season schedules are configurable daterange fields, installed by the
- * installer after datetime_range: the course_season entity type itself uses no
+ * Season schedules are configurable Smart Date fields, installed by the
+ * installer after smart_date: the course_season entity type itself uses no
  * field type from a module that may still be missing on an older site.
  *
  * Courses get one season for their legacy series, and that season generates
@@ -180,9 +180,11 @@ function workspace_events_update_10010(): void {
   // memory.
   workspace_events_purge_deleted_fields();
 
-  // The course rules belonged to the removed legacy field. Deleting a rule also
-  // deletes its overrides. The event rules now belong to the recurring event
-  // date field and are kept.
+  // The course rules belonged to the legacy course field. The migration pointed
+  // the rules that had course dates at the season schedule, so the filters
+  // below only match rules that still belong to the legacy course field.
+  // Deleting a rule also deletes its overrides. The event rules now belong to
+  // the recurring event date field and are kept.
   workspace_events_delete_course_date_rules();
 }
 

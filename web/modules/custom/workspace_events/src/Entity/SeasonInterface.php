@@ -23,10 +23,34 @@ interface SeasonInterface extends ContentEntityInterface, EntityOwnerInterface, 
   public function getCourse(): ?NodeInterface;
 
   /**
+   * Gets the start timestamp of the first lesson.
+   *
+   * @return int|null
+   *   The earliest start timestamp of the schedule, or NULL without dates.
+   */
+  public function getFirstLessonStart(): ?int;
+
+  /**
+   * Gets the end timestamp of the last lesson.
+   *
+   * @return int|null
+   *   The latest end timestamp of the schedule, or NULL without dates.
+   */
+  public function getLastLessonEnd(): ?int;
+
+  /**
+   * Gets the interval of the weekly recurrence in weeks.
+   *
+   * @return int
+   *   The interval in weeks, or 1 for a schedule without a recurrence rule.
+   */
+  public function getInterval(): int;
+
+  /**
    * Returns whether the schedule changed compared to the stored season.
    *
    * @return bool
-   *   TRUE when the first lesson, the last lesson or the interval changed.
+   *   TRUE when a date of the schedule was added, removed or changed.
    */
   public function hasScheduleChanged(): bool;
 

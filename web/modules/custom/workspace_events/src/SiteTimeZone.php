@@ -73,4 +73,17 @@ final class SiteTimeZone {
       ->setTimezone($this->get());
   }
 
+  /**
+   * Converts a Unix timestamp to a date in the site timezone.
+   *
+   * @param int $timestamp
+   *   The timestamp.
+   *
+   * @return \DateTimeImmutable
+   *   The date in the site timezone.
+   */
+  public function fromTimestamp(int $timestamp): \DateTimeImmutable {
+    return (new \DateTimeImmutable('@' . $timestamp))->setTimezone($this->get());
+  }
+
 }

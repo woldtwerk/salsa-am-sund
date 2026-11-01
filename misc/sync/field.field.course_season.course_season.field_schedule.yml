@@ -5,16 +5,29 @@ dependencies:
   config:
     - field.storage.course_season.field_schedule
   module:
-    - datetime_range
+    - smart_date
+    - smart_date_recur
+    - workspace_events
+third_party_settings:
+  smart_date_recur:
+    allow_recurring: true
+    month_limit: 12
 id: course_season.course_season.field_schedule
 field_name: field_schedule
 entity_type: course_season
 bundle: course_season
-label: 'Erste Stunde'
-description: 'Date, start and end time of the first lesson.'
+label: Termine
+description: 'First lesson and its weekly recurrence.'
 required: true
 translatable: false
-default_value: {  }
+default_value:
+  -
+    default_duration: 90
+    default_duration_increments: |-
+      60|1 Stunde
+      90|1,5 Stunden
+      120|2 Stunden
+      custom
 default_value_callback: ''
 settings: {  }
-field_type: daterange
+field_type: smartdate

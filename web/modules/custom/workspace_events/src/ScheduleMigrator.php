@@ -7,10 +7,7 @@ namespace Drupal\workspace_events;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityFieldManagerInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Field\FieldItemInterface;
-use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
-use Drupal\smart_date_recur\Entity\SmartDateRule;
 use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
@@ -43,8 +40,6 @@ final class ScheduleMigrator {
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
-   * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
-   *   The site timezone.
    * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entityFieldManager
    *   The field manager, used to detect the legacy field.
    * @param \Drupal\Core\Database\Connection $database
@@ -54,7 +49,6 @@ final class ScheduleMigrator {
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
-    private readonly SiteTimeZone $siteTimeZone,
     private readonly EntityFieldManagerInterface $entityFieldManager,
     private readonly Connection $database,
     private readonly SeasonRepository $seasonRepository,
@@ -138,6 +132,10 @@ final class ScheduleMigrator {
   /**
    * Creates the season of a course from its legacy series.
    *
+   * Every legacy delta is copied one to one, so the season keeps the dates and
+   * the recurrence of the course. Afterwards the recurrence rules point at the
+   * season schedule.
+   *
    * @param \Drupal\node\NodeInterface $course
    *   The course node.
    *
@@ -146,51 +144,74 @@ final class ScheduleMigrator {
    */
   private function createSeason(NodeInterface $course): ?SeasonInterface {
     $items = $course->get(self::LEGACY_FIELD_NAME);
-    $first = $items->first();
-    if ($first === NULL || $items->isEmpty()) {
-      return NULL;
-    }
-    $first_timestamp = (int) $first->get('value')->getString();
-    if ($first_timestamp <= 0) {
+    if ($items->isEmpty()) {
       return NULL;
     }
 
-    $last_timestamp = 0;
-    $rule_id = 0;
+    $schedule = [];
+    $rule_ids = [];
     foreach ($items as $item) {
       $value = (int) $item->get('value')->getString();
-      if ($value > $last_timestamp) {
-        $last_timestamp = $value;
+      if ($value <= 0) {
+        continue;
       }
+      $end_value = (int) $item->get('end_value')->getString();
       $rrule = (int) $item->get('rrule')->getString();
-      if ($rule_id === 0 && $rrule > 0) {
-        $rule_id = $rrule;
+      if ($rrule > 0) {
+        $rule_ids[$rrule] = $rrule;
       }
+      $schedule[] = [
+        'value' => $value,
+        'end_value' => $end_value > 0 ? $end_value : $value,
+        'duration' => (int) $item->get('duration')->getString(),
+        'rrule' => $rrule,
+        'rrule_index' => (int) $item->get('rrule_index')->getString(),
+        'timezone' => (string) $item->get('timezone')->getString(),
+      ];
     }
-    if ($last_timestamp <= 0) {
+    if ($schedule === []) {
       return NULL;
     }
-
-    $timezone = $this->siteTimeZone->get();
-    $start = $this->toDate($first_timestamp, $timezone);
-    $end = $this->readEnd($first, $timezone) ?? $start;
-    $last_day = $this->toDate($last_timestamp, $timezone);
 
     $storage = $this->entityTypeManager->getStorage('course_season');
     $season = $storage->create([
       'course' => $course->id(),
-      'field_schedule' => [
-        'value' => $this->toStorageValue($start),
-        'end_value' => $this->toStorageValue($end),
-      ],
-      'last' => ['value' => $last_day->format('Y-m-d')],
-      'interval' => ['value' => $this->readInterval($rule_id)],
+      'field_schedule' => $schedule,
       'location' => ['target_id' => (int) $course->get('field_location')->target_id],
       'uid' => $course->getOwnerId(),
       'langcode' => $course->language()->getId(),
     ]);
+    if (!$season instanceof SeasonInterface) {
+      return NULL;
+    }
 
-    return $season instanceof SeasonInterface ? $season : NULL;
+    $this->repointRules(array_values($rule_ids));
+
+    return $season;
+  }
+
+  /**
+   * Points the migrated course rules at the season schedule.
+   *
+   * A direct update keeps the stored instances and overrides of the rules; the
+   * Smart Date API would regenerate them.
+   *
+   * @param int[] $rule_ids
+   *   The IDs of the rules that belong to the migrated schedule.
+   */
+  private function repointRules(array $rule_ids): void {
+    if ($rule_ids === [] || !$this->entityTypeManager->hasDefinition('smart_date_rule')) {
+      return;
+    }
+
+    $this->database->update('smart_date_rule')
+      ->fields([
+        'entity_type' => 'course_season',
+        'bundle' => 'course_season',
+        'field_name' => 'field_schedule',
+      ])
+      ->condition('rid', $rule_ids, 'IN')
+      ->execute();
   }
 
   /**
@@ -276,84 +297,6 @@ final class ScheduleMigrator {
     $insert->fields(array_values($columns));
     $insert->from($select);
     $insert->execute();
-  }
-
-  /**
-   * Returns the interval of a Smart Date rule in weeks.
-   *
-   * @param int $rule_id
-   *   The Smart Date rule ID, or 0 when the series has no rule.
-   *
-   * @return int
-   *   The interval in weeks. Only one and two weeks are supported.
-   */
-  private function readInterval(int $rule_id): int {
-    if ($rule_id <= 0 || !class_exists(SmartDateRule::class) || !$this->entityTypeManager->hasDefinition('smart_date_rule')) {
-      return 1;
-    }
-
-    $rule = $this->entityTypeManager->getStorage('smart_date_rule')->load($rule_id);
-    if (!$rule instanceof SmartDateRule) {
-      return 1;
-    }
-
-    $parameters = $rule->getParametersArray();
-    if (!is_array($parameters)) {
-      return 1;
-    }
-    $interval = $parameters['interval'] ?? 0;
-    $interval = is_numeric($interval) ? (int) $interval : 0;
-
-    return in_array($interval, [1, 2], TRUE) ? $interval : 1;
-  }
-
-  /**
-   * Converts a timestamp to a date in the site timezone.
-   *
-   * @param int $timestamp
-   *   The timestamp.
-   * @param \DateTimeZone $timezone
-   *   The site timezone.
-   *
-   * @return \DateTimeImmutable
-   *   The date.
-   */
-  private function toDate(int $timestamp, \DateTimeZone $timezone): \DateTimeImmutable {
-    return (new \DateTimeImmutable('@' . $timestamp))->setTimezone($timezone);
-  }
-
-  /**
-   * Converts a date in the site timezone to the storage format.
-   *
-   * Date fields store their values in UTC.
-   *
-   * @param \DateTimeImmutable $date
-   *   The date in the site timezone.
-   *
-   * @return string
-   *   The value in the storage timezone.
-   */
-  private function toStorageValue(\DateTimeImmutable $date): string {
-    return $date
-      ->setTimezone(new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE))
-      ->format(DateTimeItemInterface::DATETIME_STORAGE_FORMAT);
-  }
-
-  /**
-   * Reads the end of a Smart Date value.
-   *
-   * @param \Drupal\Core\Field\FieldItemInterface $item
-   *   The Smart Date value.
-   * @param \DateTimeZone $timezone
-   *   The site timezone.
-   *
-   * @return \DateTimeImmutable|null
-   *   The end, or NULL when the value has none.
-   */
-  private function readEnd(FieldItemInterface $item, \DateTimeZone $timezone): ?\DateTimeImmutable {
-    $end_value = (int) $item->get('end_value')->getString();
-
-    return $end_value > 0 ? $this->toDate($end_value, $timezone) : NULL;
   }
 
 }

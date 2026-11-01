@@ -3,16 +3,16 @@ langcode: de
 status: true
 dependencies:
   module:
-    - datetime_range
+    - smart_date
+    - workspace_events
 id: course_season.field_schedule
 field_name: field_schedule
 entity_type: course_season
-type: daterange
-settings:
-  datetime_type: datetime
-module: datetime_range
+type: smartdate
+settings: {  }
+module: smart_date
 locked: false
-cardinality: 1
+cardinality: -1
 translatable: false
 indexes: {  }
 persist_with_no_fields: false

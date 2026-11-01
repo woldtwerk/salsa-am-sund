@@ -76,15 +76,31 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
     self::assertSame('', $this->migrator->migrate());
 
     $season = $this->loadSeason($course);
-    $schedule = $season->get('field_schedule')->first();
-    self::assertNotNull($schedule);
-    $utc = new \DateTimeZone('UTC');
-    self::assertSame($start->setTimezone($utc)->format('Y-m-d\TH:i:s'), $schedule->get('value')->getString());
-    self::assertSame($end->setTimezone($utc)->format('Y-m-d\TH:i:s'), $schedule->get('end_value')->getString());
-    self::assertSame($start->modify('+6 weeks')->format('Y-m-d'), $season->get('last')->getString());
-    self::assertSame('2', $season->get('interval')->getString());
     self::assertSame($location->id(), $season->get('location')->target_id);
     self::assertSame(1, (int) $season->getOwnerId());
+
+    // Every delta is copied one to one, including rule and rule index.
+    $copied = $this->fieldRows('course_season', 'field_schedule', (int) $season->id());
+    self::assertCount(count($deltas), $copied);
+    foreach (array_values($deltas) as $delta => $expected) {
+      self::assertSame((string) $expected['value'], $copied[$delta]['value']);
+      self::assertSame((string) $expected['end_value'], $copied[$delta]['end_value']);
+      self::assertSame((string) $expected['duration'], $copied[$delta]['duration']);
+      self::assertSame((string) $expected['rrule'], $copied[$delta]['rrule']);
+      self::assertSame((string) $expected['rrule_index'], $copied[$delta]['rrule_index']);
+      self::assertSame($expected['timezone'], $copied[$delta]['timezone']);
+    }
+
+    // The rule of the course now belongs to the season schedule.
+    $rule_storage = $this->container->get('entity_type.manager')->getStorage('smart_date_rule');
+    $rule_storage->resetCache();
+    $rules = $rule_storage->loadMultiple();
+    self::assertCount(1, $rules);
+    $rule = reset($rules);
+    self::assertInstanceOf(SmartDateRule::class, $rule);
+    self::assertSame('course_season', $rule->get('entity_type')->getString());
+    self::assertSame('course_season', $rule->get('bundle')->getString());
+    self::assertSame('field_schedule', $rule->get('field_name')->getString());
 
     $lessons = $this->loadCourseLessons($course);
     self::assertCount(4, $lessons);
@@ -140,7 +156,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
 
     // Every delta is copied one to one, including rule and rule index.
     $event_id = (int) $event->id();
-    $copied = $this->fieldRows('field_event_date', $event_id);
+    $copied = $this->fieldRows('node', 'field_event_date', $event_id);
     self::assertCount(count($deltas), $copied);
     foreach (array_values($deltas) as $delta => $expected) {
       self::assertSame((string) $expected['value'], $copied[$delta]['value']);
@@ -160,7 +176,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
     }
 
     // A series that already ended keeps its dates too.
-    self::assertCount(count($past_deltas), $this->fieldRows('field_event_date', (int) $past->id()));
+    self::assertCount(count($past_deltas), $this->fieldRows('node', 'field_event_date', (int) $past->id()));
   }
 
   /**
@@ -261,17 +277,19 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   /**
    * Returns all stored deltas of a Smart Date field as plain arrays.
    *
+   * @param string $entity_type
+   *   The entity type ID.
    * @param string $field_name
    *   The field name.
    * @param int $entity_id
-   *   The node ID.
+   *   The entity ID.
    *
    * @return array<int, array{value: string, end_value: string, duration: string, rrule: string, rrule_index: string, timezone: string}>
    *   The rows keyed by delta.
    */
-  private function fieldRows(string $field_name, int $entity_id): array {
+  private function fieldRows(string $entity_type, string $field_name, int $entity_id): array {
     $prefix = $field_name . '_';
-    $rows = $this->container->get('database')->select('node__' . $field_name, 't')
+    $rows = $this->container->get('database')->select($entity_type . '__' . $field_name, 't')
       ->fields('t', [
         'delta',
         $prefix . 'value',

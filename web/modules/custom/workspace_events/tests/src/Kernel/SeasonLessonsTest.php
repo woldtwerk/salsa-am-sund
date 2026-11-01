@@ -6,6 +6,7 @@ namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\Entity\Season;
+use Drupal\workspace_events\Entity\SeasonInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -19,88 +20,111 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 final class SeasonLessonsTest extends LessonKernelTestBase {
 
   /**
-   * Tests that a season generates and regenerates its lessons.
+   * Tests that the lessons follow the dates of the schedule.
    */
-  public function testSeasonGeneratesAndRegeneratesLessons(): void {
+  public function testSyncsLessonsWithTheFieldDates(): void {
     $location = $this->createLocation('Bootshaus');
-    $first = new \DateTimeImmutable('now +1 week 18:00', new \DateTimeZone(self::TIMEZONE));
+    $first = $this->date('-1 week', '18:00');
     $course = $this->createCourse([
       'title' => 'Salsa',
       'season_location' => $location->id(),
       ...$this->courseSchedule($first, $first->modify('+2 weeks')),
     ]);
     $season = $this->loadSeason($course);
-
     $lessons = $this->loadSeasonLessons($season);
     self::assertCount(3, $lessons);
-    self::assertSame($first->format('Y-m-d'), $this->lessonStart($lessons[0])->format('Y-m-d'));
-    self::assertSame((int) $season->id(), (int) $lessons[0]->getSeason()?->id());
 
-    $original_ids = $this->lessonIds($lessons);
-    $season->set('field_schedule', $this->dateRange($first->modify('+1 week'), $first->modify('+1 week')->modify('+1 hour')));
-    $season->set('last', ['value' => $first->modify('+3 weeks')->format('Y-m-d')]);
+    // The past lesson has recorded data and must keep its date.
+    $past = $lessons[0];
+    $past->set('field_participants', [['target_id' => $this->createUser(['access content'])->id()]]);
+    $past->save();
+    $past_id = (int) $past->id();
+
+    // Removing a future date deletes its lesson.
+    $this->setSchedule($season, [
+      [$first, 60],
+      [$first->modify('+1 week'), 60],
+    ]);
     $season->save();
+    $lessons = $this->loadSeasonLessons($season);
+    self::assertCount(2, $lessons);
+    self::assertInstanceOf(LessonInterface::class, $this->lessonStorage->load($past_id));
+    self::assertNull($this->lessonStartingAt($lessons, $first->modify('+2 weeks')));
 
-    $regenerated = $this->loadSeasonLessons($season);
-    self::assertCount(3, $regenerated);
-    self::assertSame([], array_intersect($original_ids, $this->lessonIds($regenerated)));
-    self::assertSame($first->modify('+1 week')->format('Y-m-d'), $this->lessonStart($regenerated[0])->format('Y-m-d'));
+    // Adding a date creates its lesson.
+    $this->setSchedule($season, [
+      [$first, 60],
+      [$first->modify('+1 week'), 60],
+      [$first->modify('+3 weeks'), 60],
+    ]);
+    $season->save();
+    $lessons = $this->loadSeasonLessons($season);
+    self::assertCount(3, $lessons);
+    self::assertNotNull($this->lessonStartingAt($lessons, $first->modify('+3 weeks')));
+
+    // Changing the end time of a date updates the lesson end.
+    $this->setSchedule($season, [
+      [$first, 60],
+      [$first->modify('+1 week'), 120],
+      [$first->modify('+3 weeks'), 60],
+    ]);
+    $season->save();
+    $lessons = $this->loadSeasonLessons($season);
+    $changed = $this->lessonStartingAt($lessons, $first->modify('+1 week'));
+    self::assertNotNull($changed);
+    self::assertSame($first->modify('+1 week')->modify('+2 hours')->getTimestamp(), $this->lessonEnd($changed));
+
+    // The date of the recorded lesson cannot be removed.
+    $this->setSchedule($season, [
+      [$first->modify('+1 week'), 120],
+      [$first->modify('+3 weeks'), 60],
+    ]);
+    $violations = $season->validate();
+    self::assertGreaterThan(0, $violations->count());
+    $message = (string) $violations->get(0)->getMessage();
+    self::assertStringContainsString('cannot be removed', $message);
+    self::assertStringContainsString($first->format('d.m.Y'), $message);
+
+    // An API save bypasses validation and keeps the recorded lesson.
+    $season->save();
+    self::assertInstanceOf(LessonInterface::class, $this->lessonStorage->load($past_id));
+    self::assertCount(3, $this->loadSeasonLessons($season));
   }
 
   /**
-   * Tests that recorded lesson data locks the schedule and the deletions.
+   * Replaces the dates of a season.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   * @param array<int, array{0: \DateTimeImmutable, 1: int}> $dates
+   *   The start and the duration in minutes of every date.
    */
-  public function testRecordedLessonsLockScheduleAndDeletion(): void {
-    $location = $this->createLocation('Bootshaus');
-    $first = new \DateTimeImmutable('now +1 week 18:00', new \DateTimeZone(self::TIMEZONE));
-    $course = $this->createCourse([
-      'title' => 'Salsa',
-      'season_location' => $location->id(),
-      ...$this->courseSchedule($first, $first->modify('+1 week')),
-    ]);
-    $season = $this->loadSeason($course);
-    $lessons = $this->loadSeasonLessons($season);
-    self::assertCount(2, $lessons);
-
-    $participant = $this->createUser(['access content']);
-    $lessons[0]->set('field_participants', [['target_id' => $participant->id()]]);
-    $lessons[0]->save();
-    $recorded_ids = $this->lessonIds($this->loadSeasonLessons($season));
-
-    $season->set('field_schedule', $this->dateRange($first->modify('+1 week'), $first->modify('+1 week')->modify('+1 hour')));
-    $season->set('last', ['value' => $first->modify('+2 weeks')->format('Y-m-d')]);
-    $violations = $season->validate();
-    self::assertGreaterThan(0, $violations->count());
-    self::assertStringContainsString("can't be changed", (string) $violations->get(0)->getMessage());
-
-    // The failed save leaves the lessons untouched.
-    self::assertSame($recorded_ids, $this->lessonIds($this->loadSeasonLessons($season)));
-
-    $editor = $this->createUser([
-      'access content',
-      'delete course seasons',
-      'delete any course content',
-    ]);
-    self::assertFalse($season->access('delete', $editor));
-    self::assertFalse($course->access('delete', $editor));
-
-    // A season without recorded lessons deletes its lessons.
-    $second = $this->createSeason($course, [
-      'field_schedule' => $this->dateRange($first->modify('+3 weeks'), $first->modify('+3 weeks')->modify('+1 hour')),
-      'last' => ['value' => $first->modify('+4 weeks')->format('Y-m-d')],
-      'location' => $location->id(),
-    ]);
-    $second_lessons = $this->loadSeasonLessons($second);
-    self::assertCount(2, $second_lessons);
-    $second_ids = $this->lessonIds($second_lessons);
-
-    $second->delete();
-
-    foreach ($second_ids as $lesson_id) {
-      self::assertNull($this->lessonStorage->load($lesson_id));
+  private function setSchedule(SeasonInterface $season, array $dates): void {
+    $deltas = [];
+    foreach ($dates as [$start, $duration]) {
+      $deltas[] = $this->smartDateRange($start, $start->modify('+' . $duration . ' minutes'));
     }
-    // The recorded lesson of the first season survives.
-    self::assertSame($recorded_ids[0], (int) $this->lessonStorage->load($recorded_ids[0])?->id());
+    $season->set('field_schedule', $deltas);
+  }
+
+  /**
+   * Finds the lesson that starts at a date.
+   *
+   * @param \Drupal\workspace_events\Entity\LessonInterface[] $lessons
+   *   The lessons.
+   * @param \DateTimeImmutable $date
+   *   The start of the lesson.
+   *
+   * @return \Drupal\workspace_events\Entity\LessonInterface|null
+   *   The lesson, or NULL when no lesson starts at the date.
+   */
+  private function lessonStartingAt(array $lessons, \DateTimeImmutable $date): ?LessonInterface {
+    foreach ($lessons as $lesson) {
+      if ($this->lessonStart($lesson)->getTimestamp() === $date->getTimestamp()) {
+        return $lesson;
+      }
+    }
+    return NULL;
   }
 
   /**
@@ -122,16 +146,21 @@ final class SeasonLessonsTest extends LessonKernelTestBase {
   }
 
   /**
-   * Returns the IDs of lessons.
+   * Returns the end of a lesson in the site timezone.
    *
-   * @param \Drupal\workspace_events\Entity\LessonInterface[] $lessons
-   *   The lessons.
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The lesson.
    *
-   * @return int[]
-   *   The lesson IDs.
+   * @return int
+   *   The end timestamp.
    */
-  private function lessonIds(array $lessons): array {
-    return array_map(static fn (LessonInterface $lesson): int => (int) $lesson->id(), $lessons);
+  private function lessonEnd(LessonInterface $lesson): int {
+    $item = $lesson->get('field_lesson_date')->first();
+    self::assertNotNull($item);
+    return (new \DateTimeImmutable(
+      $item->get('end_value')->getString(),
+      new \DateTimeZone('UTC'),
+    ))->getTimestamp();
   }
 
 }

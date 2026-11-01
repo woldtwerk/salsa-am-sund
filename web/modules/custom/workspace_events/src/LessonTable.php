@@ -71,7 +71,7 @@ final class LessonTable {
 
     if ($lessons === []) {
       $build['empty'] = [
-        '#markup' => $this->t('Lessons are generated from the start, end and rhythm when saving the season.'),
+        '#markup' => $this->t('Lessons are generated from the dates when saving the season.'),
       ];
       $build['#cache'] = [
         'contexts' => $cacheability->getCacheContexts(),
@@ -82,7 +82,7 @@ final class LessonTable {
     }
 
     $build['hint'] = [
-      '#markup' => $this->t('Changing the dates regenerates the lessons. Once a lesson has participants, figures or a cancellation, the dates are locked.'),
+      '#markup' => $this->t('Changing the dates updates the lessons. Lessons with participants, figures or a cancellation keep their date.'),
       '#prefix' => '<div class="messages messages--warning">',
       '#suffix' => '</div>',
     ];

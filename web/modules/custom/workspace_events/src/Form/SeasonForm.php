@@ -78,6 +78,13 @@ final class SeasonForm extends ContentEntityForm {
 
     $form = parent::buildForm($form, $form_state);
     /** @var array<string, mixed> $form */
+    // The series is edited in its first row (recurrence) and through Smart
+    // Date's instance management, so further rows are not needed.
+    if (isset($form['field_schedule']) && is_array($form['field_schedule'])) {
+      /** @var array{widget: array{add_more?: mixed}} $schedule */
+      $schedule = &$form['field_schedule'];
+      unset($schedule['widget']['add_more']);
+    }
     if ($season instanceof SeasonInterface && !$season->isNew()) {
       $form['lessons'] = $this->lessonTable->build($season);
     }
