@@ -228,26 +228,6 @@ config:
         config_read_bzyflfdj:
           label: 'Find out if scheduled unpublishing is enabled'
   -
-    name: eca.eca.auto_enable_moderation
-    data:
-      third_party_settings:
-        modeler_api:
-          label: 'Enable moderation for new content types'
-          documentation: 'Automatically opts new content types into the content moderation workflow.'
-          annotations:
-            annotation_user_switch_current_account_leov4pt9:
-              text: 'Necessary in order to run configuration actions.'
-      events:
-        save_config_je4aebni:
-          label: 'Content type created'
-      actions:
-        user_switch_current_account_leov4pt9:
-          label: 'Temporarily become administrator'
-        config_action_p7g4eoa9:
-          label: 'Add content type to workflow'
-          configuration:
-            data: "['[config:type]']"
-  -
     name: eca.eca.content_duplicate
     data:
       third_party_settings:
@@ -1348,22 +1328,3 @@ config:
             link_url: /admin/content/pages
         block_recent_pages:
           display_title: Block
-  -
-    name: workflows.workflow.basic_editorial
-    data:
-      label: Basic
-      type_settings:
-        states:
-          draft:
-            label: Draft
-          published:
-            label: Published
-          unpublished:
-            label: Unpublished
-        transitions:
-          create_new_draft:
-            label: 'Create new draft'
-          publish:
-            label: Publish
-          unpublish:
-            label: Unpublish
