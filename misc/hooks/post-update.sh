@@ -12,6 +12,14 @@ echo "memory_limit = 1024M" > "$PHP_CONF_DIR/zz-memory-limit.ini"
 # The leading colon keeps the image's own conf.d in the scan path.
 export PHP_INI_SCAN_DIR=":$PHP_CONF_DIR"
 
+# locale:check builds its list of translatable projects from the extension lists,
+# which are cached in cache.bootstrap. `drush deploy` only rebuilds that cache
+# later on, so a newly added 'interface translation project' key in a .info.yml
+# would go unnoticed until the next release. A full cache:rebuild is not an
+# option here because it must not run before updatedb, hence the targeted reset.
+echo "Refreshing module and theme info..."
+vendor/bin/drush php:eval "\Drupal::service('extension.list.module')->reset(); \Drupal::service('extension.list.theme')->reset();" || echo 'Warning: could not reset the extension lists'
+
 # Download and import remote translation updates (non-fatal). This also picks up
 # the custom modules' translations/de.po: their 'interface translation server
 # pattern' points locale:update at them.
