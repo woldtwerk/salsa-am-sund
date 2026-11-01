@@ -3,8 +3,8 @@ langcode: de
 status: true
 dependencies:
   module:
+    - canvas
     - comment
-    - node
     - user
 _core:
   default_config_hash: cFOucxH8PAXDQ2kViCcAHgK-JMCcxVkpIMzD56EfpZo
@@ -205,12 +205,12 @@ display:
             operator: ''
             operator_limit_selection: false
             operator_list: {  }
-        status_node:
-          id: status_node
-          table: node_field_data
+        status_canvas_page:
+          id: status_canvas_page
+          table: canvas_page_field_data
           field: status
-          relationship: node
-          entity_type: node
+          relationship: canvas_page
+          entity_type: canvas_page
           entity_field: status
           plugin_id: boolean
           value: '1'
@@ -236,10 +236,10 @@ display:
       query:
         type: views_query
       relationships:
-        node:
-          id: node
+        canvas_page:
+          id: canvas_page
           table: comment_field_data
-          field: node
+          field: canvas_page
           plugin_id: standard
           required: true
       display_extenders: {  }
