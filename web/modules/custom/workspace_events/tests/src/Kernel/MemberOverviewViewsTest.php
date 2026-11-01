@@ -23,6 +23,7 @@ use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\Entity\LessonAccessControlHandler;
 use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
 use Drupal\workspace_events\Hook\ViewsDataHooks;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -54,6 +55,13 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
    * The entity type manager.
    */
   private EntityTypeManagerInterface $entityTypeManager;
+
+  /**
+   * The seasons of the courses, keyed by course ID.
+   *
+   * @var array<int, \Drupal\workspace_events\Entity\SeasonInterface>
+   */
+  private array $seasons = [];
 
   /**
    * {@inheritdoc}
@@ -152,6 +160,7 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
 
     // The page must not expose participants or the course id.
     self::assertArrayHasKey('title', $view->field);
+    self::assertArrayHasKey('season', $view->field);
     self::assertArrayHasKey('field_lesson_date', $view->field);
     self::assertArrayHasKey('field_dance_figures', $view->field);
     self::assertArrayNotHasKey('field_participants', $view->field);
@@ -235,8 +244,10 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
    *   The lesson.
    */
   private function createLessonFor(NodeInterface $course, \DateTimeImmutable $start, UserInterface $participant, array $figures): LessonInterface {
-    $lesson = $this->createLesson([
+    $season = $this->seasonForCourse($course);
+    return $this->createLesson([
       'title' => $course->label() . ' – ' . $start->format('d.m.Y'),
+      'season' => $season->id(),
       'field_lesson_date' => [
         'value' => $start->format('Y-m-d\TH:i:s'),
         'end_value' => $start->modify('+1 hour')->format('Y-m-d\TH:i:s'),
@@ -247,15 +258,26 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
         $figures,
       ),
     ]);
+  }
 
-    $course_lessons = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $course_lessons[] = (int) $item->get('target_id')->getString();
+  /**
+   * Returns the season of a course, creating it on first use.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course.
+   *
+   * @return \Drupal\workspace_events\Entity\SeasonInterface
+   *   The season.
+   */
+  private function seasonForCourse(NodeInterface $course): SeasonInterface {
+    $this->seasons ??= [];
+    $course_id = (int) $course->id();
+    if (!isset($this->seasons[$course_id])) {
+      $this->seasons[$course_id] = $this->createSeason($course, [
+        'title' => 'Saison ' . $course->label(),
+      ]);
     }
-    $course_lessons[] = (int) $lesson->id();
-    $course->set('field_lessons', $course_lessons);
-    $course->save();
-    return $lesson;
+    return $this->seasons[$course_id];
   }
 
   /**

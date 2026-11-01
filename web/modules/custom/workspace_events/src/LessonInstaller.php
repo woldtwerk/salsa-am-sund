@@ -8,10 +8,10 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 
 /**
- * Creates the lesson fields, displays, actions and Scheduler settings.
+ * Creates the lesson and season config, actions and Scheduler settings.
  *
- * The lesson entity type itself is installed by the update hook, because it is
- * code, not configuration.
+ * The lesson and season entity types themselves are installed by the update
+ * hook, because they are code, not configuration.
  */
 final class LessonInstaller extends ConfigRecordInstaller {
 
@@ -22,14 +22,6 @@ final class LessonInstaller extends ConfigRecordInstaller {
    * last.
    */
   public const array CONFIG_NAMES = [
-    'field.storage.node.field_course_first',
-    'field.field.node.course.field_course_first',
-    'field.storage.node.field_course_last',
-    'field.field.node.course.field_course_last',
-    'field.storage.node.field_course_interval',
-    'field.field.node.course.field_course_interval',
-    'field.storage.node.field_lessons',
-    'field.field.node.course.field_lessons',
     'field.storage.node.field_event_date',
     'field.field.node.event.field_event_date',
     'field.storage.lesson.field_lesson_date',
@@ -40,6 +32,10 @@ final class LessonInstaller extends ConfigRecordInstaller {
     'field.field.lesson.lesson.field_dance_figures',
     'field.storage.lesson.field_participants',
     'field.field.lesson.lesson.field_participants',
+    'field.storage.course_season.field_schedule',
+    'field.field.course_season.course_season.field_schedule',
+    'field.storage.course_season.field_prices',
+    'field.field.course_season.course_season.field_prices',
     'scheduler.no_bundle_entity_type_settings.lesson',
     'system.action.lesson_delete_action',
     'core.entity_form_display.node.course.default',
@@ -47,6 +43,8 @@ final class LessonInstaller extends ConfigRecordInstaller {
     'core.entity_form_display.node.event.default',
     'core.entity_view_display.node.event.default',
     'core.entity_form_display.lesson.lesson.default',
+    'core.entity_form_display.course_season.course_season.default',
+    'core.entity_view_display.course_season.course_season.default',
   ];
 
   /**

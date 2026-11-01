@@ -4,7 +4,6 @@ status: true
 dependencies:
   config:
     - field.storage.lesson.field_dance_figures
-    - field.storage.node.field_lessons
     - field.storage.taxonomy_term.field_difficulty
     - field.storage.taxonomy_term.field_video
     - flag.flag.like
@@ -561,14 +560,14 @@ display:
             default_group_multiple: {  }
             group_items: {  }
         course:
-          id: course_reference
-          table: node_field_data
-          field: course_reference
-          relationship: course
+          id: course
+          table: course_season
+          field: course
+          relationship: season
           group_type: group
-          entity_type: node
-          entity_field: field_lessons
-          plugin_id: workspace_events_course_reference
+          entity_type: course_season
+          entity_field: course
+          plugin_id: entity_reference
           operator: or
           value: {  }
           group: 1
@@ -720,15 +719,25 @@ display:
           entity_type: taxonomy_term
           plugin_id: entity_reverse
           required: false
-        course:
-          id: reverse__node__field_lessons
+        season:
+          id: season
           table: lesson
-          field: reverse__node__field_lessons
+          field: season
           relationship: reverse__lesson__field_dance_figures
           group_type: group
-          admin_label: Kurs
+          admin_label: Saison
           entity_type: lesson
-          plugin_id: entity_reverse
+          plugin_id: standard
+          required: false
+        course:
+          id: course
+          table: course_season
+          field: course
+          relationship: season
+          group_type: group
+          admin_label: Kurs
+          entity_type: course_season
+          plugin_id: standard
           required: false
         field_video:
           id: field_video

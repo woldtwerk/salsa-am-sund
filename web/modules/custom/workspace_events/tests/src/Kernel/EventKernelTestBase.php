@@ -20,15 +20,18 @@ use Drupal\workspace_events\ConfigRecordInstaller;
 use Drupal\workspace_events\ConfigRecordLoader;
 use Drupal\workspace_events\Difficulty;
 use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
 use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\OrganizerResolver;
+use Drupal\workspace_events\SeasonRepository;
 
 /**
  * Base class for workspace_events kernel tests.
  *
  * Builds the event content model programmatically, so the tests only cover
- * this module's logic and not the site's configuration. Courses carry a
- * schedule and reference their generated lessons; events carry one date range.
+ * this module's logic and not the site's configuration. Courses carry their
+ * schedule in a season, and the season owns the generated lessons; events
+ * carry one date range.
  */
 abstract class EventKernelTestBase extends KernelTestBase {
 
@@ -78,6 +81,11 @@ abstract class EventKernelTestBase extends KernelTestBase {
   protected EntityStorageInterface $lessonStorage;
 
   /**
+   * The course season storage.
+   */
+  protected EntityStorageInterface $seasonStorage;
+
+  /**
    * The ID of the "Salsa am Sund" organizer term.
    */
   protected int $salsaAmSund;
@@ -97,6 +105,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
     $this->installSchema('user', ['users_data']);
     $this->installEntitySchema('node');
     $this->installSchema('node', ['node_access']);
+    $this->installEntitySchema('course_season');
     $this->installEntitySchema('lesson');
     $this->installEntitySchema('taxonomy_term');
     $this->installEntitySchema('flagging');
@@ -114,6 +123,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
     $this->termStorage = $this->container->get('entity_type.manager')->getStorage('taxonomy_term');
     $this->nodeStorage = $this->container->get('entity_type.manager')->getStorage('node');
     $this->lessonStorage = $this->container->get('entity_type.manager')->getStorage('lesson');
+    $this->seasonStorage = $this->container->get('entity_type.manager')->getStorage('course_season');
 
     $salsa = reset($this->termStorage->loadByProperties(['uuid' => OrganizerResolver::SALSA_AM_SUND_UUID]));
     $external = reset($this->termStorage->loadByProperties(['uuid' => OrganizerResolver::EXTERNAL_UUID]));
@@ -140,6 +150,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
     // the tests use the field definitions of the new configuration.
     $this->nodeStorage = $this->container->get('entity_type.manager')->getStorage('node');
     $this->lessonStorage = $this->container->get('entity_type.manager')->getStorage('lesson');
+    $this->seasonStorage = $this->container->get('entity_type.manager')->getStorage('course_season');
   }
 
   /**
@@ -255,9 +266,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
         'auto_create' => FALSE,
       ],
     ];
-    foreach (['event', 'course'] as $bundle) {
-      $this->createFieldConfig('field_location', $bundle, 'Ort', $location_settings);
-    }
+    $this->createFieldConfig('field_location', 'event', 'Ort', $location_settings);
 
     FieldStorageConfig::create([
       'field_name' => 'field_difficulty',
@@ -328,28 +337,66 @@ abstract class EventKernelTestBase extends KernelTestBase {
   }
 
   /**
-   * Loads the referenced lessons of a course.
+   * Loads the lessons of all seasons of a course in date order.
    *
    * @param \Drupal\node\NodeInterface $course
    *   The course.
    *
    * @return \Drupal\workspace_events\Entity\LessonInterface[]
-   *   The lessons, in the stored order.
+   *   The lessons, in date order.
    */
   protected function loadCourseLessons(NodeInterface $course): array {
-    $ids = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $ids[] = (int) $item->get('target_id')->getString();
-    }
+    $ids = $this->lessonStorage->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('season.entity:course_season.course', $course->id())
+      ->sort('field_lesson_date.value')
+      ->execute();
     $this->lessonStorage->resetCache($ids);
 
     $lessons = [];
-    foreach ($ids as $id) {
-      $lesson = $this->lessonStorage->load($id);
-      self::assertInstanceOf(LessonInterface::class, $lesson);
-      $lessons[] = $lesson;
+    foreach ($this->lessonStorage->loadMultiple($ids) as $lesson) {
+      if ($lesson instanceof LessonInterface) {
+        $lessons[] = $lesson;
+      }
     }
+
     return $lessons;
+  }
+
+  /**
+   * Loads the only season of a course.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course.
+   *
+   * @return \Drupal\workspace_events\Entity\SeasonInterface
+   *   The season.
+   */
+  protected function loadSeason(NodeInterface $course): SeasonInterface {
+    $this->seasonStorage->resetCache();
+    $ids = $this->seasonStorage->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('course', $course->id())
+      ->execute();
+    $season = $this->seasonStorage->load((int) reset($ids));
+    self::assertInstanceOf(SeasonInterface::class, $season);
+    return $season;
+  }
+
+  /**
+   * Loads the lessons of one season in date order.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   *
+   * @return \Drupal\workspace_events\Entity\LessonInterface[]
+   *   The lessons, in date order.
+   */
+  protected function loadSeasonLessons(SeasonInterface $season): array {
+    $repository = $this->container->get(SeasonRepository::class);
+    \assert($repository instanceof SeasonRepository);
+
+    return $repository->loadLessons($season);
   }
 
   /**
@@ -487,7 +534,10 @@ abstract class EventKernelTestBase extends KernelTestBase {
   }
 
   /**
-   * Creates a course node and generates its lessons.
+   * Creates a course node and its season, if a schedule is given.
+   *
+   * The season values are passed with the "season_" prefix, so a test can
+   * create a course with its first season in one call.
    *
    * @param array<string, mixed> $values
    *   The node values.
@@ -496,6 +546,26 @@ abstract class EventKernelTestBase extends KernelTestBase {
    *   The course.
    */
   protected function createCourse(array $values): NodeInterface {
+    $season_values = [];
+    if (isset($values['season_schedule'])) {
+      $season_values['field_schedule'] = $values['season_schedule'];
+    }
+    if (isset($values['season_last'])) {
+      $season_values['last'] = $values['season_last'];
+    }
+    if (isset($values['season_interval'])) {
+      $season_values['interval'] = $values['season_interval'];
+    }
+    if (isset($values['season_location'])) {
+      $season_values['location'] = $values['season_location'];
+    }
+    unset(
+      $values['season_schedule'],
+      $values['season_last'],
+      $values['season_interval'],
+      $values['season_location'],
+    );
+
     $values += [
       'type' => 'course',
       'status' => NodeInterface::PUBLISHED,
@@ -503,7 +573,35 @@ abstract class EventKernelTestBase extends KernelTestBase {
     ];
     $node = Node::create($values);
     $node->save();
+
+    if (isset($season_values['field_schedule'])) {
+      $this->createSeason($node, $season_values);
+    }
+
     return $node;
+  }
+
+  /**
+   * Creates a course season and generates its lessons.
+   *
+   * @param \Drupal\node\NodeInterface $course
+   *   The course.
+   * @param array<string, mixed> $values
+   *   The season values, for example schedule, last, interval and location.
+   *
+   * @return \Drupal\workspace_events\Entity\SeasonInterface
+   *   The season.
+   */
+  protected function createSeason(NodeInterface $course, array $values = []): SeasonInterface {
+    $values += [
+      'course' => $course->id(),
+      'uid' => $course->getOwnerId(),
+      'interval' => 1,
+    ];
+    $season = $this->seasonStorage->create($values);
+    \assert($season instanceof SeasonInterface);
+    $season->save();
+    return $season;
   }
 
   /**
@@ -523,9 +621,9 @@ abstract class EventKernelTestBase extends KernelTestBase {
    */
   protected function courseSchedule(\DateTimeImmutable $first, \DateTimeImmutable $last, int $interval = 1, ?\DateTimeImmutable $end = NULL): array {
     return [
-      'field_course_first' => $this->dateRange($first, $end ?? $first->modify('+1 hour')),
-      'field_course_last' => ['value' => $last->format('Y-m-d')],
-      'field_course_interval' => ['value' => $interval],
+      'season_schedule' => $this->dateRange($first, $end ?? $first->modify('+1 hour')),
+      'season_last' => ['value' => $last->format('Y-m-d')],
+      'season_interval' => $interval,
     ];
   }
 

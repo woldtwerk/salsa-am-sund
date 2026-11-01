@@ -1,13 +1,12 @@
-uuid: 9294aa88-cff4-42ce-9ec4-6849998c8399
+uuid: d73d5ec0-0baf-46cb-917a-9c28e6a04494
 langcode: de
 status: true
 dependencies:
   module:
     - datetime_range
-    - node
-id: node.field_course_first
-field_name: field_course_first
-entity_type: node
+id: course_season.field_schedule
+field_name: field_schedule
+entity_type: course_season
 type: daterange
 settings:
   datetime_type: datetime

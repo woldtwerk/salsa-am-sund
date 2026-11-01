@@ -54,6 +54,7 @@ final class EventCalendarBlock extends EventBlockBase {
       'taxonomy_term_list:organizer',
       'node_list:course',
       'lesson_list',
+      'course_season_list',
     ]);
 
     $organizers = [];

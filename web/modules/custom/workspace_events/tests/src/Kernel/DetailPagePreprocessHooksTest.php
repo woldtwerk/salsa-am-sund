@@ -7,7 +7,6 @@ namespace Drupal\Tests\workspace_events\Kernel;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Routing\RouteObjectInterface;
 use Drupal\node\NodeInterface;
-use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\Hook\DetailPagePreprocessHooks;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -55,7 +54,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     $course = $this->createCourse([
       'title' => 'Leicht Fortgeschrittene',
       'field_difficulty' => [3, 1, 2],
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       'body' => [
         'value' => '<p>Neue Figuren und Elemente für Fortgeschrittene.</p>',
         'format' => 'plain_text',
@@ -83,8 +82,9 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
       $start->getTimezone()->getName(),
     );
 
+    $season = $this->loadSeason($course);
     self::assertSame('Level 1–3', $variables['course_level']);
-    self::assertSame('Alle 2 Wochen · ' . $weekday . ' · 19:30 to 20:30', $variables['course_schedule']);
+    self::assertSame('Every 2 weeks · ' . $weekday . ' · 19:30 to 20:30', $variables['course_schedule']);
     $dates = $variables['course_next_dates'];
     \assert(is_array($dates));
     self::assertCount(3, $dates);
@@ -107,7 +107,16 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     self::assertStringStartsWith('webcal://', $variables['course_ical_url']);
     self::assertStringEndsWith('/termine.ics?course=' . $course->id(), $variables['course_ical_url']);
     self::assertSame('/salsa-kurse', $variables['course_overview_url']);
-    $location_data = $variables['course_location'];
+    $seasons = $variables['course_seasons'];
+    \assert(is_array($seasons));
+    self::assertCount(1, $seasons);
+    $season_item = $seasons[0];
+    \assert(is_array($season_item));
+    self::assertSame('next', $season_item['status']);
+    self::assertSame((string) $season->label(), $season_item['label']);
+    self::assertSame($weekday . ' · 19:30 to 20:30', $season_item['schedule']);
+    self::assertSame('Every 2 weeks', $season_item['interval']);
+    $location_data = $season_item['location'];
     \assert(is_array($location_data));
     self::assertSame('Bootshaus Stralsund', $location_data['name']);
     self::assertSame("Friedrich-Naumann-Straße 5\n18435 Stralsund", $location_data['address']);
@@ -120,19 +129,92 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     self::assertContains('node:' . $course->id(), $cache['tags']);
     self::assertContains('lesson:' . $lessons[0]->id(), $cache['tags']);
     self::assertContains('lesson_list', $cache['tags']);
+    self::assertContains('course_season_list', $cache['tags']);
+    self::assertContains('course_season:' . $season->id(), $cache['tags']);
     self::assertContains('taxonomy_term:' . $location->id(), $cache['tags']);
     self::assertContains('taxonomy_term:' . $this->salsaAmSund, $cache['tags']);
     self::assertContains('config:filter.format.plain_text', $cache['tags']);
     self::assertContains('url.site', $cache['contexts']);
     self::assertContains('route', $cache['contexts']);
     $request_time = $this->container->get('datetime.time')->getRequestTime();
-    self::assertSame($this->lessonEndTimestamp($lessons[0]) - $request_time, $cache['max-age']);
+    self::assertSame($start->getTimestamp() - $request_time, $cache['max-age']);
 
     $structured_data = $this->getAttachedJsonLd($variables);
     self::assertSame('https://schema.org', $structured_data['@context']);
     $graph = $structured_data['@graph'];
     \assert(is_array($graph));
     self::assertSame('Course', $graph[0]['@type']);
+  }
+
+  /**
+   * Tests that the course page shows the current and next season only.
+   */
+  public function testCourseSeasons(): void {
+    $course = $this->createCourse(['title' => 'Saisons']);
+    $this->createSeason($course, [
+      'field_schedule' => $this->dateRange(
+        $this->date('-20 weeks', '18:00'),
+        $this->date('-20 weeks', '19:00'),
+      ),
+      'last' => ['value' => $this->date('-16 weeks')->format('Y-m-d')],
+      'interval' => 1,
+    ]);
+    $current = $this->createSeason($course, [
+      'field_schedule' => $this->dateRange(
+        $this->date('-2 weeks', '18:00'),
+        $this->date('-2 weeks', '19:00'),
+      ),
+      'last' => ['value' => $this->date('+2 weeks')->format('Y-m-d')],
+      'interval' => 2,
+    ]);
+    $next = $this->createSeason($course, [
+      'field_schedule' => $this->dateRange(
+        $this->date('+3 weeks', '20:00'),
+        $this->date('+3 weeks', '21:00'),
+      ),
+      'last' => ['value' => $this->date('+7 weeks')->format('Y-m-d')],
+      'interval' => 1,
+    ]);
+    $this->createSeason($course, [
+      'field_schedule' => $this->dateRange(
+        $this->date('+10 weeks', '18:00'),
+        $this->date('+10 weeks', '19:00'),
+      ),
+      'last' => ['value' => $this->date('+14 weeks')->format('Y-m-d')],
+      'interval' => 1,
+    ]);
+    $current->set('field_prices', [
+      ['category' => 'normal', 'amount' => '12.00'],
+      ['category' => 'student', 'amount' => '10.00'],
+    ]);
+    $current->save();
+    $next->set('field_prices', [
+      ['category' => 'normal', 'amount' => '13.50'],
+    ]);
+    $next->save();
+
+    $this->setRoute('entity.node.canonical', $course);
+    $variables = [
+      'node' => $course,
+      'view_mode' => 'full',
+    ];
+    $this->hooks->preprocessNode($variables);
+
+    $seasons = $variables['course_seasons'];
+    \assert(is_array($seasons));
+    self::assertCount(2, $seasons);
+    self::assertSame('current', $seasons[0]['status']);
+    self::assertSame((string) $current->label(), $seasons[0]['label']);
+    self::assertSame('Every 2 weeks', $seasons[0]['interval']);
+    self::assertSame([
+      ['category' => 'Normal', 'amount' => '12,00 €'],
+      ['category' => 'Student', 'amount' => '10,00 €'],
+    ], $seasons[0]['prices']);
+    self::assertSame('next', $seasons[1]['status']);
+    self::assertSame((string) $next->label(), $seasons[1]['label']);
+    self::assertSame([
+      ['category' => 'Normal', 'amount' => '13,50 €'],
+    ], $seasons[1]['prices']);
   }
 
   /**
@@ -315,24 +397,6 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     $request_stack = $this->container->get('request_stack');
     \assert($request_stack instanceof RequestStack);
     $request_stack->push($request);
-  }
-
-  /**
-   * Returns the end timestamp of a lesson.
-   *
-   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
-   *   The lesson.
-   *
-   * @return int
-   *   The timestamp at which the lesson ends.
-   */
-  private function lessonEndTimestamp(LessonInterface $lesson): int {
-    $item = $lesson->get('field_lesson_date')->first();
-    self::assertNotNull($item);
-    return (new \DateTimeImmutable(
-      $item->get('end_value')->getString(),
-      new \DateTimeZone('UTC'),
-    ))->getTimestamp();
   }
 
   /**

@@ -1,0 +1,19 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.course_season.field_schedule
+  module:
+    - datetime_range
+id: course_season.course_season.field_schedule
+field_name: field_schedule
+entity_type: course_season
+bundle: course_season
+label: 'Erste Stunde'
+description: 'Date, start and end time of the first lesson.'
+required: true
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: daterange

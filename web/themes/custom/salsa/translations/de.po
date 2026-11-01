@@ -205,6 +205,18 @@ msgstr "Ort"
 msgid "View on map"
 msgstr "Auf der Karte ansehen"
 
+msgid "Seasons"
+msgstr "Saisons"
+
+msgid "Current season"
+msgstr "Aktuelle Saison"
+
+msgid "Next season"
+msgstr "Nächste Saison"
+
+msgid "per lesson"
+msgstr "pro Stunde"
+
 msgid "Subscribe to all events of this course as a calendar."
 msgstr "Alle Termine dieses Kurses als Kalender abonnieren."
 

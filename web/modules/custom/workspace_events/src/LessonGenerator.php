@@ -9,13 +9,10 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
- * Generates the lessons of a course from its schedule.
- *
- * The lessons are created once, when a course is saved without lessons. They
- * are not synchronized afterwards: changing the schedule only takes effect
- * after the lessons have been deleted.
+ * Generates the lessons of a season from its schedule.
  */
 final class LessonGenerator {
 
@@ -33,105 +30,72 @@ final class LessonGenerator {
    *   The site timezone.
    * @param \Drupal\Component\Datetime\TimeInterface $time
    *   The time service.
+   * @param \Drupal\workspace_events\SeasonRepository $seasonRepository
+   *   The season repository.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly SiteTimeZone $siteTimeZone,
     private readonly TimeInterface $time,
+    private readonly SeasonRepository $seasonRepository,
   ) {}
 
   /**
-   * Generates the lessons of a course when it has none yet.
+   * Generates the lessons of a season when it has none yet.
    *
-   * References to lessons that no longer exist are removed in every case, so
-   * a bulk delete in the content overview lets the course forget the deleted
-   * lessons and create new ones on the next save.
-   *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course node.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    *
    * @return int
    *   The number of lessons created.
    */
-  public function generate(NodeInterface $course): int {
-    if ($course->bundle() !== self::COURSE_BUNDLE || !$course->hasField('field_lessons')) {
+  public function generate(SeasonInterface $season): int {
+    if ($season->isNew()) {
+      return 0;
+    }
+    if ($this->seasonRepository->countLessonsBySeason([(int) $season->id()]) !== []) {
       return 0;
     }
 
-    $existing = $this->getExistingLessonIds($course);
-    $course->set('field_lessons', $this->toFieldValues($existing));
-    if ($existing !== []) {
+    $course = $season->getCourse();
+    $schedule = $this->readSchedule($season);
+    if (!$course instanceof NodeInterface || $schedule === NULL) {
       return 0;
     }
 
-    $schedule = $this->readSchedule($course);
-    if ($schedule === NULL) {
-      return 0;
-    }
-
-    $lesson_ids = $this->createLessons($course, $schedule);
-    $course->set('field_lessons', $this->toFieldValues($lesson_ids));
-
-    return count($lesson_ids);
+    return $this->createLessons($season, $course, $schedule);
   }
 
   /**
-   * Returns the referenced lessons that still exist, in their stored order.
+   * Replaces the lessons of a season with lessons from its current schedule.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course node.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    *
-   * @return int[]
-   *   The IDs of the existing lessons.
+   * @return int
+   *   The number of lessons created.
    */
-  private function getExistingLessonIds(NodeInterface $course): array {
-    $ids = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $target_id = $item->get('target_id')->getString();
-      if ($target_id === '' || !ctype_digit($target_id)) {
-        continue;
-      }
-      $id = (int) $target_id;
-      if (!in_array($id, $ids, TRUE)) {
-        $ids[] = $id;
-      }
-    }
-    if ($ids === []) {
-      return [];
+  public function regenerate(SeasonInterface $season): int {
+    $lessons = $this->seasonRepository->loadLessons($season);
+    if ($lessons !== []) {
+      $this->entityTypeManager->getStorage('lesson')->delete($lessons);
     }
 
-    $existing = $this->entityTypeManager->getStorage('lesson')->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('id', $ids, 'IN')
-      ->execute();
-    $existing_ids = array_map(static fn (mixed $id): int => (int) $id, array_values($existing));
-
-    return array_values(array_filter(
-      $ids,
-      static fn (int $id): bool => in_array($id, $existing_ids, TRUE),
-    ));
+    return $this->generate($season);
   }
 
   /**
-   * Reads the schedule fields of a course.
+   * Reads the schedule fields of a season.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course node.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    *
    * @return array{start: \DateTimeImmutable, end: \DateTimeImmutable, last: \DateTimeImmutable, interval: int, timezone: \DateTimeZone}|null
-   *   The schedule, or NULL when the course has no complete schedule.
+   *   The schedule, or NULL when the season has no complete schedule.
    */
-  private function readSchedule(NodeInterface $course): ?array {
-    if (
-      !$course->hasField('field_course_first')
-      || !$course->hasField('field_course_last')
-      || !$course->hasField('field_course_interval')
-    ) {
-      return NULL;
-    }
-
-    $first = $course->get('field_course_first')->first();
-    $last = $course->get('field_course_last')->first();
+  private function readSchedule(SeasonInterface $season): ?array {
+    $first = $season->get('field_schedule')->first();
+    $last = $season->get('last')->first();
     if ($first === NULL || $last === NULL) {
       return NULL;
     }
@@ -151,13 +115,9 @@ final class LessonGenerator {
       return NULL;
     }
 
-    $interval = 1;
-    $interval_item = $course->get('field_course_interval')->first();
-    if ($interval_item !== NULL) {
-      $interval = (int) $interval_item->get('value')->getString();
-      if ($interval < 1) {
-        $interval = 1;
-      }
+    $interval = (int) $season->get('interval')->getString();
+    if ($interval < 1) {
+      $interval = 1;
     }
 
     return [
@@ -170,21 +130,23 @@ final class LessonGenerator {
   }
 
   /**
-   * Creates the lessons of a schedule.
+   * Creates the lessons of a season schedule.
    *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    * @param \Drupal\node\NodeInterface $course
-   *   The course node.
+   *   The course of the season.
    * @param array{start: \DateTimeImmutable, end: \DateTimeImmutable, last: \DateTimeImmutable, interval: int, timezone: \DateTimeZone} $schedule
-   *   The schedule of the course.
+   *   The schedule of the season.
    *
-   * @return int[]
-   *   The IDs of the created lessons, in date order.
+   * @return int
+   *   The number of lessons created.
    */
-  private function createLessons(NodeInterface $course, array $schedule): array {
+  private function createLessons(SeasonInterface $season, NodeInterface $course, array $schedule): int {
     $storage = $this->entityTypeManager->getStorage('lesson');
     $now = $this->time->getRequestTime();
 
-    $lesson_ids = [];
+    $count = 0;
     $occurrences = LessonSchedule::occurrences(
       $schedule['start'],
       $schedule['end'],
@@ -198,6 +160,7 @@ final class LessonGenerator {
 
       $lesson = $storage->create([
         'title' => (string) $course->label() . ' – ' . $occurrence['start']->format('d.m.Y'),
+        'season' => $season->id(),
         'uid' => $course->getOwnerId(),
         'langcode' => $course->language()->getId(),
         'field_lesson_date' => [
@@ -218,26 +181,13 @@ final class LessonGenerator {
         }
       }
 
-      // The lessons are created by the course save, not by an editor.
+      // The lessons are created by the season save, not by an editor.
       $lesson->setSyncing(TRUE);
       $lesson->save();
-      $lesson_ids[] = (int) $lesson->id();
+      $count++;
     }
 
-    return $lesson_ids;
-  }
-
-  /**
-   * Builds entity reference field values from lesson IDs.
-   *
-   * @param int[] $ids
-   *   The lesson IDs.
-   *
-   * @return array<int, array{target_id: int}>
-   *   The field values.
-   */
-  private function toFieldValues(array $ids): array {
-    return array_values(array_map(static fn (int $id): array => ['target_id' => $id], $ids));
+    return $count;
   }
 
   /**

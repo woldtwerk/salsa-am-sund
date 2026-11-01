@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Hook;
 
 use Drupal\Component\Datetime\TimeInterface;
+use Drupal\Component\Render\MarkupInterface;
 use Drupal\Component\Serialization\Json;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Datetime\DateFormatterInterface;
@@ -15,9 +16,13 @@ use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
 use Drupal\workspace_events\DetailFieldResolver;
+use Drupal\workspace_events\Entity\SeasonInterface;
 use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventOccurrence;
 use Drupal\workspace_events\EventOccurrenceRepository;
+use Drupal\workspace_events\Plugin\Field\FieldType\PriceItem;
+use Drupal\workspace_events\SeasonRepository;
+use Drupal\workspace_events\SiteTimeZone;
 use Drupal\workspace_events\StructuredDataBuilder;
 
 /**
@@ -52,6 +57,10 @@ final class DetailPagePreprocessHooks {
    *   The schema.org structured data builder.
    * @param \Drupal\workspace_events\DetailFieldResolver $detailFieldResolver
    *   The reader of the location and link fields.
+   * @param \Drupal\workspace_events\SeasonRepository $seasonRepository
+   *   The season repository.
+   * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
+   *   The site timezone.
    */
   public function __construct(
     private readonly EventOccurrenceRepository $repository,
@@ -60,6 +69,8 @@ final class DetailPagePreprocessHooks {
     private readonly DateFormatterInterface $dateFormatter,
     private readonly StructuredDataBuilder $structuredDataBuilder,
     private readonly DetailFieldResolver $detailFieldResolver,
+    private readonly SeasonRepository $seasonRepository,
+    private readonly SiteTimeZone $siteTimeZone,
   ) {}
 
   /**
@@ -81,15 +92,18 @@ final class DetailPagePreprocessHooks {
     }
 
     $occurrences = $this->findUpcomingOccurrences($node);
+    $seasons = $node->bundle() === 'course'
+      ? $this->seasonRepository->currentAndNext($node)
+      : [];
 
     if ($node->bundle() === 'course') {
-      $this->prepareCourse($variables, $node, $occurrences);
+      $this->prepareCourse($variables, $node, $occurrences, $seasons);
     }
     else {
       $this->prepareEvent($variables, $node, $occurrences);
     }
 
-    $this->applyCacheability($variables, $node, $occurrences);
+    $this->applyCacheability($variables, $node, $occurrences, $seasons);
   }
 
   /**
@@ -167,12 +181,17 @@ final class DetailPagePreprocessHooks {
    *   The course node.
    * @param \Drupal\workspace_events\EventOccurrence[] $occurrences
    *   The upcoming occurrences.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface[] $seasons
+   *   The current and next season.
    */
-  private function prepareCourse(array &$variables, NodeInterface $node, array $occurrences): void {
+  private function prepareCourse(array &$variables, NodeInterface $node, array $occurrences, array $seasons): void {
+    $season_items = $this->buildSeasonItems($seasons);
     $variables['course_level'] = $this->detailFieldResolver->getDifficultyLabel($node);
-    $variables['course_schedule'] = $this->buildCourseSchedule($node, $occurrences);
+    $variables['course_schedule'] = $season_items === []
+      ? ''
+      : $this->buildHeaderSchedule($seasons[0], $season_items[0]);
+    $variables['course_seasons'] = $season_items;
     $variables['course_next_dates'] = $this->buildNextDates($occurrences);
-    $variables['course_location'] = $this->buildLocation($node);
     $variables['course_ical_url'] = $this->buildIcalUrl(['course' => (int) $node->id()]);
     $variables['course_overview_url'] = Url::fromUserInput('/salsa-kurse')->toString();
 
@@ -201,7 +220,7 @@ final class DetailPagePreprocessHooks {
       : (string) $organizer->label();
     $variables['event_next_date'] = $dates[0] ?? NULL;
     $variables['event_next_dates'] = $dates;
-    $variables['event_location'] = $this->buildLocation($node);
+    $variables['event_location'] = $this->buildLocationFromNode($node);
     $variables['event_link'] = $this->buildLink($node);
     $variables['event_ical_url'] = $this->buildIcalUrl(
       $organizer === NULL ? [] : ['organizer' => (int) $organizer->id()],
@@ -249,10 +268,12 @@ final class DetailPagePreprocessHooks {
    *   The course or event node.
    * @param \Drupal\workspace_events\EventOccurrence[] $occurrences
    *   The upcoming occurrences.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface[] $seasons
+   *   The current and next season.
    *
    * @param-out array<mixed> $variables
    */
-  private function applyCacheability(array &$variables, NodeInterface $node, array $occurrences): void {
+  private function applyCacheability(array &$variables, NodeInterface $node, array $occurrences, array $seasons): void {
     $max_age = 3600;
     if ($occurrences !== []) {
       $max_age = max(0, $occurrences[0]->endTimestamp() - $this->time->getRequestTime());
@@ -266,14 +287,27 @@ final class DetailPagePreprocessHooks {
     foreach ($occurrences as $occurrence) {
       $cacheability->addCacheableDependency($occurrence->source());
       $cacheability->addCacheableDependency($occurrence->node);
+      if ($occurrence->season !== NULL) {
+        $cacheability->addCacheableDependency($occurrence->season);
+      }
     }
     if ($node->bundle() === 'course') {
-      // A new lesson changes the next dates of its course.
-      $cacheability->addCacheTags(['lesson_list']);
+      // A new lesson or season changes the next dates of its course.
+      $cacheability->addCacheTags(['lesson_list', 'course_season_list']);
+      $max_age = $this->seasonMaxAge($seasons, $max_age);
+      foreach ($seasons as $season) {
+        $cacheability->addCacheableDependency($season);
+        $location = $season->get('location')->entity;
+        if ($location instanceof TermInterface) {
+          $cacheability->addCacheableDependency($location);
+        }
+      }
     }
-    $location = $this->detailFieldResolver->getLocationTerm($node);
-    if ($location !== NULL) {
-      $cacheability->addCacheableDependency($location);
+    else {
+      $location = $this->detailFieldResolver->getLocationTerm($node);
+      if ($location !== NULL) {
+        $cacheability->addCacheableDependency($location);
+      }
     }
     $organizer = $this->findOrganizer($node);
     if ($organizer !== NULL) {
@@ -364,96 +398,232 @@ final class DetailPagePreprocessHooks {
   }
 
   /**
-   * Formats the schedule line of a course.
+   * Builds the season cards of a course.
    *
-   * The rhythm comes from the course field and is only mentioned when the
-   * lessons do not take place every week. The weekday and time come from the
-   * next lesson, so the line stays correct when the first lesson is in the
-   * past.
+   * The first season is current when its first lesson has already started;
+   * otherwise it is the next season. Every further season is next.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course node.
-   * @param \Drupal\workspace_events\EventOccurrence[] $occurrences
-   *   The upcoming occurrences.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface[] $seasons
+   *   The current and next season.
+   *
+   * @return array<int, array{status: string, label: string, schedule: string, interval: string, location: array{name: string, address: string, map_url: string|null}|null, prices: array<int, array{category: string, amount: string}>}>
+   *   The season items.
+   */
+  private function buildSeasonItems(array $seasons): array {
+    $now = $this->time->getRequestTime();
+    $items = [];
+    foreach ($seasons as $index => $season) {
+      $status = 'next';
+      if ($index === 0) {
+        $start = $this->seasonStartTimestamp($season);
+        $status = $start !== NULL && $start <= $now ? 'current' : 'next';
+      }
+      $items[] = [
+        'status' => $status,
+        'label' => (string) $season->label(),
+        'schedule' => $this->buildSeasonSchedule($season),
+        'interval' => $this->getSeasonIntervalLabel($season),
+        'location' => $this->buildSeasonLocation($season),
+        'prices' => $this->buildSeasonPrices($season),
+      ];
+    }
+    return $items;
+  }
+
+  /**
+   * Builds the schedule line of the header from a season item.
+   *
+   * The rhythm is only mentioned when the lessons do not take place every
+   * week.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season of the item.
+   * @param array{status: string, label: string, schedule: string, interval: string, location: array{name: string, address: string, map_url: string|null}|null, prices: array<int, array{category: string, amount: string}>} $item
+   *   The season item.
    *
    * @return string
-   *   The schedule, or an empty string without upcoming dates.
+   *   The schedule, or an empty string without a schedule.
    */
-  private function buildCourseSchedule(NodeInterface $course, array $occurrences): string {
-    if (!isset($occurrences[0])) {
-      return '';
-    }
-
+  private function buildHeaderSchedule(SeasonInterface $season, array $item): string {
     $parts = [];
-    $interval = $this->getCourseInterval($course);
-    if ($interval !== NULL && $interval !== 1) {
-      $label = $this->getCourseIntervalLabel($course, $interval);
-      if ($label !== '') {
-        $parts[] = $label;
-      }
+    $interval = (int) $season->get('interval')->getString();
+    if ($interval > 1 && $item['interval'] !== '') {
+      $parts[] = $item['interval'];
     }
-    $schedule = $this->formatSchedule($occurrences[0]);
-    if ($schedule !== '') {
-      $parts[] = $schedule;
+    if ($item['schedule'] !== '') {
+      $parts[] = $item['schedule'];
     }
-
     return implode(' · ', $parts);
   }
 
   /**
-   * Returns the interval of a course in weeks.
+   * Returns the weekday and time of the first lesson of a season.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course node.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    *
-   * @return int|null
-   *   The interval, or NULL when the course has no interval.
+   * @return string
+   *   The schedule, or an empty string without a first lesson.
    */
-  private function getCourseInterval(NodeInterface $course): ?int {
-    if (!$course->hasField('field_course_interval') || $course->get('field_course_interval')->isEmpty()) {
-      return NULL;
+  private function buildSeasonSchedule(SeasonInterface $season): string {
+    $item = $season->get('field_schedule')->first();
+    if ($item === NULL) {
+      return '';
     }
-    $value = $course->get('field_course_interval')->getString();
-    return is_numeric($value) ? (int) $value : NULL;
+    $value = $item->get('value')->getString();
+    if ($value === '') {
+      return '';
+    }
+
+    $start = $this->siteTimeZone->fromStorageValue($value);
+    $end_value = $item->get('end_value')->getString();
+    $end = $end_value === '' ? NULL : $this->siteTimeZone->fromStorageValue($end_value);
+    return $this->formatScheduleLine($start, $end);
   }
 
   /**
-   * Returns the configured label of a course interval.
+   * Returns the configured label of a season interval.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course node.
-   * @param int $interval
-   *   The interval value.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    *
    * @return string
    *   The label, or an empty string when the field has no label for the value.
    */
-  private function getCourseIntervalLabel(NodeInterface $course, int $interval): string {
-    if (!$course->hasField('field_course_interval')) {
-      return '';
-    }
-    $definition = $course->get('field_course_interval')->getFieldDefinition();
+  private function getSeasonIntervalLabel(SeasonInterface $season): string {
+    $value = (int) $season->get('interval')->getString();
+    $definition = $season->get('interval')->getFieldDefinition();
     $allowed = $definition->getFieldStorageDefinition()->getSetting('allowed_values');
-    if (!is_array($allowed) || !isset($allowed[$interval])) {
+    if (!is_array($allowed) || !isset($allowed[$value])) {
       return '';
     }
-    $label = $allowed[$interval];
-    return is_scalar($label) ? (string) $label : '';
+    $label = $allowed[$value];
+    return is_scalar($label) || $label instanceof MarkupInterface ? (string) $label : '';
   }
 
   /**
-   * Formats the weekday and time of the series.
+   * Builds the location card data of a season.
    *
-   * @param \Drupal\workspace_events\EventOccurrence $occurrence
-   *   The next occurrence of the course.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   *
+   * @return array{name: string, address: string, map_url: string|null}|null
+   *   The location, or NULL when the season has no location.
+   */
+  private function buildSeasonLocation(SeasonInterface $season): ?array {
+    $term = $season->get('location')->entity;
+    return $term instanceof TermInterface ? $this->buildLocation($term) : NULL;
+  }
+
+  /**
+   * Builds the price rows of a season.
+   *
+   * Prices are per lesson, so no total is added.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   *
+   * @return array<int, array{category: string, amount: string}>
+   *   The formatted prices.
+   */
+  private function buildSeasonPrices(SeasonInterface $season): array {
+    if (!$season->hasField('field_prices')) {
+      return [];
+    }
+
+    $prices = [];
+    foreach ($season->get('field_prices') as $item) {
+      if (!$item instanceof PriceItem) {
+        continue;
+      }
+      $amount = $item->get('amount')->getString();
+      if ($amount === '') {
+        continue;
+      }
+      $prices[] = [
+        'category' => $item->getCategoryLabel(),
+        'amount' => PriceItem::formatAmount($amount),
+      ];
+    }
+    return $prices;
+  }
+
+  /**
+   * Returns the start timestamp of the first lesson of a season.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   *
+   * @return int|null
+   *   The timestamp, or NULL without a first lesson.
+   */
+  private function seasonStartTimestamp(SeasonInterface $season): ?int {
+    $value = $season->get('field_schedule')->first()?->get('value')->getString();
+    if ($value === NULL || $value === '') {
+      return NULL;
+    }
+    return $this->siteTimeZone->fromStorageValue($value)->getTimestamp();
+  }
+
+  /**
+   * Limits the cache lifetime to the next change of the season cards.
+   *
+   * The cards change when the current season ends or the next one starts,
+   * whichever is sooner.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface[] $seasons
+   *   The current and next season.
+   * @param int $max_age
+   *   The cache lifetime of the occurrences.
+   *
+   * @return int
+   *   The combined cache lifetime.
+   */
+  private function seasonMaxAge(array $seasons, int $max_age): int {
+    if ($seasons === []) {
+      return $max_age;
+    }
+
+    $now = $this->time->getRequestTime();
+    $start = $this->seasonStartTimestamp($seasons[0]);
+    if ($start !== NULL && $start > $now) {
+      $max_age = min($max_age, $start - $now);
+    }
+    else {
+      $last = $seasons[0]->get('last')->getString();
+      if ($last !== '') {
+        $last_day = \DateTimeImmutable::createFromFormat('!Y-m-d', $last, $this->siteTimeZone->get());
+        if ($last_day !== FALSE) {
+          $max_age = min($max_age, max(0, $last_day->modify('+1 day')->getTimestamp() - $now));
+        }
+      }
+    }
+
+    if (isset($seasons[1])) {
+      $next_start = $this->seasonStartTimestamp($seasons[1]);
+      if ($next_start !== NULL) {
+        $max_age = min($max_age, max(0, $next_start - $now));
+      }
+    }
+
+    return $max_age;
+  }
+
+  /**
+   * Formats the weekday and time of a date range.
+   *
+   * @param \DateTimeImmutable $start
+   *   The start.
+   * @param \DateTimeImmutable|null $end
+   *   The end, if any.
    *
    * @return string
    *   The weekday and time, joined for display.
    */
-  private function formatSchedule(EventOccurrence $occurrence): string {
+  private function formatScheduleLine(\DateTimeImmutable $start, ?\DateTimeImmutable $end): string {
     $parts = array_values(array_filter([
-      $this->formatWeekday($occurrence),
-      $this->formatTime($occurrence) ?? '',
+      $this->formatWeekdayOf($start),
+      $this->formatTimeRange($start, $end, FALSE) ?? '',
     ]));
     return implode(' · ', $parts);
   }
@@ -468,11 +638,24 @@ final class DetailPagePreprocessHooks {
    *   The weekday in the current interface language.
    */
   private function formatWeekday(EventOccurrence $occurrence): string {
+    return $this->formatWeekdayOf($occurrence->start);
+  }
+
+  /**
+   * Returns the translated weekday of a date.
+   *
+   * @param \DateTimeImmutable $date
+   *   The date.
+   *
+   * @return string
+   *   The weekday in the current interface language.
+   */
+  private function formatWeekdayOf(\DateTimeImmutable $date): string {
     return $this->dateFormatter->format(
-      $occurrence->start->getTimestamp(),
+      $date->getTimestamp(),
       'custom',
       'l',
-      $occurrence->start->getTimezone()->getName(),
+      $date->getTimezone()->getName(),
     );
   }
 
@@ -489,16 +672,33 @@ final class DetailPagePreprocessHooks {
    *   The formatted time, or NULL for all-day events.
    */
   private function formatTime(EventOccurrence $occurrence): ?string {
-    if ($occurrence->allDay) {
+    return $this->formatTimeRange($occurrence->start, $occurrence->end, $occurrence->allDay);
+  }
+
+  /**
+   * Formats a time range for the detail page.
+   *
+   * @param \DateTimeImmutable $start
+   *   The start.
+   * @param \DateTimeImmutable|null $end
+   *   The end, if any.
+   * @param bool $allDay
+   *   Whether the range lasts the whole day.
+   *
+   * @return string|null
+   *   The formatted time, or NULL for all-day ranges.
+   */
+  private function formatTimeRange(\DateTimeImmutable $start, ?\DateTimeImmutable $end, bool $allDay): ?string {
+    if ($allDay) {
       return NULL;
     }
-    $start = $occurrence->start->format('H:i');
-    if ($occurrence->end === NULL) {
-      return (string) $this->t('@start onwards', ['@start' => $start]);
+    $start_time = $start->format('H:i');
+    if ($end === NULL) {
+      return (string) $this->t('@start onwards', ['@start' => $start_time]);
     }
     return (string) $this->t('@start to @end', [
-      '@start' => $start,
-      '@end' => $occurrence->end->format('H:i'),
+      '@start' => $start_time,
+      '@end' => $end->format('H:i'),
     ]);
   }
 
@@ -520,16 +720,28 @@ final class DetailPagePreprocessHooks {
   }
 
   /**
-   * Builds the location card data of a course or event.
+   * Builds the location card data of an event node.
    *
    * @param \Drupal\node\NodeInterface $node
-   *   The course or event node.
+   *   The event node.
    *
-   * @return array{name: string, address: string, map_url: string}|null
+   * @return array{name: string, address: string, map_url: string|null}|null
    *   The location, or NULL when the node has no location.
    */
-  private function buildLocation(NodeInterface $node): ?array {
-    $term = $this->detailFieldResolver->getLocationTerm($node);
+  private function buildLocationFromNode(NodeInterface $node): ?array {
+    return $this->buildLocation($this->detailFieldResolver->getLocationTerm($node));
+  }
+
+  /**
+   * Builds the location card data of a location term.
+   *
+   * @param \Drupal\taxonomy\TermInterface|null $term
+   *   The location term, or NULL when there is none.
+   *
+   * @return array{name: string, address: string, map_url: string|null}|null
+   *   The location, or NULL without a term.
+   */
+  private function buildLocation(?TermInterface $term): ?array {
     if ($term === NULL) {
       return NULL;
     }
@@ -537,7 +749,7 @@ final class DetailPagePreprocessHooks {
     return [
       'name' => (string) $term->label(),
       'address' => $this->detailFieldResolver->getAddress($term),
-      'map_url' => $this->detailFieldResolver->getMapUrl($term)?->toString() ?? '',
+      'map_url' => $this->detailFieldResolver->getMapUrl($term)?->toString(),
     ];
   }
 

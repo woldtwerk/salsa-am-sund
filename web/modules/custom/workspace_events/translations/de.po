@@ -91,17 +91,14 @@ msgstr "Kurs"
 msgid "Filters lessons by their course."
 msgstr "Filtert Unterrichtsstunden nach ihrem Kurs."
 
-msgid "Lesson table"
-msgstr "Stundentabelle"
-
 msgid "Lessons (@count)"
 msgstr "Stunden (@count)"
 
-msgid "Lessons are generated from the start, end and rhythm when saving."
-msgstr "Die Stunden werden beim Speichern aus Beginn, Ende und Rhythmus erzeugt."
+msgid "Lessons are generated from the start, end and rhythm when saving the season."
+msgstr "Die Stunden werden beim Speichern der Saison aus Beginn, Ende und Rhythmus erzeugt."
 
-msgid "To change the dates: delete the lessons, then save the course."
-msgstr "Termine ändern: Stunden löschen, dann Kurs speichern."
+msgid "Changing the dates regenerates the lessons. Once a lesson has participants, figures or a cancellation, the dates are locked."
+msgstr "Termine ändern: Die Stunden werden neu erzeugt. Sobald eine Stunde Teilnehmer, Figuren oder eine Absage hat, sind die Termine gesperrt."
 
 msgid "Date"
 msgstr "Datum"
@@ -251,6 +248,63 @@ msgstr "Unterrichtsstunden löschen"
 msgid "Allows deleting lessons."
 msgstr "Erlaubt das Löschen von Unterrichtsstunden."
 
+msgid "Season"
+msgstr "Saison"
+
+msgid "Seasons"
+msgstr "Saisons"
+
+msgid "Season %label has been saved."
+msgstr "Die Saison %label wurde gespeichert."
+
+msgid "First lesson"
+msgstr "Erste Stunde"
+
+msgid "Date, start and end time of the first lesson."
+msgstr "Datum, Beginn und Ende der ersten Stunde."
+
+msgid "Last lesson"
+msgstr "Letzte Stunde"
+
+msgid "Interval"
+msgstr "Rhythmus"
+
+msgid "Location"
+msgstr "Ort"
+
+msgid "Weekly"
+msgstr "Wöchentlich"
+
+msgid "Every 2 weeks"
+msgstr "Alle 2 Wochen"
+
+msgid "Add season"
+msgstr "Saison hinzufügen"
+
+msgid "Save the course first, then add its seasons."
+msgstr "Speichere zuerst den Kurs, dann kannst du Saisons hinzufügen."
+
+msgid "The dates can't be changed because lessons of this season already have participants, figures or a cancellation."
+msgstr "Die Termine können nicht geändert werden, weil Stunden dieser Saison bereits Teilnehmer, Figuren oder eine Absage haben."
+
+msgid "The last lesson must not be before the first lesson."
+msgstr "Die letzte Stunde darf nicht vor der ersten Stunde liegen."
+
+msgid "No seasons yet."
+msgstr "Noch keine Saisons."
+
+msgid "Edit course seasons"
+msgstr "Kurs-Saisons bearbeiten"
+
+msgid "Allows creating and editing the seasons of a course."
+msgstr "Erlaubt das Anlegen und Bearbeiten der Saisons eines Kurses."
+
+msgid "Delete course seasons"
+msgstr "Kurs-Saisons löschen"
+
+msgid "Allows deleting course seasons without recorded lessons."
+msgstr "Erlaubt das Löschen von Kurs-Saisons ohne erfasste Stunden."
+
 msgid "Create and edit lessons."
 msgstr "Unterrichtsstunden anlegen und bearbeiten."
 
@@ -305,3 +359,42 @@ msgstr "Nur Favoriten"
 
 msgid "No favorites"
 msgstr "Keine Favoriten"
+
+msgid "Price per lesson"
+msgstr "Preis pro Stunde"
+
+msgid "A category and an amount per lesson."
+msgstr "Eine Kategorie und ein Betrag pro Unterrichtsstunde."
+
+msgid "Category"
+msgstr "Kategorie"
+
+msgid "Amount"
+msgstr "Betrag"
+
+msgid "Categories"
+msgstr "Kategorien"
+
+msgid "One category per line, in the format \"key|Label\". Keys may contain lowercase letters, numbers and underscores. Renaming a label keeps existing prices. A key that is still used cannot be removed automatically; check the saved prices first."
+msgstr "Eine Kategorie pro Zeile im Format \"Schlüssel|Bezeichnung\". Schlüssel dürfen nur Kleinbuchstaben, Zahlen und Unterstriche enthalten. Eine Bezeichnung umzubenennen behält bestehende Preise bei. Ein noch verwendeter Schlüssel kann nicht automatisch entfernt werden; prüfe zuerst die gespeicherten Preise."
+
+msgid "Line @line: use the format \"key|Label\"."
+msgstr "Zeile @line: Verwende das Format \"Schlüssel|Bezeichnung\"."
+
+msgid "Line @line: the key \"@key\" may only contain lowercase letters, numbers and underscores."
+msgstr "Zeile @line: Der Schlüssel \"@key\" darf nur Kleinbuchstaben, Zahlen und Unterstriche enthalten."
+
+msgid "Line @line: the key \"@key\" is longer than 64 characters."
+msgstr "Zeile @line: Der Schlüssel \"@key\" ist länger als 64 Zeichen."
+
+msgid "Line @line: the key \"@key\" is used twice."
+msgstr "Zeile @line: Der Schlüssel \"@key\" wird doppelt verwendet."
+
+msgid "Line @line: the label must not be empty."
+msgstr "Zeile @line: Die Bezeichnung darf nicht leer sein."
+
+msgid "At least one category is required."
+msgstr "Mindestens eine Kategorie ist erforderlich."
+
+msgid "@category: @amount per lesson"
+msgstr "@category: @amount pro Stunde"

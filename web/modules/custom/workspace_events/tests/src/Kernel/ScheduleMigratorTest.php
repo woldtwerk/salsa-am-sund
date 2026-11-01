@@ -33,6 +33,23 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
     parent::setUp();
 
     $this->createLegacyScheduleField();
+    if (FieldConfig::loadByName('node', 'course', 'field_location') === NULL) {
+      FieldConfig::create([
+        'field_name' => 'field_location',
+        'entity_type' => 'node',
+        'bundle' => 'course',
+        'label' => 'Ort',
+        'field_storage' => FieldStorageConfig::loadByName('node', 'field_location'),
+        'settings' => [
+          'handler' => 'default:taxonomy_term',
+          'handler_settings' => [
+            'target_bundles' => ['location' => 'location'],
+            'sort' => ['field' => 'name', 'direction' => 'ASC'],
+            'auto_create' => FALSE,
+          ],
+        ],
+      ])->save();
+    }
 
     $migrator = $this->container->get(ScheduleMigrator::class);
     \assert($migrator instanceof ScheduleMigrator);
@@ -47,22 +64,29 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
     $start = new \DateTimeImmutable('2026-11-02 18:00', $timezone);
     $end = $start->modify('+1 hour');
     $deltas = $this->recurringDeltas($start, $end, 'WEEKLY', 'INTERVAL=2;BYDAY=MO', 'COUNT=4', 'course');
+    $location = $this->createLocation('Bootshaus Stralsund');
 
     $course = $this->createCourse([
       'title' => 'Zweiwöchentlich',
       'field_when' => $deltas,
     ]);
+    $course->set('field_location', $location->id());
+    $course->save();
 
     self::assertSame('', $this->migrator->migrate());
 
-    $course_id = (int) $course->id();
+    $season = $this->loadSeason($course);
+    $schedule = $season->get('field_schedule')->first();
+    self::assertNotNull($schedule);
     $utc = new \DateTimeZone('UTC');
-    self::assertSame($start->setTimezone($utc)->format('Y-m-d\TH:i:s'), $this->fieldColumn('field_course_first', $course_id));
-    self::assertSame($end->setTimezone($utc)->format('Y-m-d\TH:i:s'), $this->fieldColumn('field_course_first', $course_id, 'end_value'));
-    self::assertSame($start->modify('+6 weeks')->format('Y-m-d'), $this->fieldColumn('field_course_last', $course_id));
-    self::assertSame('2', $this->fieldColumn('field_course_interval', $course_id));
+    self::assertSame($start->setTimezone($utc)->format('Y-m-d\TH:i:s'), $schedule->get('value')->getString());
+    self::assertSame($end->setTimezone($utc)->format('Y-m-d\TH:i:s'), $schedule->get('end_value')->getString());
+    self::assertSame($start->modify('+6 weeks')->format('Y-m-d'), $season->get('last')->getString());
+    self::assertSame('2', $season->get('interval')->getString());
+    self::assertSame($location->id(), $season->get('location')->target_id);
+    self::assertSame(1, (int) $season->getOwnerId());
 
-    $lessons = $this->loadLessons($course_id);
+    $lessons = $this->loadCourseLessons($course);
     self::assertCount(4, $lessons);
     self::assertSame([
       $start->format('Y-m-d'),
@@ -71,14 +95,18 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
       $start->modify('+6 weeks')->format('Y-m-d'),
     ], array_map(
       function (LessonInterface $lesson): string {
-        $item = $lesson->get('field_lesson_date')->first();
-        self::assertNotNull($item);
-        return (new \DateTimeImmutable(
-          $item->get('value')->getString(),
-          new \DateTimeZone('UTC'),
-        ))->setTimezone(new \DateTimeZone(self::TIMEZONE))->format('Y-m-d');
+        return $this->lessonDate($lesson)->format('Y-m-d');
       },
       $lessons,
+    ));
+
+    // A second run creates neither a season nor lessons.
+    $lesson_ids = array_map(static fn (LessonInterface $lesson): int => (int) $lesson->id(), $lessons);
+    self::assertSame('', $this->migrator->migrate());
+    self::assertSame((int) $season->id(), (int) $this->loadSeason($course)->id());
+    self::assertSame($lesson_ids, array_map(
+      static fn (LessonInterface $lesson): int => (int) $lesson->id(),
+      $this->loadCourseLessons($course),
     ));
   }
 
@@ -213,30 +241,21 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
   }
 
   /**
-   * Loads the lessons of a course from their stored references.
+   * Returns the start of a lesson in the site timezone.
    *
-   * @param int $course_id
-   *   The course node ID.
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The lesson.
    *
-   * @return \Drupal\workspace_events\Entity\LessonInterface[]
-   *   The lessons, in the stored order.
+   * @return \DateTimeImmutable
+   *   The start.
    */
-  private function loadLessons(int $course_id): array {
-    $ids = $this->container->get('database')->select('node__field_lessons', 't')
-      ->fields('t', ['field_lessons_target_id'])
-      ->condition('entity_id', $course_id)
-      ->orderBy('delta')
-      ->execute()
-      ->fetchCol();
-    $ids = array_map(static fn (mixed $id): int => (int) $id, $ids);
-    $this->lessonStorage->resetCache($ids);
-    $lessons = [];
-    foreach ($ids as $id) {
-      $lesson = $this->lessonStorage->load($id);
-      self::assertInstanceOf(LessonInterface::class, $lesson);
-      $lessons[] = $lesson;
-    }
-    return $lessons;
+  private function lessonDate(LessonInterface $lesson): \DateTimeImmutable {
+    $item = $lesson->get('field_lesson_date')->first();
+    self::assertNotNull($item);
+    return (new \DateTimeImmutable(
+      $item->get('value')->getString(),
+      new \DateTimeZone('UTC'),
+    ))->setTimezone(new \DateTimeZone(self::TIMEZONE));
   }
 
   /**
@@ -279,29 +298,6 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
       ];
     }
     return $result;
-  }
-
-  /**
-   * Returns a stored field property of a node.
-   *
-   * @param string $field_name
-   *   The field name.
-   * @param int $entity_id
-   *   The node ID.
-   * @param string $property
-   *   The field property.
-   *
-   * @return string|null
-   *   The stored value.
-   */
-  private function fieldColumn(string $field_name, int $entity_id, string $property = 'value'): ?string {
-    $value = $this->container->get('database')->select('node__' . $field_name, 't')
-      ->fields('t', [$field_name . '_' . $property])
-      ->condition('entity_id', $entity_id)
-      ->condition('delta', 0)
-      ->execute()
-      ->fetchField();
-    return $value === FALSE ? NULL : (string) $value;
   }
 
 }

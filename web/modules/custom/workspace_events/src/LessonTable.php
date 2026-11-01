@@ -2,54 +2,34 @@
 
 declare(strict_types=1);
 
-namespace Drupal\workspace_events\Plugin\Field\FieldWidget;
+namespace Drupal\workspace_events;
 
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Datetime\DateFormatterInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Field\Attribute\FieldWidget;
-use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\Core\Field\FieldItemInterface;
-use Drupal\Core\Field\FieldItemListInterface;
-use Drupal\Core\Field\WidgetBase;
-use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
-use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Entity\LessonInterface;
-use Drupal\workspace_events\SiteTimeZone;
+use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
- * Shows the generated lessons of a course as a compact, read-only table.
+ * Shows the generated lessons of a season as a compact, read-only table.
  *
- * The lesson references are owned by the lesson generator: the widget never
+ * The lesson references are owned by the lesson generator: the table never
  * adds, removes or reorders them. Each row links to the edit form of its
  * lesson, so an editor can change a single lesson without scrolling through
  * one autocomplete row per lesson.
  */
-#[FieldWidget(
-  id: 'workspace_events_lesson_table',
-  label: new TranslatableMarkup('Lesson table'),
-  field_types: ['entity_reference'],
-  multiple_values: TRUE,
-)]
-final class LessonTableWidget extends WidgetBase {
+final class LessonTable {
+
+  use StringTranslationTrait;
 
   /**
-   * Constructs a LessonTableWidget.
+   * Constructs a LessonTable.
    *
-   * @param string $plugin_id
-   *   The plugin ID.
-   * @param mixed $plugin_definition
-   *   The plugin definition.
-   * @param \Drupal\Core\Field\FieldDefinitionInterface $field_definition
-   *   The field definition.
-   * @param array<string, mixed> $settings
-   *   The widget settings.
-   * @param array<string, mixed> $third_party_settings
-   *   The third party settings.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
-   *   The entity type manager.
+   * @param \Drupal\workspace_events\SeasonRepository $seasonRepository
+   *   The season repository.
    * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
    *   The site timezone.
    * @param \Drupal\Core\Datetime\DateFormatterInterface $dateFormatter
@@ -58,66 +38,40 @@ final class LessonTableWidget extends WidgetBase {
    *   The config factory.
    */
   public function __construct(
-    $plugin_id,
-    $plugin_definition,
-    FieldDefinitionInterface $field_definition,
-    array $settings,
-    array $third_party_settings,
-    protected readonly EntityTypeManagerInterface $entityTypeManager,
-    protected readonly SiteTimeZone $siteTimeZone,
-    protected readonly DateFormatterInterface $dateFormatter,
-    protected readonly ConfigFactoryInterface $configFactory,
-  ) {
-    parent::__construct($plugin_id, $plugin_definition, $field_definition, $settings, $third_party_settings);
-  }
+    private readonly SeasonRepository $seasonRepository,
+    private readonly SiteTimeZone $siteTimeZone,
+    private readonly DateFormatterInterface $dateFormatter,
+    private readonly ConfigFactoryInterface $configFactory,
+  ) {}
 
   /**
-   * {@inheritdoc}
-   */
-  public static function isApplicable(FieldDefinitionInterface $field_definition): bool {
-    return $field_definition->getType() === 'entity_reference'
-      && $field_definition->getSetting('target_type') === 'lesson';
-  }
-
-  /**
-   * Builds the lesson table for the course form.
+   * Builds the lesson table of a season.
    *
-   * @param \Drupal\Core\Field\FieldItemListInterface<\Drupal\Core\Field\FieldItemInterface> $items
-   *   The lesson reference field.
-   * @param int $delta
-   *   The delta, always 0 because the widget handles all values.
-   * @param array<string, mixed> $element
-   *   The form element.
-   * @param array<string, mixed> $form
-   *   The form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The form state.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
    *
    * @return array<string, mixed>
-   *   The form element.
+   *   The render array of the table.
    */
-  public function formElement(FieldItemListInterface $items, $delta, array $element, array &$form, FormStateInterface $form_state): array {
-    /** @var array<string, mixed> $build */
-    $build = $element;
+  public function build(SeasonInterface $season): array {
+    $lessons = $this->seasonRepository->loadLessons($season);
+    $destination = $season->isNew() ? NULL : $season->toUrl('edit-form')->toString();
 
-    $lessons = $this->loadLessons($items);
-    $course = $items->getEntity();
-    $destination = $course instanceof NodeInterface && !$course->isNew()
-      ? $course->toUrl('edit-form')->toString()
-      : NULL;
-
-    $build['#type'] = 'details';
-    $build['#title'] = $this->t('Lessons (@count)', ['@count' => count($lessons)]);
-    $build['#open'] = TRUE;
+    $build = [
+      '#type' => 'details',
+      '#title' => $this->t('Lessons (@count)', ['@count' => count($lessons)]),
+      '#open' => TRUE,
+    ];
 
     $cacheability = new CacheableMetadata();
     $cacheability->addCacheContexts(['languages:language_interface', 'url.site', 'user', 'user.permissions']);
-    $cacheability->addCacheableDependency($course);
+    $cacheability->addCacheableDependency($season);
     $cacheability->addCacheableDependency($this->configFactory->get('system.date'));
+    $cacheability->addCacheTags(['lesson_list']);
 
     if ($lessons === []) {
       $build['empty'] = [
-        '#markup' => $this->t('Lessons are generated from the start, end and rhythm when saving.'),
+        '#markup' => $this->t('Lessons are generated from the start, end and rhythm when saving the season.'),
       ];
       $build['#cache'] = [
         'contexts' => $cacheability->getCacheContexts(),
@@ -128,7 +82,7 @@ final class LessonTableWidget extends WidgetBase {
     }
 
     $build['hint'] = [
-      '#markup' => $this->t('To change the dates: delete the lessons, then save the course.'),
+      '#markup' => $this->t('Changing the dates regenerates the lessons. Once a lesson has participants, figures or a cancellation, the dates are locked.'),
       '#prefix' => '<div class="messages messages--warning">',
       '#suffix' => '</div>',
     ];
@@ -165,65 +119,6 @@ final class LessonTableWidget extends WidgetBase {
   }
 
   /**
-   * {@inheritdoc}
-   *
-   * The lesson generator owns the references. The widget renders no inputs, so
-   * an empty submission must not clear the field.
-   *
-   * @param \Drupal\Core\Field\FieldItemListInterface<\Drupal\Core\Field\FieldItemInterface> $items
-   *   The lesson reference field.
-   * @param array<string, mixed> $form
-   *   The form.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The form state.
-   */
-  public function extractFormValues(FieldItemListInterface $items, array $form, FormStateInterface $form_state): void {
-  }
-
-  /**
-   * Loads the referenced lessons that still exist, sorted by their start.
-   *
-   * @param \Drupal\Core\Field\FieldItemListInterface<\Drupal\Core\Field\FieldItemInterface> $items
-   *   The lesson reference field.
-   *
-   * @return \Drupal\workspace_events\Entity\LessonInterface[]
-   *   The lessons, sorted by start. Lessons without a date come last.
-   */
-  private function loadLessons(FieldItemListInterface $items): array {
-    $ids = [];
-    foreach ($items as $item) {
-      $target_id = $item->get('target_id')->getString();
-      if ($target_id === '' || !ctype_digit($target_id)) {
-        continue;
-      }
-      $ids[] = (int) $target_id;
-    }
-    if ($ids === []) {
-      return [];
-    }
-
-    $storage = $this->entityTypeManager->getStorage('lesson');
-    $lessons = [];
-    foreach ($storage->loadMultiple(array_unique($ids)) as $lesson) {
-      if ($lesson instanceof LessonInterface) {
-        $lessons[] = $lesson;
-      }
-    }
-
-    /** @var array<int, array{lesson: \Drupal\workspace_events\Entity\LessonInterface, start: \DateTimeImmutable|null}> $sorted */
-    $sorted = [];
-    foreach ($lessons as $lesson) {
-      $sorted[] = [
-        'lesson' => $lesson,
-        'start' => $this->lessonStart($lesson),
-      ];
-    }
-    usort($sorted, static fn (array $a, array $b): int => ($a['start']?->getTimestamp() ?? PHP_INT_MAX) <=> ($b['start']?->getTimestamp() ?? PHP_INT_MAX));
-
-    return array_map(static fn (array $item): LessonInterface => $item['lesson'], $sorted);
-  }
-
-  /**
    * Finds the most relevant lesson of the table.
    *
    * @param \Drupal\workspace_events\Entity\LessonInterface[] $lessons
@@ -253,7 +148,7 @@ final class LessonTableWidget extends WidgetBase {
       if ($is_today && $today_lesson === NULL) {
         $today_lesson = ['id' => (int) $lesson->id(), 'today' => TRUE];
       }
-      if (!$is_today && $start > $now && $next_lesson === NULL && !$this->isCancelled($lesson)) {
+      if (!$is_today && $start > $now && $next_lesson === NULL && !$lesson->isCancelled()) {
         $next_lesson = ['id' => (int) $lesson->id(), 'today' => FALSE];
       }
     }
@@ -267,7 +162,7 @@ final class LessonTableWidget extends WidgetBase {
    * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    * @param string|null $destination
-   *   The course edit URL used as link destination, or NULL when unknown.
+   *   The season edit URL used as link destination, or NULL when unknown.
    * @param array{id: int, today: bool}|null $relevant
    *   The most relevant lesson and whether it runs today, or NULL.
    *
@@ -394,23 +289,10 @@ final class LessonTableWidget extends WidgetBase {
    *   The status label.
    */
   private function statusLabel(LessonInterface $lesson): TranslatableMarkup {
-    if ($this->isCancelled($lesson)) {
+    if ($lesson->isCancelled()) {
       return $this->t('Cancelled');
     }
     return $lesson->isPublished() ? $this->t('Published') : $this->t('Scheduled', [], ['context' => 'workspace_events']);
-  }
-
-  /**
-   * Returns whether a lesson is cancelled.
-   *
-   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
-   *   The lesson.
-   *
-   * @return bool
-   *   TRUE when the lesson is cancelled.
-   */
-  private function isCancelled(LessonInterface $lesson): bool {
-    return $lesson->hasField('field_cancelled') && $lesson->get('field_cancelled')->getString() === '1';
   }
 
   /**

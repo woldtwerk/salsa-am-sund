@@ -514,6 +514,9 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     $cacheability->addCacheTags(['node_list:course']);
     foreach ($courses as $occurrence) {
       $cacheability->addCacheableDependency($occurrence->node);
+      if ($occurrence->season !== NULL) {
+        $cacheability->addCacheableDependency($occurrence->season);
+      }
       if ($occurrence->location !== NULL) {
         $cacheability->addCacheableDependency($occurrence->location);
       }
@@ -627,6 +630,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
       'node_list:event',
       'node_list:course',
       'lesson_list',
+      'course_season_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
@@ -636,6 +640,9 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     foreach ($occurrences as $occurrence) {
       $cacheability->addCacheableDependency($occurrence->source());
       $cacheability->addCacheableDependency($occurrence->node);
+      if ($occurrence->season !== NULL) {
+        $cacheability->addCacheableDependency($occurrence->season);
+      }
       if ($occurrence->organizer !== NULL) {
         $cacheability->addCacheableDependency($occurrence->organizer);
       }

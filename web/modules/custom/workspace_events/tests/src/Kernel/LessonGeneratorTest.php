@@ -20,16 +20,18 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 final class LessonGeneratorTest extends LessonKernelTestBase {
 
   /**
-   * Tests generating, keeping and regenerating the lessons of a course.
+   * Tests generating and regenerating the lessons of a season.
    */
-  public function testGenerateLessonsOnCourseSave(): void {
+  public function testGenerateLessonsOnSeasonSave(): void {
     $first = new \DateTimeImmutable('now -2 weeks 18:00', new \DateTimeZone(self::TIMEZONE));
     $course = $this->createCourseSchedule($first, $first->modify('+4 weeks'));
-    $lessons = $this->loadReferencedLessons($course);
+    $season = $this->loadSeason($course);
+    $lessons = $this->loadCourseLessons($course);
 
     self::assertCount(5, $lessons);
     self::assertSame('Salsa Kurs – ' . $first->format('d.m.Y'), $lessons[0]->label());
     self::assertSame('Salsa Kurs – ' . $first->modify('+4 weeks')->format('d.m.Y'), $lessons[4]->label());
+    self::assertSame((int) $season->id(), (int) $lessons[0]->getSeason()?->id());
 
     $starts = array_map($this->lessonStart(...), $lessons);
     self::assertSame(
@@ -55,18 +57,20 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
       }
     }
 
-    $original_ids = $this->referencedLessonIds($course);
-    $course->save();
-    self::assertSame($original_ids, $this->referencedLessonIds($course));
-    self::assertCount(5, $this->loadReferencedLessons($course));
+    // Saving the season without a schedule change keeps the lessons.
+    $original_ids = $this->lessonIds($lessons);
+    $season->save();
+    self::assertSame($original_ids, $this->lessonIds($this->loadCourseLessons($course)));
 
-    // Deleting all lessons lets the next save create new ones and drop the
-    // references to the deleted entities.
-    $this->lessonStorage->delete($lessons);
-    $course->save();
-    $new_ids = $this->referencedLessonIds($course);
-    self::assertCount(5, $new_ids);
-    self::assertSame([], array_intersect($original_ids, $new_ids));
+    // Changing the dates replaces the lessons of the season.
+    $season->set('field_schedule', $this->dateRange($first->modify('+1 day'), $first->modify('+1 day')->modify('+1 hour')));
+    $season->set('last', ['value' => $first->modify('+4 weeks')->modify('+1 day')->format('Y-m-d')]);
+    $season->save();
+
+    $new_lessons = $this->loadCourseLessons($course);
+    self::assertCount(5, $new_lessons);
+    self::assertSame([], array_intersect($original_ids, $this->lessonIds($new_lessons)));
+    self::assertSame($first->modify('+1 day')->format('Y-m-d'), $this->lessonStart($new_lessons[0])->format('Y-m-d'));
   }
 
   /**
@@ -75,7 +79,7 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   public function testCourseDeletionKeepsRecordedLessons(): void {
     $first = new \DateTimeImmutable('now +1 week 18:00', new \DateTimeZone(self::TIMEZONE));
     $course = $this->createCourseSchedule($first, $first->modify('+1 week'));
-    $lessons = $this->loadReferencedLessons($course);
+    $lessons = $this->loadCourseLessons($course);
     self::assertCount(2, $lessons);
 
     $lessons[0]->set('field_cancelled', TRUE);
@@ -97,7 +101,7 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   public function testSchedulerPublishesFutureLesson(): void {
     $first = new \DateTimeImmutable('now +1 week 18:00', new \DateTimeZone(self::TIMEZONE));
     $course = $this->createCourseSchedule($first, $first);
-    $lessons = $this->loadReferencedLessons($course);
+    $lessons = $this->loadCourseLessons($course);
     self::assertCount(1, $lessons);
 
     $lesson = $lessons[0];
@@ -135,41 +139,16 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   }
 
   /**
-   * Returns the referenced lesson IDs of a course.
+   * Returns the IDs of lessons.
    *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course.
+   * @param \Drupal\workspace_events\Entity\LessonInterface[] $lessons
+   *   The lessons.
    *
    * @return int[]
-   *   The lesson IDs, in the stored order.
+   *   The lesson IDs.
    */
-  private function referencedLessonIds(NodeInterface $course): array {
-    $ids = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $ids[] = (int) $item->get('target_id')->getString();
-    }
-    return $ids;
-  }
-
-  /**
-   * Loads the referenced lessons of a course.
-   *
-   * @param \Drupal\node\NodeInterface $course
-   *   The course.
-   *
-   * @return \Drupal\workspace_events\Entity\LessonInterface[]
-   *   The lessons, in the stored order.
-   */
-  private function loadReferencedLessons(NodeInterface $course): array {
-    $lessons = [];
-    $ids = $this->referencedLessonIds($course);
-    $this->lessonStorage->resetCache($ids);
-    foreach ($ids as $id) {
-      $lesson = $this->lessonStorage->load($id);
-      self::assertInstanceOf(LessonInterface::class, $lesson);
-      $lessons[] = $lesson;
-    }
-    return $lessons;
+  private function lessonIds(array $lessons): array {
+    return array_map(static fn (LessonInterface $lesson): int => (int) $lesson->id(), $lessons);
   }
 
   /**

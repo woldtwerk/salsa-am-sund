@@ -2,15 +2,14 @@ langcode: de
 status: true
 dependencies:
   module:
-    - datetime
-    - node
-id: node.field_course_last
-field_name: field_course_last
-entity_type: node
-type: datetime
+    - datetime_range
+id: course_season.field_schedule
+field_name: field_schedule
+entity_type: course_season
+type: daterange
 settings:
-  datetime_type: date
-module: datetime
+  datetime_type: datetime
+module: datetime_range
 locked: false
 cardinality: 1
 translatable: false

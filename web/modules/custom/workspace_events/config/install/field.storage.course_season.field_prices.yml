@@ -1,17 +1,17 @@
-uuid: cb112960-4014-4e50-a160-3523709a2a16
 langcode: de
 status: true
 dependencies:
   module:
-    - node
     - workspace_events
-id: node.field_lessons
-field_name: field_lessons
-entity_type: node
-type: entity_reference
+id: course_season.field_prices
+field_name: field_prices
+entity_type: course_season
+type: workspace_events_price
 settings:
-  target_type: lesson
-module: core
+  categories:
+    normal: Normal
+    student: Student
+module: workspace_events
 locked: false
 cardinality: -1
 translatable: false

@@ -39,7 +39,7 @@ final class EventCalendarBlockTest extends LessonKernelTestBase {
     $start = $this->date('now +2 days', '18:15');
     $course = $this->createCourse([
       'title' => 'Anfänger',
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       ...$this->courseSchedule($start, $start),
     ]);
     // One event before and one after the course, so the card order is testable.

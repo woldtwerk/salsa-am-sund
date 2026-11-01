@@ -8,6 +8,8 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
+use Drupal\workspace_events\Plugin\Field\FieldType\PriceItem;
 
 /**
  * Builds schema.org JSON-LD for course and event detail pages.
@@ -74,7 +76,7 @@ final class StructuredDataBuilder {
     $description = $this->descriptionFormatter->toPlainText($node);
     $link = $this->detailFieldResolver->getLink($node);
     $same_as = $link === NULL ? NULL : $link['url']->setAbsolute()->toString();
-    $place = $this->buildPlace($node);
+    $place = $this->buildPlace($this->detailFieldResolver->getLocationTerm($node));
     $front_url = $this->getFrontUrl();
 
     $organizers = [];
@@ -143,7 +145,6 @@ final class StructuredDataBuilder {
 
     $url = $this->getCanonicalUrl($node);
     $description = $this->descriptionFormatter->toPlainText($node);
-    $place = $this->buildPlace($node);
 
     $course = [
       '@type' => 'Course',
@@ -170,8 +171,17 @@ final class StructuredDataBuilder {
       if ($end !== NULL) {
         $instance['endDate'] = $end;
       }
-      if ($place !== NULL) {
-        $instance['location'] = $place;
+      $season = $occurrence->season;
+      if ($season !== NULL) {
+        $location = $season->get('location')->entity;
+        $place = $location instanceof TermInterface ? $this->buildPlace($location) : NULL;
+        if ($place !== NULL) {
+          $instance['location'] = $place;
+        }
+        $offers = $this->buildOffers($season);
+        if ($offers !== []) {
+          $instance['offers'] = $offers;
+        }
       }
       $instances[] = $instance;
     }
@@ -234,14 +244,13 @@ final class StructuredDataBuilder {
   /**
    * Builds the location of a course or event.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The course or event node.
+   * @param \Drupal\taxonomy\TermInterface|null $term
+   *   The location term, or NULL when there is none.
    *
    * @return array<string, mixed>|null
-   *   The schema.org Place, or NULL when the node has no location.
+   *   The schema.org Place, or NULL when there is no location.
    */
-  private function buildPlace(NodeInterface $node): ?array {
-    $term = $this->detailFieldResolver->getLocationTerm($node);
+  private function buildPlace(?TermInterface $term): ?array {
     if ($term === NULL) {
       return NULL;
     }
@@ -262,6 +271,54 @@ final class StructuredDataBuilder {
     }
 
     return $place;
+  }
+
+  /**
+   * Builds the per-lesson offers of a season.
+   *
+   * Prices are per lesson, so every offer names one lesson as its reference
+   * quantity and no total is emitted.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season.
+   *
+   * @return array<int, array<string, mixed>>
+   *   The schema.org Offer items.
+   */
+  private function buildOffers(SeasonInterface $season): array {
+    if (!$season->hasField('field_prices')) {
+      return [];
+    }
+
+    $offers = [];
+    foreach ($season->get('field_prices') as $item) {
+      if (!$item instanceof PriceItem) {
+        continue;
+      }
+      $amount = $item->get('amount')->getString();
+      if ($amount === '') {
+        continue;
+      }
+      $price = number_format((float) $amount, 2, '.', '');
+      $offers[] = [
+        '@type' => 'Offer',
+        'category' => $item->getCategoryLabel(),
+        'priceCurrency' => 'EUR',
+        'price' => $price,
+        'priceSpecification' => [
+          '@type' => 'UnitPriceSpecification',
+          'price' => $price,
+          'priceCurrency' => 'EUR',
+          'referenceQuantity' => [
+            '@type' => 'QuantitativeValue',
+            'value' => 1,
+            'unitText' => 'lesson',
+          ],
+        ],
+      ];
+    }
+
+    return $offers;
   }
 
   /**

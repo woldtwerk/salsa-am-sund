@@ -9,6 +9,7 @@ use Drupal\taxonomy\TermInterface;
 use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\EventDescriptionFormatter;
+use Drupal\workspace_events\Entity\SeasonInterface;
 use Drupal\workspace_events\EventOccurrence;
 use Drupal\workspace_events\OrganizerResolver;
 use Drupal\workspace_events\StructuredDataBuilder;
@@ -139,7 +140,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
     $course = $this->createCourse([
       'title' => 'Leicht Fortgeschrittene',
       'field_difficulty' => [2],
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       'body' => [
         'value' => '<p>Neue Figuren und Elemente für Fortgeschrittene.</p>',
         'format' => 'plain_text',
@@ -148,11 +149,17 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
     ]);
     $lessons = $this->loadCourseLessons($course);
     self::assertCount(2, $lessons);
-    $location_term = $course->get('field_location')->entity;
+    $season = $this->loadSeason($course);
+    $season->set('field_prices', [
+      ['category' => 'normal', 'amount' => '12.00'],
+      ['category' => 'student', 'amount' => '10.00'],
+    ]);
+    $season->save();
+    $location_term = $season->get('location')->entity;
     \assert($location_term instanceof TermInterface);
     $occurrences = [];
     foreach ($lessons as $lesson) {
-      $occurrences[] = $this->lessonOccurrence($course, $lesson, $location_term);
+      $occurrences[] = $this->lessonOccurrence($course, $lesson, $location_term, $season);
     }
 
     $data = $this->builder->buildCourse($course, $occurrences);
@@ -200,6 +207,24 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
       $place['hasMap'],
     );
 
+    $offers = $first['offers'];
+    \assert(is_array($offers));
+    self::assertCount(2, $offers);
+    self::assertSame('Offer', $offers[0]['@type']);
+    self::assertSame('Normal', $offers[0]['category']);
+    self::assertSame('EUR', $offers[0]['priceCurrency']);
+    self::assertSame('12.00', $offers[0]['price']);
+    self::assertSame('UnitPriceSpecification', $offers[0]['priceSpecification']['@type']);
+    self::assertSame('12.00', $offers[0]['priceSpecification']['price']);
+    self::assertSame('EUR', $offers[0]['priceSpecification']['priceCurrency']);
+    self::assertSame([
+      '@type' => 'QuantitativeValue',
+      'value' => 1,
+      'unitText' => 'lesson',
+    ], $offers[0]['priceSpecification']['referenceQuantity']);
+    self::assertSame('Student', $offers[1]['category']);
+    self::assertSame('10.00', $offers[1]['price']);
+
     $empty = $this->createCourse(['title' => 'Anfänger']);
     $course_data = $this->builder->buildCourse($empty, [])['@graph'][0];
     \assert(is_array($course_data));
@@ -234,18 +259,20 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
    *   The lesson.
    * @param \Drupal\taxonomy\TermInterface|null $location
    *   The location of the course.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface $season
+   *   The season of the course.
    *
    * @return \Drupal\workspace_events\EventOccurrence
    *   The occurrence.
    */
-  private function lessonOccurrence(NodeInterface $course, LessonInterface $lesson, ?TermInterface $location): EventOccurrence {
+  private function lessonOccurrence(NodeInterface $course, LessonInterface $lesson, ?TermInterface $location, SeasonInterface $season): EventOccurrence {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
     $timezone = new \DateTimeZone(self::TIMEZONE);
     $utc = new \DateTimeZone('UTC');
     $start = (new \DateTimeImmutable($item->get('value')->getString(), $utc))->setTimezone($timezone);
     $end = (new \DateTimeImmutable($item->get('end_value')->getString(), $utc))->setTimezone($timezone);
-    return new EventOccurrence($course, $lesson, $start, $end, FALSE, NULL, $location);
+    return new EventOccurrence($course, $lesson, $start, $end, FALSE, NULL, $location, FALSE, $season);
   }
 
 }

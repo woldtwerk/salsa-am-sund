@@ -10,7 +10,6 @@ use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
 use Drupal\workspace_events\Entity\LessonInterface;
-use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -86,7 +85,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
 
     $course = $this->createCourse([
       'title' => 'Anfänger',
-      'field_location' => $this->locationA,
+      'season_location' => $this->locationA,
       'field_difficulty' => [0],
       ...$this->courseSchedule(
         $this->date('2026-10-05', '18:15'),
@@ -300,7 +299,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     // Course filter, including one selected course and combined selections.
     $second = $this->createCourse([
       'title' => 'Fortgeschrittene',
-      'field_location' => $this->locationA,
+      'season_location' => $this->locationA,
       ...$this->courseSchedule(
         $this->date('2026-10-06', '19:30'),
         $this->date('2026-12-31'),
@@ -336,7 +335,6 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     $repository = new EventOccurrenceRepository(
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
-      $this->container->get(LessonCourseResolver::class),
       $this->container->get('database'),
       $this->container->get('datetime.time'),
     );
@@ -439,14 +437,12 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     );
     self::assertCount(1, $limited);
     self::assertSame('2026-10-05', $limited[0]->start->format('Y-m-d'));
-    $lesson_id = (int) $unpublished->get('field_lessons')->first()?->get('target_id')->getString();
-    $lesson = $this->lessonStorage->load($lesson_id);
+    $lesson = $this->loadCourseLessons($unpublished)[0] ?? NULL;
     self::assertInstanceOf(LessonInterface::class, $lesson);
     self::assertNull($this->repository->findLessonOccurrence($lesson));
 
     // The lesson dates are public even though the lessons are restricted.
-    $lesson_id = (int) $this->nodeStorage->load($this->courseId)?->get('field_lessons')->first()?->get('target_id')->getString();
-    $lesson = $this->lessonStorage->load($lesson_id);
+    $lesson = $this->loadCourseLessons($this->nodeStorage->load($this->courseId))[0] ?? NULL;
     self::assertInstanceOf(LessonInterface::class, $lesson);
     $anonymous = new AnonymousUserSession();
     $this->container->get('current_user')->setAccount($anonymous);
@@ -469,8 +465,7 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
         $this->date('2026-10-08', '19:00'),
       ),
     ]);
-    $lesson_id = (int) $cancelled_course->get('field_lessons')->first()?->get('target_id')->getString();
-    $lesson = $this->lessonStorage->load($lesson_id);
+    $lesson = $this->loadCourseLessons($cancelled_course)[0] ?? NULL;
     self::assertInstanceOf(LessonInterface::class, $lesson);
     $lesson->set('field_cancelled', TRUE);
     $lesson->save();
@@ -481,6 +476,44 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     );
     self::assertCount(1, $occurrences);
     self::assertTrue($occurrences[0]->isCancelled());
+  }
+
+  /**
+   * Tests that the location of a course occurrence comes from its season.
+   */
+  public function testLocationFilterUsesTheSeasonOfTheLesson(): void {
+    $course = $this->createCourse(['title' => 'Zwei Säle']);
+    $season_a = $this->createSeason($course, [
+      'field_schedule' => $this->dateRange(
+        $this->date('2026-10-05', '18:00'),
+        $this->date('2026-10-05', '19:00'),
+      ),
+      'last' => ['value' => $this->date('2026-10-26')->format('Y-m-d')],
+      'interval' => 1,
+      'location' => $this->locationA,
+    ]);
+    $season_b = $this->createSeason($course, [
+      'field_schedule' => $this->dateRange(
+        $this->date('2026-10-06', '18:00'),
+        $this->date('2026-10-06', '19:00'),
+      ),
+      'last' => ['value' => $this->date('2026-10-27')->format('Y-m-d')],
+      'interval' => 1,
+      'location' => $this->locationB,
+    ]);
+
+    $occurrences = $this->repository->findOccurrences(
+      EventFilter::coursesOnly([(int) $course->id()], [$this->locationB]),
+      $this->date('2026-10-01'),
+      $this->date('2026-10-31', '23:59'),
+    );
+
+    self::assertCount(4, $occurrences);
+    foreach ($occurrences as $occurrence) {
+      self::assertSame($this->locationB, (int) $occurrence->location?->id());
+      self::assertSame((int) $season_b->id(), (int) $occurrence->season?->id());
+      self::assertNotSame((int) $season_a->id(), (int) $occurrence->season?->id());
+    }
   }
 
 }

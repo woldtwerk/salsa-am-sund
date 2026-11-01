@@ -18,7 +18,6 @@ use Drupal\Tests\UnitTestCase;
 use Drupal\workspace_events\Controller\EventsJsonController;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
-use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\OrganizerLookupInterface;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -92,6 +91,7 @@ final class EventsJsonControllerTest extends UnitTestCase {
     $query->method('accessCheck')->willReturnSelf();
     $query->method('condition')->willReturnSelf();
     $query->method('sort')->willReturnSelf();
+    $query->method('range')->willReturnSelf();
     $query->method('execute')->willReturn([]);
 
     $storage = $this->createMock(EntityStorageInterface::class);
@@ -116,7 +116,6 @@ final class EventsJsonControllerTest extends UnitTestCase {
       new EventOccurrenceRepository(
         $entity_type_manager,
         $this->siteTimeZone(),
-        new LessonCourseResolver($entity_type_manager),
         $connection,
         $this->createMock(TimeInterface::class),
       ),

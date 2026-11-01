@@ -15,10 +15,13 @@ use Drupal\taxonomy\TermInterface;
 final class DetailFieldResolver {
 
   /**
-   * Returns the location term of a course or event.
+   * Returns the location term of a node.
+   *
+   * Courses keep their location on the season, so this reads the location of
+   * an event. A course node no longer has the field and returns NULL.
    *
    * @param \Drupal\node\NodeInterface $node
-   *   The course or event node.
+   *   The node.
    *
    * @return \Drupal\taxonomy\TermInterface|null
    *   The location term, or NULL when the node has none.
