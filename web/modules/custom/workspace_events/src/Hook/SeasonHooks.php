@@ -172,7 +172,9 @@ final class SeasonHooks {
   }
 
   /**
-   * Implements hook_form_FORM_ID_alter() for the course node form.
+   * Implements hook_form_BASE_FORM_ID_alter() for node forms.
+   *
+   * Adds the seasons table to the add and edit forms of courses.
    *
    * @param array<string, mixed> $form
    *   The form structure.
@@ -181,8 +183,8 @@ final class SeasonHooks {
    * @param string $form_id
    *   The form ID.
    */
-  #[Hook('form_node_course_form_alter')]
-  public function formNodeCourseFormAlter(array &$form, FormStateInterface $form_state, string $form_id): void {
+  #[Hook('form_node_form_alter')]
+  public function formNodeFormAlter(array &$form, FormStateInterface $form_state, string $form_id): void {
     $form_object = $form_state->getFormObject();
     if (!$form_object instanceof EntityFormInterface) {
       return;
