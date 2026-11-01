@@ -47,7 +47,7 @@ node_modules
 /web/themes/custom/salsa/libraries/fullcalendar/*.css
 /web/themes/custom/salsa/libraries/fullcalendar/LICENSE.md
 
-# Scaffolded from misc/scaffold/assets (workspace/scaffold), so the copies in
+# Scaffolded from the woldtwerk-websites/scaffold package, so the copies in
 # the project root are not tracked.
 /drush/drush.yml
 /globals.d.ts
@@ -59,7 +59,6 @@ node_modules
 /tsconfig.json
 
 .vscode
-!/misc/scaffold/assets/.vscode
 
 .agents
 .claude
@@ -67,7 +66,6 @@ node_modules
 CLAUDE.md
 
 !misc/db/db.sql.gz
-!misc/scaffold/assets/misc/snapshot/sanitize.sql
 !misc/snapshot/sanitize.sql
 
 # Local DDEV environment overrides, including real OpenID Connect credentials.

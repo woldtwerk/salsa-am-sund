@@ -1,4 +1,0 @@
-hooks:
-  pre-start:
-    - exec-host: 'echo "php_version: \"$(cat .php-version)\"" > .ddev/config.versions.local.yaml'
-    - exec-host: 'echo "nodejs_version: \"$(cat .node-version)\"" >> .ddev/config.versions.local.yaml'

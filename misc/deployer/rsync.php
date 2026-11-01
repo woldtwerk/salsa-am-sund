@@ -11,6 +11,11 @@ namespace Deployer;
 
 require 'recipe/common.php';
 
+// The site's name, which deploy.yaml uses for the deploy path, the systemd unit
+// and the container. It is the name of the project directory, which matches the
+// repository name both in a local clone and in the GitHub Actions checkout.
+set('application', basename(dirname(__DIR__, 2)));
+
 // Seeds the new release with the previous one, so rsync only transfers what
 // changed.
 set('copy_dirs', [
@@ -58,11 +63,10 @@ task('deploy:update_code', function () {
   $filters[] = '- /*';
 
   // misc/ is mostly a workstation directory. Only these are read by a
-  // release: the hooks, the scaffold that composer symlinks
-  // vendor/workspace/scaffold at, the configuration that `drush deploy`
+  // release: the hooks, the configuration that `drush deploy`
   // imports, and the snapshot script that CI's restricted SSH key is allowed
   // to run.
-  foreach (['hooks/', 'scaffold/', 'snapshot/', 'sync/'] as $keep) {
+  foreach (['hooks/', 'snapshot/', 'sync/'] as $keep) {
     $filters[] = '+ /misc/' . $keep;
   }
   $filters[] = '- /misc/*';

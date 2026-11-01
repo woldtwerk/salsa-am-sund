@@ -13,7 +13,7 @@ config:
 
 hosts:
   production:
-    deploy_path: /home/woldtwerk/apps/salsa-am-sund
+    deploy_path: /home/woldtwerk/apps/{{application}}
     hostname: woldtwerk.de
     remote_user: woldtwerk
 
@@ -21,8 +21,8 @@ tasks:
   # The app resolves its working directory through the `current` symlink at
   # start-up, so it is restarted before the update runs against the new release.
   drupal:deploy:
-    - run: systemctl --user restart drupal-app@salsa-am-sund
-    - run: podman exec -w /www/current salsa-am-sund__app misc/hooks/post-update.sh
+    - run: systemctl --user restart drupal-app@{{application}}
+    - run: podman exec -w /www/current {{application}}__app misc/hooks/post-update.sh
 
   # Maintenance mode is database state rather than file state, so the currently
   # running release can switch it on for the release that has just been
@@ -31,12 +31,12 @@ tasks:
   # release at all, and the release that was live before this change predates
   # drush/drush moving out of require-dev, so it has no vendor/bin/drush.
   drupal:maint:on:
-    - run: '[ ! -e {{current_path}}/vendor/bin/drush ] || podman exec -w /www/current salsa-am-sund__app vendor/bin/drush maint:set 1 --yes'
+    - run: '[ ! -e {{current_path}}/vendor/bin/drush ] || podman exec -w /www/current {{application}}__app vendor/bin/drush maint:set 1 --yes'
 
   # Same guard, because on a first deploy this also runs from deploy:failed,
   # which can happen before `current` and its drush exist.
   drupal:maint:off:
-    - run: '[ ! -e {{current_path}}/vendor/bin/drush ] || podman exec -w /www/current salsa-am-sund__app vendor/bin/drush maint:set 0 --yes'
+    - run: '[ ! -e {{current_path}}/vendor/bin/drush ] || podman exec -w /www/current {{application}}__app vendor/bin/drush maint:set 0 --yes'
 
 # Maintenance mode starts right before the symlink flips, so the rsync upload
 # of the new release does not count towards downtime; only the switch over and

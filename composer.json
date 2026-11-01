@@ -31,12 +31,9 @@
             ]
         },
         {
-            "only": ["workspace/*"],
-            "type": "path",
-            "url": "misc/scaffold",
-            "options": {
-                "symlink": true
-            }
+            "type": "vcs",
+            "url": "https://github.com/woldtwerk-websites/scaffold",
+            "only": ["woldtwerk-websites/*"]
         },
         {
             "name": "drupal",
@@ -128,7 +125,7 @@
         "drush/drush": "^13.7",
         "npm-asset/quicklink": "3.0.1",
         "sabre/vobject": "^4.5 || ^5.0",
-        "workspace/scaffold": "dev-main",
+        "woldtwerk-websites/scaffold": "^1.0",
         "workspace/workspace_admin_ui": "*"
     },
     "require-dev": {
@@ -188,7 +185,7 @@
                 "[web-root]/sites/example.settings.local.php": false,
                 "[project-root]/misc/deploy.yaml": false
             },
-            "allowed-packages": ["drupal/drupal_cms_blank", "drupal/drupal_cms_site_template_base", "drupal/drupal_cms_starter", "workspace/scaffold"]
+            "allowed-packages": ["drupal/drupal_cms_blank", "drupal/drupal_cms_site_template_base", "drupal/drupal_cms_starter", "woldtwerk-websites/scaffold"]
         },
         "installer-paths": {
             "web/core": ["type:drupal-core"],
