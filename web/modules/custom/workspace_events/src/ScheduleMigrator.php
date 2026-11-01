@@ -11,6 +11,7 @@ use Drupal\Core\Field\FieldItemInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
+use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
  * Migrates the Smart Date series of courses and events to the new date fields.
@@ -48,20 +49,24 @@ final class ScheduleMigrator {
    *   The field manager, used to detect the legacy field.
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection, used for the exact delta copy.
+   * @param \Drupal\workspace_events\SeasonRepository $seasonRepository
+   *   The season repository, used to find courses that already have a season.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
     private readonly SiteTimeZone $siteTimeZone,
     private readonly EntityFieldManagerInterface $entityFieldManager,
     private readonly Connection $database,
+    private readonly SeasonRepository $seasonRepository,
   ) {}
 
   /**
    * Migrates every course and event.
    *
    * @return string
-   *   An empty string. The update hook returns no message because no event
-   *   series is collapsed anymore.
+   *   A message about the courses that were skipped, or an empty string when
+   *   every legacy course could be migrated. Event series are copied without
+   *   a message.
    */
   public function migrate(): string {
     // The migration only runs while the legacy field still exists. After the
@@ -70,71 +75,84 @@ final class ScheduleMigrator {
       return '';
     }
 
-    $this->migrateCourses();
+    $message = $this->migrateCourses();
     $this->migrateEvents();
 
-    return '';
+    return $message;
   }
 
   /**
-   * Migrates the course series and generates their lessons.
+   * Migrates the course series to one season per course.
+   *
+   * @return string
+   *   A message naming the courses that have no location, or an empty string.
    */
-  private function migrateCourses(): void {
+  private function migrateCourses(): string {
     $storage = $this->entityTypeManager->getStorage('node');
     $ids = $storage->getQuery()
       ->accessCheck(FALSE)
       ->condition('type', self::COURSE_BUNDLE)
       ->execute();
+    if ($ids === []) {
+      return '';
+    }
+
+    $migrated = array_flip($this->seasonRepository->courseIdsWithSeason());
+    $skipped = [];
 
     foreach ($storage->loadMultiple($ids) as $course) {
       if (!$course instanceof NodeInterface) {
         continue;
       }
-
-      $first_missing = !$course->hasField('field_course_first')
-        || $course->get('field_course_first')->isEmpty();
-      $lessons_present = $course->hasField('field_lessons')
-        && !$course->get('field_lessons')->isEmpty();
-      if (!$first_missing && $lessons_present) {
+      if (isset($migrated[(int) $course->id()])) {
+        continue;
+      }
+      if (!$course->hasField(self::LEGACY_FIELD_NAME) || $course->get(self::LEGACY_FIELD_NAME)->isEmpty()) {
+        continue;
+      }
+      if (!$course->hasField('field_location') || $course->get('field_location')->isEmpty()) {
+        $skipped[] = (string) $course->label();
         continue;
       }
 
-      if ($first_missing) {
-        $this->applyCourseSchedule($course);
+      $season = $this->createSeason($course);
+      if ($season === NULL) {
+        continue;
       }
 
-      // Saving the course runs the generator through the presave hook.
-      $course->setSyncing(TRUE);
-      $course->setNewRevision(FALSE);
-      $course->save();
+      // Saving the season generates its lessons through the insert hook.
+      $season->setSyncing(TRUE);
+      $season->save();
     }
+
+    if ($skipped === []) {
+      return '';
+    }
+
+    return sprintf(
+      'No season was created for these courses because they have no location: %s',
+      implode(', ', $skipped),
+    );
   }
 
   /**
-   * Copies the first and last date and the interval to the course fields.
+   * Creates the season of a course from its legacy series.
    *
    * @param \Drupal\node\NodeInterface $course
    *   The course node.
    *
-   * @return bool
-   *   TRUE when the course had a legacy series, FALSE otherwise.
+   * @return \Drupal\workspace_events\Entity\SeasonInterface|null
+   *   The unsaved season, or NULL when the course has no usable series.
    */
-  private function applyCourseSchedule(NodeInterface $course): bool {
-    if (!$course->hasField(self::LEGACY_FIELD_NAME)) {
-      return FALSE;
-    }
+  private function createSeason(NodeInterface $course): ?SeasonInterface {
     $items = $course->get(self::LEGACY_FIELD_NAME);
-    if ($items->isEmpty()) {
-      return FALSE;
-    }
-
     $first = $items->first();
-    if ($first === NULL) {
-      return FALSE;
+    if ($first === NULL || $items->isEmpty()) {
+      return NULL;
     }
     $first_timestamp = (int) $first->get('value')->getString();
     if ($first_timestamp <= 0) {
-      return FALSE;
+      return NULL;
     }
 
     $last_timestamp = 0;
@@ -150,7 +168,7 @@ final class ScheduleMigrator {
       }
     }
     if ($last_timestamp <= 0) {
-      return FALSE;
+      return NULL;
     }
 
     $timezone = $this->siteTimeZone->get();
@@ -158,14 +176,21 @@ final class ScheduleMigrator {
     $end = $this->readEnd($first, $timezone) ?? $start;
     $last_day = $this->toDate($last_timestamp, $timezone);
 
-    $course->set('field_course_first', [
-      'value' => $this->toStorageValue($start),
-      'end_value' => $this->toStorageValue($end),
+    $storage = $this->entityTypeManager->getStorage('course_season');
+    $season = $storage->create([
+      'course' => $course->id(),
+      'field_schedule' => [
+        'value' => $this->toStorageValue($start),
+        'end_value' => $this->toStorageValue($end),
+      ],
+      'last' => ['value' => $last_day->format('Y-m-d')],
+      'interval' => ['value' => $this->readInterval($rule_id)],
+      'location' => ['target_id' => (int) $course->get('field_location')->target_id],
+      'uid' => $course->getOwnerId(),
+      'langcode' => $course->language()->getId(),
     ]);
-    $course->set('field_course_last', ['value' => $last_day->format('Y-m-d')]);
-    $course->set('field_course_interval', ['value' => $this->readInterval($rule_id)]);
 
-    return TRUE;
+    return $season instanceof SeasonInterface ? $season : NULL;
   }
 
   /**

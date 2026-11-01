@@ -115,7 +115,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
       $courses,
     ));
     self::assertSame([1, 2], array_map(
-      static fn (array $visited): int => $visited['lessons'],
+      static fn (array $visited): int => array_sum(array_column($visited['seasons'], 'lessons')),
       $courses,
     ));
     self::assertSame([(int) $salsa->id()], array_map(
@@ -140,6 +140,51 @@ final class MemberProgressTest extends LessonKernelTestBase {
       static fn (TermInterface $term): int => (int) $term->id(),
       $this->memberProgress->flaggedFigures((int) $member->id(), DanceFigureFlag::Like),
     ));
+  }
+
+  /**
+   * Tests that lessons in two seasons of one course are grouped per season.
+   */
+  public function testSeasonsAreGroupedPerCourse(): void {
+    $member = $this->createUser(['access content']);
+    $course = $this->createCourse(['title' => 'Salsa']);
+    $winter = $this->createSeason($course, [
+      'title' => 'Winter',
+      'field_schedule' => $this->dateRange(
+        $this->date('2026-10-05', '18:00'),
+        $this->date('2026-10-05', '19:00'),
+      ),
+      'last' => ['value' => $this->date('2026-10-19')->format('Y-m-d')],
+      'interval' => 1,
+    ]);
+    $summer = $this->createSeason($course, [
+      'title' => 'Sommer',
+      'field_schedule' => $this->dateRange(
+        $this->date('2027-04-05', '18:00'),
+        $this->date('2027-04-05', '19:00'),
+      ),
+      'last' => ['value' => $this->date('2027-04-05')->format('Y-m-d')],
+      'interval' => 1,
+    ]);
+
+    $winter_lessons = $this->loadSeasonLessons($winter);
+    $summer_lessons = $this->loadSeasonLessons($summer);
+    self::assertCount(3, $winter_lessons);
+    self::assertCount(1, $summer_lessons);
+    foreach ([$winter_lessons[0], $winter_lessons[1], $summer_lessons[0]] as $lesson) {
+      $lesson->set('field_participants', [$member->id()]);
+      $lesson->save();
+    }
+
+    $courses = $this->memberProgress->visitedCourses((int) $member->id());
+    self::assertCount(1, $courses);
+    self::assertSame('Salsa', (string) $courses[0]['course']->label());
+    self::assertCount(2, $courses[0]['seasons']);
+    // The seasons are sorted by schedule, newest first.
+    self::assertSame((int) $summer->id(), (int) $courses[0]['seasons'][0]['season']->id());
+    self::assertSame(1, $courses[0]['seasons'][0]['lessons']);
+    self::assertSame((int) $winter->id(), (int) $courses[0]['seasons'][1]['season']->id());
+    self::assertSame(2, $courses[0]['seasons'][1]['lessons']);
   }
 
   /**
@@ -176,7 +221,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
     self::assertContains('user.permissions', $build['visited_courses']['#cache']['contexts'] ?? []);
     $html = $this->renderBuild($build);
     self::assertStringContainsString('Visited courses', $html);
-    self::assertStringContainsString('Salsa (1 lesson)', $html);
+    self::assertStringContainsString('Salsa Saison (1 lesson)', $html);
     self::assertStringContainsString('Learned figures', $html);
     self::assertStringContainsString('Liked figures', $html);
     self::assertStringContainsString('<p>No figures yet.</p>', $html);
@@ -290,14 +335,16 @@ final class MemberProgressTest extends LessonKernelTestBase {
    *   The course.
    */
   private function createCourseWithLessons(string $title, array $lessons, int $status = NodeInterface::PUBLISHED): NodeInterface {
-    return $this->createCourse([
+    $course = $this->createCourse([
       'title' => $title,
       'status' => $status,
-      'field_lessons' => array_map(
-        static fn (LessonInterface $lesson): array => ['target_id' => $lesson->id()],
-        $lessons,
-      ),
     ]);
+    $season = $this->createSeason($course, ['title' => $title . ' Saison']);
+    foreach ($lessons as $lesson) {
+      $lesson->set('season', $season->id());
+      $lesson->save();
+    }
+    return $course;
   }
 
   /**

@@ -1,0 +1,31 @@
+uuid: 22592c7c-e0a7-4e6a-b452-02322a9f80f7
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.field.course_season.course_season.field_prices
+    - field.field.course_season.course_season.field_schedule
+  module:
+    - datetime_range
+    - workspace_events
+id: course_season.course_season.default
+targetEntityType: course_season
+bundle: course_season
+mode: default
+content:
+  field_prices:
+    type: workspace_events_price_default
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    weight: 0
+    region: content
+  field_schedule:
+    type: daterange_default
+    label: inline
+    settings: {  }
+    third_party_settings: {  }
+    weight: -1
+    region: content
+hidden:
+  langcode: true

@@ -1,0 +1,21 @@
+uuid: 6d7943f9-9e7e-46da-b95f-97e52da9f3a0
+langcode: de
+status: true
+dependencies:
+  module:
+    - workspace_events
+id: course_season.field_prices
+field_name: field_prices
+entity_type: course_season
+type: workspace_events_price
+settings:
+  categories:
+    normal: Normal
+    student: Student
+module: workspace_events
+locked: false
+cardinality: -1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

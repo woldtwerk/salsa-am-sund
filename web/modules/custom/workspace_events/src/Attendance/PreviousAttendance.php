@@ -6,7 +6,6 @@ namespace Drupal\workspace_events\Attendance;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\workspace_events\Entity\LessonInterface;
-use Drupal\workspace_events\LessonCourseResolver;
 
 /**
  * Recommends members by the attendance of the earlier lessons of the course.
@@ -40,12 +39,9 @@ final class PreviousAttendance {
    *
    * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
-   * @param \Drupal\workspace_events\LessonCourseResolver $lessonCourseResolver
-   *   The resolver of the course of a lesson.
    */
   public function __construct(
     private readonly EntityTypeManagerInterface $entityTypeManager,
-    private readonly LessonCourseResolver $lessonCourseResolver,
   ) {}
 
   /**
@@ -93,7 +89,7 @@ final class PreviousAttendance {
       return $empty;
     }
 
-    $attendance = $this->attendance((int) $lesson->id(), $start);
+    $attendance = $this->attendance($lesson, $start);
     $recent = array_slice($attendance, 0, self::REGULAR_LESSONS);
 
     $wanted = array_flip($candidates);
@@ -134,44 +130,34 @@ final class PreviousAttendance {
   /**
    * Returns the participants of the earlier lessons, newest first.
    *
-   * The course is resolved with one entity query for its lessons and the
-   * earlier lessons with one entity query plus one load, both memoized for the
-   * request.
+   * The course is resolved through the season of the lesson. One entity query
+   * finds the earlier lessons of all seasons of the course; the result is
+   * memoized for the request.
    *
-   * @param int $lessonId
-   *   The ID of the lesson being edited.
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The lesson being edited.
    * @param string $start
    *   The storage value of the lesson's start date.
    *
    * @return int[][]
    *   The participant IDs per earlier lesson, newest lesson first.
    */
-  private function attendance(int $lessonId, string $start): array {
+  private function attendance(LessonInterface $lesson, string $start): array {
+    $lessonId = (int) $lesson->id();
     if (isset($this->attendance[$lessonId])) {
       return $this->attendance[$lessonId];
     }
 
-    $course = $this->lessonCourseResolver->findCourse($lessonId);
-    if ($course === NULL || !$course->hasField('field_lessons')) {
+    $course = $lesson->getCourse();
+    if ($course === NULL) {
       return $this->attendance[$lessonId] = [];
     }
 
     $storage = $this->entityTypeManager->getStorage('lesson');
-
-    $lessonIds = [];
-    foreach ($course->get('field_lessons') as $item) {
-      $id = (int) $item->get('target_id')->getString();
-      if ($id > 0 && $id !== $lessonId) {
-        $lessonIds[$id] = $id;
-      }
-    }
-    if ($lessonIds === []) {
-      return $this->attendance[$lessonId] = [];
-    }
-
     $previousIds = $storage->getQuery()
       ->accessCheck(FALSE)
-      ->condition('id', array_values($lessonIds), 'IN')
+      ->condition('season.entity:course_season.course', $course->id())
+      ->condition('id', $lessonId, '<>')
       ->condition('field_lesson_date.value', $start, '<')
       ->sort('field_lesson_date.value', 'DESC')
       ->sort('id', 'DESC')

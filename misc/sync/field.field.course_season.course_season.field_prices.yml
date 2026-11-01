@@ -1,0 +1,20 @@
+uuid: 2602eccf-de8b-40d0-a8ad-acd5a1793b1e
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.course_season.field_prices
+  module:
+    - workspace_events
+id: course_season.course_season.field_prices
+field_name: field_prices
+entity_type: course_season
+bundle: course_season
+label: 'Preise pro Stunde'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: workspace_events_price

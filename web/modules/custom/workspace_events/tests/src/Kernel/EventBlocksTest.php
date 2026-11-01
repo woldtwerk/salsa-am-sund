@@ -57,7 +57,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     $start = $this->date('now +2 days', '18:15');
     $course = $this->createCourse([
       'title' => 'Anfänger',
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       ...$this->courseSchedule($start, $start),
     ]);
     $party = $this->createEvent([
@@ -200,7 +200,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     $course = $this->createCourse([
       'title' => 'Anfänger',
       'field_difficulty' => [0],
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       ...$this->courseSchedule(
         $this->date('next monday', '18:15'),
         $this->date('next monday', '18:15')->modify('+3 weeks'),
@@ -209,7 +209,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     $this->createCourse([
       'title' => 'Tanzfeeling u. mehr',
       'field_difficulty' => [1],
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       ...$this->courseSchedule(
         $this->date('next tuesday', '19:30'),
         $this->date('next tuesday', '19:30'),
@@ -283,7 +283,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
       $start = $this->date('next monday', '18:00');
       $this->createCourse([
         'title' => 'Kurs ' . $suffix,
-        'field_location' => $tid,
+        'season_location' => $tid,
         ...$this->courseSchedule($start, $start),
       ]);
     }

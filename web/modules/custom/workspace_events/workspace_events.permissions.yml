@@ -11,6 +11,14 @@ delete lessons:
   title: 'Delete lessons'
   description: 'Allows deleting lessons.'
 
+edit course seasons:
+  title: 'Edit course seasons'
+  description: 'Allows creating and editing the seasons of a course.'
+
+delete course seasons:
+  title: 'Delete course seasons'
+  description: 'Allows deleting course seasons without recorded lessons.'
+
 view dance figures:
   title: 'View dance figures'
   description: 'Allows viewing dance figures.'

@@ -146,15 +146,26 @@ final class MemberProfileHooks {
       $items = [];
       foreach ($this->memberProgress->visitedCourses($uid) as $visited) {
         $course = $visited['course'];
-        $items[] = Link::fromTextAndUrl(
-          $this->formatPlural(
-            $visited['lessons'],
+        $season_items = [];
+        foreach ($visited['seasons'] as $season_entry) {
+          $season = $season_entry['season'];
+          $season_items[] = $this->formatPlural(
+            $season_entry['lessons'],
             '@title (@count lesson)',
             '@title (@count lessons)',
-            ['@title' => (string) $course->label()],
-          ),
-          $course->toUrl(),
-        )->toRenderable();
+            ['@title' => (string) $season->label()],
+          );
+          $metadata->addCacheableDependency($season);
+        }
+        $items[] = [
+          '#type' => 'container',
+          '#attributes' => ['class' => ['member-profile-course']],
+          'course' => Link::fromTextAndUrl((string) $course->label(), $course->toUrl())->toRenderable(),
+          'seasons' => [
+            '#theme' => 'item_list',
+            '#items' => $season_items,
+          ],
+        ];
         $metadata->addCacheableDependency($course);
       }
       $build['visited_courses'] = $this->withCacheMetadata([
@@ -307,6 +318,7 @@ final class MemberProfileHooks {
     $metadata->addCacheContexts(['user.permissions', 'user']);
     $metadata->addCacheTags([
       'lesson_list',
+      'course_season_list',
       'node_list:course',
       'flagging_list',
       'taxonomy_term_list:dance_figure',

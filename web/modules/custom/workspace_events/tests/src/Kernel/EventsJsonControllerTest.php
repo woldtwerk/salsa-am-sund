@@ -10,7 +10,6 @@ use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Controller\EventsJsonController;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
-use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -73,7 +72,7 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     $start = $this->date('now +2 days', '18:15');
     $this->course = $this->createCourse([
       'title' => 'Anfänger',
-      'field_location' => $this->locationA,
+      'season_location' => $this->locationA,
       ...$this->courseSchedule($start, $start->modify('+3 weeks')),
     ]);
     $this->lessons = $this->loadCourseLessons($this->course);
@@ -162,7 +161,6 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     $repository = new EventOccurrenceRepository(
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
-      $this->container->get(LessonCourseResolver::class),
       $this->container->get('database'),
       $this->container->get('datetime.time'),
     );
@@ -181,21 +179,16 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     // distinct, and the event keeps the deployed "<nid>-<start>" format.
     $collision_id = 1000;
     $collision_start = $this->date('now +20 days', '18:00');
-    $collision_lesson = $this->createLesson([
+    $season = $this->loadSeason($this->course);
+    $this->createLesson([
       'id' => $collision_id,
       'title' => 'Kollisionsstunde',
+      'season' => $season->id(),
       'field_lesson_date' => $this->dateRange(
         $collision_start,
         $collision_start->modify('+1 hour'),
       ),
     ]);
-    $targets = [];
-    foreach ($this->course->get('field_lessons') as $item) {
-      $targets[] = ['target_id' => (int) $item->get('target_id')->getString()];
-    }
-    $targets[] = ['target_id' => (int) $collision_lesson->id()];
-    $this->course->set('field_lessons', $targets);
-    $this->course->save();
     $this->createEvent([
       'nid' => $collision_id,
       'title' => 'Kollisionsparty',
@@ -207,7 +200,6 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     $repository = new EventOccurrenceRepository(
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
-      $this->container->get(LessonCourseResolver::class),
       $this->container->get('database'),
       $this->container->get('datetime.time'),
     );

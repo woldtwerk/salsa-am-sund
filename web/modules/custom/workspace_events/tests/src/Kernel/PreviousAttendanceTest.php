@@ -6,7 +6,6 @@ namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\workspace_events\Attendance\PreviousAttendance;
 use Drupal\workspace_events\Entity\LessonInterface;
-use Drupal\workspace_events\LessonCourseResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -29,26 +28,23 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
 
     $timezone = new \DateTimeZone(self::TIMEZONE);
     $first = new \DateTimeImmutable('2026-09-07 18:00', $timezone);
+    $course = $this->createCourse(['title' => 'Salsa Kurs']);
+    $season = $this->createSeason($course, ['title' => 'Saison']);
     $lessons = [];
     for ($week = 0; $week < 5; $week++) {
       $start = $first->modify('+' . $week . ' weeks');
       $lessons[] = $this->createLesson([
         'title' => 'Stunde ' . ($week + 1),
+        'season' => $season->id(),
         'field_lesson_date' => $this->dateRange($start, $start->modify('+1 hour')),
       ]);
     }
     $current = $this->createLesson([
       'title' => 'Aktuelle Stunde',
+      'season' => $season->id(),
       'field_lesson_date' => $this->dateRange(
         $first->modify('+5 weeks'),
         $first->modify('+5 weeks')->modify('+1 hour'),
-      ),
-    ]);
-    $this->createCourse([
-      'title' => 'Salsa Kurs',
-      'field_lessons' => array_map(
-        static fn (LessonInterface $lesson): array => ['target_id' => $lesson->id()],
-        [...$lessons, $current],
       ),
     ]);
 
@@ -74,6 +70,7 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
     // A lesson without a course and an unsaved lesson have no earlier lessons.
     $without_course = $this->createLesson([
       'title' => 'Ohne Kurs',
+      'season' => 999999,
       'field_lesson_date' => $this->dateRange($first, $first->modify('+1 hour')),
     ]);
     self::assertSame([], $this->recommender()->recommendAll($without_course, $candidates));
@@ -107,7 +104,6 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
   private function recommender(): PreviousAttendance {
     return new PreviousAttendance(
       $this->container->get('entity_type.manager'),
-      $this->container->get(LessonCourseResolver::class),
     );
   }
 

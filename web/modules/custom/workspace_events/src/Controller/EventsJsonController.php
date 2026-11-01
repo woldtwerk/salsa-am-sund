@@ -104,12 +104,16 @@ final class EventsJsonController implements ContainerInjectionInterface {
       'node_list:event',
       'node_list:course',
       'lesson_list',
+      'course_season_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
     foreach ($occurrences as $occurrence) {
       $cacheability->addCacheableDependency($occurrence->source());
       $cacheability->addCacheableDependency($occurrence->node);
+      if ($occurrence->season !== NULL) {
+        $cacheability->addCacheableDependency($occurrence->season);
+      }
       if ($occurrence->organizer !== NULL) {
         $cacheability->addCacheableDependency($occurrence->organizer);
       }

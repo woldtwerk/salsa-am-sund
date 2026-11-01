@@ -14,7 +14,9 @@
  * - course_schedule: Weekday and time range of the series.
  * - course_next_dates: Upcoming dates with date, date_iso, weekday, time,
  *   iCal URL and cancellation flag.
- * - course_location: Location name, address and map URL.
+ * - course_seasons: The current and next season (at most two, ordered by
+ *   start), each with status, label, schedule, interval, location (name,
+ *   address, map_url) and prices (category, amount).
  * - course_ical_url: The webcal subscription URL of this course's feed.
  * - course_overview_url: The URL of the course overview.
  */
@@ -23,7 +25,7 @@
 {% set level = course_level|default('') %}
 {% set schedule = course_schedule|default('') %}
 {% set next_dates = course_next_dates|default([]) %}
-{% set location = course_location|default(null) %}
+{% set seasons = course_seasons|default([]) %}
 
 <article{{ attributes }}>
   <header class="salsa-surface-flame relative isolate overflow-hidden bg-flame-deep">
@@ -62,13 +64,13 @@
   </header>
 
   <div class="mx-auto w-full max-w-6xl px-5 py-12 md:px-8 md:py-16">
-    <div class="grid gap-12 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-16">
-      <div class="min-w-0">
+    <div class="grid gap-12 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:gap-x-16 lg:gap-y-6">
+      <div class="contents lg:col-start-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-12 {{ seasons is not empty ? 'lg:row-span-2' : '' }}">
         {% if body|striptags|trim is not empty %}
-          <div class="max-w-none">{{ body }}</div>
+          <div class="order-1 max-w-none lg:order-none">{{ body }}</div>
         {% endif %}
 
-        <section class="{{ body|striptags|trim is not empty ? 'mt-12' : '' }}" aria-labelledby="course-dates-title">
+        <section class="order-3 min-w-0 lg:order-none" aria-labelledby="course-dates-title">
           <h2 id="course-dates-title" class="font-display text-2xl leading-tight font-extrabold italic text-flame-light md:text-3xl">
             {{ 'Upcoming events'|t }}
           </h2>
@@ -104,31 +106,32 @@
         </section>
       </div>
 
-      <aside class="min-w-0 space-y-6">
-        {% if location %}
-          <div class="rounded-2xl border border-line bg-ink-2 p-5 md:p-6">
-            <h2 class="flex items-center gap-2 font-display text-xl leading-tight font-bold italic text-sand">
-              {{ icon('salsa', 'map-pin', {size: 20}) }}
-              {{ 'Location'|t }}
-            </h2>
-            <p class="mt-3 font-semibold text-sand">{{ location.name }}</p>
-            {% if location.address %}
-              <p class="mt-1 whitespace-pre-line text-sm leading-relaxed text-mist">{{ location.address }}</p>
-            {% endif %}
-            {% if location.map_url %}
-              <a
-                href="{{ location.map_url }}"
-                class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-flame-gold no-underline hover:text-flame-light"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{ icon('salsa', 'map-pin', {size: 16}) }}
-                {{ 'View on map'|t }}
-              </a>
-            {% endif %}
-          </div>
-        {% endif %}
+      {% if seasons is not empty %}
+        <section class="order-2 min-w-0 lg:col-start-2 lg:row-start-1 lg:order-none" aria-labelledby="course-seasons-title">
+          <h2 id="course-seasons-title" class="flex items-center gap-2 font-display text-xl leading-tight font-bold italic text-sand">
+            {{ icon('salsa', 'calendar', {size: 20}) }}
+            {{ 'Seasons'|t }}
+          </h2>
 
+          <div class="mt-4 space-y-4">
+            {% for season in seasons %}
+              {% set season_location = season.location|default(null) %}
+              {% include 'salsa:course-season' with {
+                status: season.status|default('current'),
+                label: season.label|default(''),
+                schedule: season.schedule|default(''),
+                interval: season.interval|default(''),
+                location_name: season_location ? season_location.name|default('') : '',
+                location_address: season_location ? season_location.address|default('') : '',
+                location_href: season_location ? season_location.map_url|default('') : '',
+                prices: season.prices|default([]),
+              } only %}
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <aside class="order-4 min-w-0 lg:col-start-2 {{ seasons is not empty ? 'lg:row-start-2' : 'lg:row-start-1' }} lg:order-none">
         <div class="rounded-2xl border border-line bg-ink-2 p-5 md:p-6">
           <h2 class="font-display text-xl leading-tight font-bold italic text-sand">{{ 'Calendar'|t }}</h2>
           <p class="mt-2 text-sm leading-relaxed text-mist">

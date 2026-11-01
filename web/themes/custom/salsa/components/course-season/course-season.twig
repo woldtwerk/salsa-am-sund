@@ -1,0 +1,80 @@
+{% set status = status == 'next' ? 'next' : 'current' %}
+{% set is_current = status == 'current' %}
+{% set prices = prices|default([]) %}
+{% set is_external = location_href is not empty and location_href matches '#^(https?:)?//#' %}
+
+{% set badge = html_cva(
+  base: ['inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide'],
+  variants: {
+    status: {
+      current: 'border-flame-gold/40 bg-flame-gold/10 text-flame-gold',
+      next: 'border-line bg-ink text-mist',
+    },
+  }
+) %}
+
+<article class="{{ tw_merge(['salsa-surface-dark relative flex flex-col gap-4 rounded-2xl border border-line bg-ink-2 p-5 md:p-6', ui.root|default('')]) }}">
+  <header class="{{ tw_merge(['border-b border-line/70 pb-3', ui.header|default('')]) }}">
+    <span class="{{ tw_merge([badge.apply({status: status}), ui.badge|default('')]) }}">
+      {{ is_current ? 'Current season'|t : 'Next season'|t }}
+    </span>
+    <h3 class="{{ tw_merge(['mt-2 font-display text-xl leading-tight font-bold italic text-balance text-sand md:text-2xl', ui.label|default('')]) }}">
+      {{ label }}
+    </h3>
+  </header>
+
+  {% if schedule or interval %}
+    <div class="{{ tw_merge(['flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-mist', ui.schedule|default('')]) }}">
+      {% if schedule %}
+        <span class="inline-flex items-center gap-1.5 font-semibold text-sand">
+          {{ icon('salsa', 'calendar', {size: 16}) }}
+          {{ schedule }}
+        </span>
+      {% endif %}
+      {% if interval %}
+        <span class="inline-flex items-center rounded-full border border-line px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-flame-gold">
+          {{ interval }}
+        </span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if location_name or location_address %}
+    <div class="{{ tw_merge(['text-sm text-mist', ui.location|default('')]) }}">
+      {% if location_name %}
+        {% if location_href %}
+          <a
+            href="{{ location_href }}"
+            class="inline-flex max-w-full flex-wrap items-center gap-1.5 font-semibold text-mist no-underline hover:text-flame-gold"
+            {% if is_external %}target="_blank" rel="noopener noreferrer"{% endif %}
+          >
+            {{ icon('salsa', 'map-pin', {size: 16}) }}
+            {{ location_name }}
+          </a>
+        {% else %}
+          <p class="inline-flex max-w-full flex-wrap items-center gap-1.5 font-semibold text-sand">
+            {{ icon('salsa', 'map-pin', {size: 16}) }}
+            {{ location_name }}
+          </p>
+        {% endif %}
+      {% endif %}
+      {% if location_address %}
+        <p class="mt-1 whitespace-pre-line leading-relaxed">{{ location_address }}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if prices is not empty %}
+    <dl class="{{ tw_merge(['mt-auto divide-y divide-line/60 border-t border-line/70 pt-1', ui.prices|default('')]) }}">
+      {% for price in prices %}
+        <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2">
+          <dt class="font-body text-sm font-semibold text-sand">{{ price.category }}</dt>
+          <dd class="text-sm text-mist">
+            <span class="font-semibold text-flame-gold">{{ price.amount }}</span>
+            <span>{{ 'per lesson'|t }}</span>
+          </dd>
+        </div>
+      {% endfor %}
+    </dl>
+  {% endif %}
+</article>

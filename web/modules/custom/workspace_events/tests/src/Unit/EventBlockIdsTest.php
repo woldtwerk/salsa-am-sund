@@ -15,7 +15,6 @@ use Drupal\text\TextSummary;
 use Drupal\workspace_events\DetailFieldResolver;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventOccurrenceRepository;
-use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\Plugin\Block\EventBlockBase;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -118,7 +117,6 @@ final class EventBlockIdsTest extends UnitTestCase {
     $repository = new EventOccurrenceRepository(
       $entity_type_manager,
       $this->siteTimeZone(),
-      new LessonCourseResolver($entity_type_manager),
       $this->createMock(Connection::class),
       $this->createMock(TimeInterface::class),
     );

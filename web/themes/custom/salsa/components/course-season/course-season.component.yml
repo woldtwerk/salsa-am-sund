@@ -1,0 +1,85 @@
+$schema: https://git.drupalcode.org/project/drupal/-/raw/HEAD/core/assets/schemas/v1/metadata.schema.json
+name: Saison
+description: 'Saison eines Kurses mit Zeitraum, Wochenplan, Ort und Preisen pro Stunde.'
+group: 'Salsa am Sund'
+status: stable
+props:
+  type: object
+  required:
+    - status
+    - label
+  properties:
+    status:
+      type: string
+      title: Status
+      description: 'Aktuelle oder nächste Saison.'
+      enum:
+        - current
+        - next
+      meta:enum:
+        current: 'Aktuelle Saison'
+        next: 'Nächste Saison'
+      default: current
+      examples:
+        - current
+    label:
+      type: string
+      title: Zeitraum
+      description: 'Die Daten der Saison, z. B. „Okt 2026 – Mär 2027“.'
+      examples:
+        - 'Okt 2026 – Mär 2027'
+    schedule:
+      type: string
+      title: Wochenplan
+      description: 'Wochentag und Uhrzeit, z. B. „Montags, 18:15 – 19:15 Uhr“.'
+      examples:
+        - 'Montags, 18:15 – 19:15 Uhr'
+    interval:
+      type: string
+      title: Rhythmus
+      description: 'Optionaler Rhythmus, z. B. „Wöchentlich“.'
+      examples:
+        - 'Wöchentlich'
+    location_name:
+      type: string
+      title: Ort
+      examples:
+        - 'Studio am Sund'
+    location_address:
+      type: string
+      title: Adresse
+      description: 'Straße, Postleitzahl und Ort. Zeilenumbrüche bleiben erhalten.'
+      examples:
+        - "Hafenstraße 12\n18439 Stralsund"
+    location_href:
+      type: string
+      title: Ortslink
+      description: 'Link zur Karte oder Anfahrt.'
+      format: uri-reference
+      examples:
+        - 'https://maps.google.com/?q=Hafenstra%C3%9Fe+12+Stralsund'
+    prices:
+      type: array
+      title: Preise
+      description: 'Preise je Kategorie, pro Stunde.'
+      items:
+        type: object
+        required:
+          - category
+          - amount
+        properties:
+          category:
+            type: string
+            title: Kategorie
+            examples:
+              - 'Normal'
+          amount:
+            type: string
+            title: Betrag
+            examples:
+              - '12,00 €'
+      examples:
+        - - category: 'Normal'
+            amount: '12,00 €'
+          - category: 'Student'
+            amount: '10,00 €'

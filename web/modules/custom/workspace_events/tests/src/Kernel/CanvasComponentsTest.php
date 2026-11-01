@@ -26,6 +26,11 @@ final class CanvasComponentsTest extends CanvasKernelTestBase {
     ...CanvasKernelTestBase::CANVAS_KERNEL_TEST_MINIMAL_MODULES,
     'canvas_test_sdc',
     'flag',
+    // The season entity references a course node and a location term and uses
+    // a date range, so its views data cannot be built without these modules.
+    'node',
+    'taxonomy',
+    'datetime_range',
     'workspace_events',
   ];
 

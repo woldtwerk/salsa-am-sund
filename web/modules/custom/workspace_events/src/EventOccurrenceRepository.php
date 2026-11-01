@@ -12,15 +12,15 @@ use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
 use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
  * Finds event occurrences in the new date fields.
  *
  * Events store their recurring dates as Smart Date timestamps, one delta per
- * occurrence. Courses store their schedule and reference the generated
- * lessons, so a course occurrence is one lesson of a published course. The
- * lessons themselves are access-restricted, but their dates are public: the
- * queries only look at the published course.
+ * occurrence. A course occurrence is one lesson of a season of a published
+ * course. The lessons themselves are access-restricted, but their dates are
+ * public: the queries only look at the published course.
  */
 final class EventOccurrenceRepository {
 
@@ -54,8 +54,6 @@ final class EventOccurrenceRepository {
    *   The entity type manager.
    * @param \Drupal\workspace_events\SiteTimeZone $siteTimeZone
    *   The timezone of the site.
-   * @param \Drupal\workspace_events\LessonCourseResolver $lessonCourseResolver
-   *   The resolver of the course of a lesson.
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection.
    * @param \Drupal\Component\Datetime\TimeInterface $time
@@ -64,7 +62,6 @@ final class EventOccurrenceRepository {
   public function __construct(
     protected readonly EntityTypeManagerInterface $entityTypeManager,
     protected readonly SiteTimeZone $siteTimeZone,
-    protected readonly LessonCourseResolver $lessonCourseResolver,
     protected readonly Connection $database,
     protected readonly TimeInterface $time,
   ) {}
@@ -72,9 +69,9 @@ final class EventOccurrenceRepository {
   /**
    * Finds event occurrences within a time range.
    *
-   * One query finds the lessons in the range and one reverse query finds their
-   * published courses. Events are queried directly. The results are memoized
-   * for the request, so rendering several blocks does not repeat the queries.
+   * One query finds the lessons in the range whose course is published.
+   * Events are queried directly. The results are memoized for the request, so
+   * rendering several blocks does not repeat the queries.
    *
    * @param \Drupal\workspace_events\EventFilter $filter
    *   The filter to apply.
@@ -179,15 +176,17 @@ final class EventOccurrenceRepository {
       return $this->lessonCache[$id];
     }
 
-    $course = $this->lessonCourseResolver->findCourse($id, TRUE);
-    $occurrence = $course === NULL
+    $season = $lesson->getSeason();
+    $course = $season?->getCourse();
+    $occurrence = $course === NULL || !$course->isPublished()
       ? NULL
       : $this->buildOccurrence(
         $course,
         $lesson,
         'field_lesson_date',
         NULL,
-        $this->getLocation($course),
+        $this->getSeasonLocation($season),
+        $season,
       );
     $this->lessonCache[$id] = $occurrence;
 
@@ -210,65 +209,70 @@ final class EventOccurrenceRepository {
    *   The course occurrences.
    */
   private function findCourseOccurrences(EventFilter $filter, int $from, int $to, ?int $limit): array {
-    // The limit stays out of the first query: its lessons may belong to
-    // unpublished courses, so the earliest matching lessons are only known
-    // after the courses have been filtered.
-    $lesson_ids = $this->queryLessonIds($from, $to);
+    $lesson_storage = $this->entityTypeManager->getStorage('lesson');
+    $query = $lesson_storage->getQuery()
+      ->accessCheck(FALSE)
+      ->condition('field_lesson_date.value', $this->toStorageValue($to), '<=')
+      ->condition('field_lesson_date.end_value', $this->toStorageValue($from), '>=')
+      ->condition('season.entity:course_season.course.entity:node.status', NodeInterface::PUBLISHED)
+      ->sort('field_lesson_date.value')
+      ->sort('id');
+    if ($filter->courseIds !== []) {
+      $query->condition('season.entity:course_season.course', $filter->courseIds, 'IN');
+    }
+    if ($filter->locationIds !== []) {
+      $query->condition('season.entity:course_season.location', $filter->locationIds, 'IN');
+    }
+    if ($limit !== NULL) {
+      $query->range(0, max(0, $limit));
+    }
+
+    $lesson_ids = array_map(static fn (mixed $id): int => (int) $id, array_values($query->execute()));
     if ($lesson_ids === []) {
       return [];
     }
 
-    $course_ids = $this->queryCourseIds($lesson_ids, $filter);
+    $lessons = $lesson_storage->loadMultiple($lesson_ids);
+    $season_ids = [];
+    foreach ($lessons as $lesson) {
+      if ($lesson instanceof LessonInterface) {
+        $season_id = (int) $lesson->get('season')->getString();
+        if ($season_id > 0) {
+          $season_ids[$season_id] = $season_id;
+        }
+      }
+    }
+    if ($season_ids === []) {
+      return [];
+    }
+
+    $season_storage = $this->entityTypeManager->getStorage('course_season');
+    $seasons = $season_storage->loadMultiple($season_ids);
+    $course_ids = [];
+    foreach ($seasons as $season) {
+      if ($season instanceof SeasonInterface) {
+        $course_id = (int) $season->get('course')->getString();
+        if ($course_id > 0) {
+          $course_ids[$course_id] = $course_id;
+        }
+      }
+    }
     if ($course_ids === []) {
       return [];
     }
 
-    $lesson_id_set = array_fill_keys($lesson_ids, TRUE);
     $courses = $this->entityTypeManager->getStorage('node')->loadMultiple($course_ids);
-    $course_by_lesson = [];
-    foreach ($courses as $course) {
-      if (!$course instanceof NodeInterface || !$course->hasField('field_lessons')) {
-        continue;
-      }
-      foreach ($course->get('field_lessons') as $item) {
-        $lesson_id = (int) $item->get('target_id')->getString();
-        if ($lesson_id > 0 && isset($lesson_id_set[$lesson_id])) {
-          $course_by_lesson[$lesson_id] ??= $course;
-        }
-      }
-    }
-    if ($course_by_lesson === []) {
-      return [];
-    }
-
-    // A limit cannot be applied to the global lesson query when a course or
-    // location filter narrows the result, because the first lessons may belong
-    // to another course. In that case only the matching lessons are queried
-    // again with the limit in the database.
-    if ($limit !== NULL && ($filter->courseIds !== [] || $filter->locationIds !== [])) {
-      $lesson_ids = $this->queryLessonIds($from, $to, $limit, array_keys($course_by_lesson));
-    }
-    else {
-      $lesson_ids = array_values(array_filter(
-        $lesson_ids,
-        static fn (int $id): bool => isset($course_by_lesson[$id]),
-      ));
-      if ($limit !== NULL) {
-        $lesson_ids = array_slice($lesson_ids, 0, $limit);
-      }
-    }
-    if ($lesson_ids === []) {
-      return [];
-    }
-
     $occurrences = [];
-    $lessons = $this->entityTypeManager->getStorage('lesson')->loadMultiple($lesson_ids);
     foreach ($lessons as $lesson) {
       if (!$lesson instanceof LessonInterface) {
         continue;
       }
-      $course = $course_by_lesson[(int) $lesson->id()] ?? NULL;
-      if ($course === NULL) {
+      $season = $seasons[(int) $lesson->get('season')->getString()] ?? NULL;
+      if (!$season instanceof SeasonInterface) {
+        continue;
+      }
+      $course = $courses[(int) $season->get('course')->getString()] ?? NULL;
+      if (!$course instanceof NodeInterface) {
         continue;
       }
       $occurrence = $this->buildOccurrence(
@@ -276,7 +280,8 @@ final class EventOccurrenceRepository {
         $lesson,
         'field_lesson_date',
         NULL,
-        $this->getLocation($course),
+        $this->getSeasonLocation($season),
+        $season,
       );
       if ($occurrence !== NULL) {
         $occurrences[] = $occurrence;
@@ -451,70 +456,6 @@ final class EventOccurrenceRepository {
   }
 
   /**
-   * Returns the lessons whose date overlaps a range.
-   *
-   * @param int $from
-   *   The start timestamp of the range.
-   * @param int $to
-   *   The end timestamp of the range.
-   * @param int|null $limit
-   *   The maximum number of lesson IDs, or NULL for no limit.
-   * @param int[]|null $restrict_ids
-   *   Lesson IDs to restrict to, or NULL for every lesson.
-   *
-   * @return int[]
-   *   The lesson IDs, sorted by date.
-   */
-  private function queryLessonIds(int $from, int $to, ?int $limit = NULL, ?array $restrict_ids = NULL): array {
-    if ($restrict_ids !== NULL && $restrict_ids === []) {
-      return [];
-    }
-
-    $query = $this->entityTypeManager->getStorage('lesson')->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('field_lesson_date.value', $this->toStorageValue($to), '<=')
-      ->condition('field_lesson_date.end_value', $this->toStorageValue($from), '>=')
-      ->sort('field_lesson_date.value')
-      ->sort('id');
-    if ($restrict_ids !== NULL) {
-      $query->condition('id', $restrict_ids, 'IN');
-    }
-    if ($limit !== NULL) {
-      $query->range(0, max(0, $limit));
-    }
-
-    return array_map(static fn (mixed $id): int => (int) $id, array_values($query->execute()));
-  }
-
-  /**
-   * Returns the published courses that reference the given lessons.
-   *
-   * @param int[] $lesson_ids
-   *   The lesson IDs.
-   * @param \Drupal\workspace_events\EventFilter $filter
-   *   The filter to apply.
-   *
-   * @return int[]
-   *   The course node IDs.
-   */
-  private function queryCourseIds(array $lesson_ids, EventFilter $filter): array {
-    $query = $this->entityTypeManager->getStorage('node')->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', 'course')
-      ->condition('status', NodeInterface::PUBLISHED)
-      ->condition('field_lessons.target_id', $lesson_ids, 'IN')
-      ->sort('nid');
-    if ($filter->courseIds !== []) {
-      $query->condition('nid', $filter->courseIds, 'IN');
-    }
-    if ($filter->locationIds !== []) {
-      $query->condition('field_location.target_id', $filter->locationIds, 'IN');
-    }
-
-    return array_map(static fn (mixed $id): int => (int) $id, array_values($query->execute()));
-  }
-
-  /**
    * Builds an occurrence from a date range field of a node.
    *
    * @param \Drupal\node\NodeInterface $node
@@ -527,11 +468,13 @@ final class EventOccurrenceRepository {
    *   The organizer term, if any.
    * @param \Drupal\taxonomy\TermInterface|null $location
    *   The location term, if any.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface|null $season
+   *   The season of a course occurrence, NULL for an event.
    *
    * @return \Drupal\workspace_events\EventOccurrence|null
    *   The occurrence, or NULL when the field is empty.
    */
-  private function buildOccurrence(NodeInterface $node, ?LessonInterface $lesson, string $field_name, ?TermInterface $organizer, ?TermInterface $location): ?EventOccurrence {
+  private function buildOccurrence(NodeInterface $node, ?LessonInterface $lesson, string $field_name, ?TermInterface $organizer, ?TermInterface $location, ?SeasonInterface $season = NULL): ?EventOccurrence {
     $date_node = $lesson ?? $node;
     if (!$date_node->hasField($field_name)) {
       return NULL;
@@ -561,6 +504,7 @@ final class EventOccurrenceRepository {
       $organizer,
       $location,
       $cancelled,
+      $season,
     );
   }
 
@@ -627,10 +571,10 @@ final class EventOccurrenceRepository {
   }
 
   /**
-   * Returns the location term of a node.
+   * Returns the location term of an event node.
    *
    * @param \Drupal\node\NodeInterface $node
-   *   The event or course node.
+   *   The event node.
    *
    * @return \Drupal\taxonomy\TermInterface|null
    *   The location, or NULL when the node has none.
@@ -640,6 +584,23 @@ final class EventOccurrenceRepository {
       return NULL;
     }
     $location = $node->get('field_location')->entity;
+    return $location instanceof TermInterface ? $location : NULL;
+  }
+
+  /**
+   * Returns the location term of a course season.
+   *
+   * @param \Drupal\workspace_events\Entity\SeasonInterface|null $season
+   *   The season, or NULL when the lesson has none.
+   *
+   * @return \Drupal\taxonomy\TermInterface|null
+   *   The location, or NULL when the season has none.
+   */
+  private function getSeasonLocation(?SeasonInterface $season): ?TermInterface {
+    if ($season === NULL || !$season->hasField('location')) {
+      return NULL;
+    }
+    $location = $season->get('location')->entity;
     return $location instanceof TermInterface ? $location : NULL;
   }
 

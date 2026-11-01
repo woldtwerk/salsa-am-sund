@@ -52,6 +52,36 @@ block.settings.salsa_course_schedule:
           Range:
             min: 1
 
-views.filter.workspace_events_course_reference:
-  type: views.filter.entity_reference
-  label: 'Course reference filter'
+field.storage_settings.workspace_events_price:
+  type: mapping
+  label: 'Price per lesson storage settings'
+  mapping:
+    categories:
+      type: sequence
+      label: 'Categories'
+      sequence:
+        type: label
+        label: 'Category label'
+
+field.field_settings.workspace_events_price:
+  type: mapping
+  label: 'Price per lesson field settings'
+
+field.value.workspace_events_price:
+  type: mapping
+  label: 'Default value'
+  mapping:
+    category:
+      type: string
+      label: 'Category'
+    amount:
+      type: string
+      label: 'Amount'
+
+field.widget.settings.workspace_events_price_default:
+  type: mapping
+  label: 'Price per lesson widget settings'
+
+field.formatter.settings.workspace_events_price_default:
+  type: mapping
+  label: 'Price per lesson formatter settings'

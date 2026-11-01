@@ -122,7 +122,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     $this->course = $this->createCourse([
       'title' => 'Anfänger',
       'field_difficulty' => [0],
-      'field_location' => $this->locationA,
+      'season_location' => $this->locationA,
       'body' => [
         'value' => '<p>Ein Kurs für <strong>Einsteiger</strong>.</p>',
         'format' => 'plain_text',

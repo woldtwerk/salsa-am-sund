@@ -8,6 +8,8 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\flag\FlaggingInterface;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
  * Reads the course and figure progress of a member.
@@ -20,7 +22,7 @@ final class MemberProgress {
   /**
    * The visited courses, keyed by user ID.
    *
-   * @var array<int, array<int, array{course: \Drupal\node\NodeInterface, lessons: int}>>
+   * @var array<int, array<int, array{course: \Drupal\node\NodeInterface, seasons: array<int, array{season: \Drupal\workspace_events\Entity\SeasonInterface, lessons: int}>}>>
    */
   private array $visitedCourses = [];
 
@@ -42,22 +44,22 @@ final class MemberProgress {
   ) {}
 
   /**
-   * Returns the published courses the user has lessons in.
+   * Returns the published courses the user has lessons in, grouped by season.
    *
    * @param int $uid
    *   The user ID.
    *
-   * @return array<int, array{course: \Drupal\node\NodeInterface, lessons: int}>
+   * @return array<int, array{course: \Drupal\node\NodeInterface, seasons: array<int, array{season: \Drupal\workspace_events\Entity\SeasonInterface, lessons: int}>}>
    *   The courses, sorted by title, with the number of lessons the user
-   *   participates in.
+   *   participates in per season. The seasons are sorted newest first.
    */
   public function visitedCourses(int $uid): array {
     if (isset($this->visitedCourses[$uid])) {
       return $this->visitedCourses[$uid];
     }
 
-    $node_storage = $this->entityTypeManager->getStorage('node');
-    $lesson_ids = $this->entityTypeManager->getStorage('lesson')->getQuery()
+    $lesson_storage = $this->entityTypeManager->getStorage('lesson');
+    $lesson_ids = $lesson_storage->getQuery()
       ->accessCheck(FALSE)
       ->condition('field_participants.target_id', $uid)
       ->execute();
@@ -65,38 +67,68 @@ final class MemberProgress {
       return $this->visitedCourses[$uid] = [];
     }
 
-    $lesson_ids = array_map(static fn (mixed $id): int => (int) $id, array_values($lesson_ids));
-    $course_ids = $node_storage->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('type', LessonGenerator::COURSE_BUNDLE)
-      ->condition('status', NodeInterface::PUBLISHED)
-      ->condition('field_lessons.target_id', $lesson_ids, 'IN')
-      ->execute();
+    $counts = [];
+    $season_ids = [];
+    foreach ($lesson_storage->loadMultiple($lesson_ids) as $lesson) {
+      if (!$lesson instanceof LessonInterface) {
+        continue;
+      }
+      $season_id = (int) $lesson->get('season')->getString();
+      if ($season_id <= 0) {
+        continue;
+      }
+      $season_ids[$season_id] = $season_id;
+      $counts[$season_id] = ($counts[$season_id] ?? 0) + 1;
+    }
+    if ($season_ids === []) {
+      return $this->visitedCourses[$uid] = [];
+    }
+
+    $seasons = $this->entityTypeManager->getStorage('course_season')->loadMultiple($season_ids);
+    $course_ids = [];
+    foreach ($seasons as $season) {
+      if ($season instanceof SeasonInterface) {
+        $course_id = (int) $season->get('course')->getString();
+        if ($course_id > 0) {
+          $course_ids[$course_id] = $course_id;
+        }
+      }
+    }
     if ($course_ids === []) {
       return $this->visitedCourses[$uid] = [];
     }
 
-    $attended = array_fill_keys($lesson_ids, TRUE);
-    $courses = [];
-    foreach ($node_storage->loadMultiple($course_ids) as $course) {
-      if (!$course instanceof NodeInterface || !$course->hasField('field_lessons')) {
+    $courses = $this->entityTypeManager->getStorage('node')->loadMultiple($course_ids);
+    $grouped = [];
+    foreach ($seasons as $season) {
+      if (!$season instanceof SeasonInterface) {
         continue;
       }
-      $count = 0;
-      foreach ($course->get('field_lessons') as $item) {
-        $lesson_id = (int) $item->get('target_id')->getString();
-        if (isset($attended[$lesson_id])) {
-          $count++;
-        }
+      $course = $courses[(int) $season->get('course')->getString()] ?? NULL;
+      if (!$course instanceof NodeInterface
+        || $course->bundle() !== LessonGenerator::COURSE_BUNDLE
+        || !$course->isPublished()) {
+        continue;
       }
-      if ($count > 0) {
-        $courses[] = ['course' => $course, 'lessons' => $count];
-      }
+      $course_id = (int) $course->id();
+      $grouped[$course_id] ??= ['course' => $course, 'seasons' => []];
+      $grouped[$course_id]['seasons'][] = [
+        'season' => $season,
+        'lessons' => $counts[(int) $season->id()] ?? 0,
+      ];
     }
 
-    usort($courses, static fn (array $a, array $b): int => strcasecmp((string) $a['course']->label(), (string) $b['course']->label()));
+    $visited = array_values($grouped);
+    foreach ($visited as &$entry) {
+      usort($entry['seasons'], static fn (array $a, array $b): int => strcmp(
+        (string) $b['season']->get('field_schedule')->getString(),
+        (string) $a['season']->get('field_schedule')->getString(),
+      ));
+    }
+    unset($entry);
+    usort($visited, static fn (array $a, array $b): int => strcasecmp((string) $a['course']->label(), (string) $b['course']->label()));
 
-    return $this->visitedCourses[$uid] = $courses;
+    return $this->visitedCourses[$uid] = $visited;
   }
 
   /**

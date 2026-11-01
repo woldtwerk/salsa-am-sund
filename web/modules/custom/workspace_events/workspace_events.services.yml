@@ -11,9 +11,11 @@ services:
       - '@extension.path.resolver'
   Drupal\workspace_events\SiteTimeZone:
     autowire: true
-  Drupal\workspace_events\LessonCourseResolver:
-    autowire: true
   Drupal\workspace_events\LessonGenerator:
+    autowire: true
+  Drupal\workspace_events\LessonTable:
+    autowire: true
+  Drupal\workspace_events\SeasonRepository:
     autowire: true
   Drupal\workspace_events\LearnedFigureFlagger:
     arguments:

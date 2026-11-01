@@ -95,16 +95,27 @@ function workspace_events_update_10004(): void {
 /**
  * Implements hook_update_N().
  *
- * Installs the lesson entity type and its fields, adds the course and event
- * date fields and migrates the existing Smart Date series.
+ * Installs the season and lesson entity types, their fields, adds the course
+ * and event date fields and migrates the existing Smart Date series.
  *
- * Lessons are a fieldable content entity without bundles, so the entity type
- * itself is installed first. Its Scheduler fields are added afterwards, before
- * the lesson field configuration is created.
+ * Seasons and lessons are fieldable content entities without bundles, so the
+ * entity types themselves are installed first. A season owns its lessons, so
+ * the course_season entity type is installed before lesson: the lesson base
+ * fields reference the season. Scheduler's fields are added to lessons after
+ * both entity types exist, before the lesson field configuration is created.
  *
- * Courses keep their lessons. Events keep the whole Smart Date series: every
- * delta of the legacy field is copied to the new recurring event date field
- * and the recurrence rules of the events are pointed at it.
+ * Season schedules are configurable daterange fields, installed by the
+ * installer after datetime_range: the course_season entity type itself uses no
+ * field type from a module that may still be missing on an older site.
+ *
+ * Courses get one season for their legacy series, and that season generates
+ * its lessons. Events keep the whole Smart Date series: every delta of the
+ * legacy field is copied to the new recurring event date field and the
+ * recurrence rules of the events are pointed at it.
+ *
+ * The course field_location instance is removed by the configuration import
+ * that runs after updatedb (deploy runs updb before cim), so the schedule
+ * migrator can still read the location of a course here.
  */
 function workspace_events_update_10007(): ?string {
   $modules = array_values(array_filter(
@@ -122,6 +133,9 @@ function workspace_events_update_10007(): ?string {
   \Drupal::service('scheduler.manager')->invalidatePluginCache();
 
   $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  if ($definition_update_manager->getEntityType('course_season') === NULL) {
+    $definition_update_manager->installEntityType(\Drupal::entityTypeManager()->getDefinition('course_season'));
+  }
   if ($definition_update_manager->getEntityType('lesson') === NULL) {
     $definition_update_manager->installEntityType(\Drupal::entityTypeManager()->getDefinition('lesson'));
   }
@@ -462,6 +476,8 @@ function workspace_events_editor_permissions(): array {
     'access taxonomy overview',
     'edit lessons',
     'delete lessons',
+    'edit course seasons',
+    'delete course seasons',
     'make smart dates recur',
     DanceFigureAccessHooks::VIEW_PERMISSION,
     AttendanceRecognition::PERMISSION,

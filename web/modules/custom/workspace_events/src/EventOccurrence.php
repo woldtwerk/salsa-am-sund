@@ -8,6 +8,7 @@ use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
 use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\Entity\SeasonInterface;
 
 /**
  * Immutable value object for a single event occurrence.
@@ -37,6 +38,8 @@ final readonly class EventOccurrence {
    *   The location term, if any.
    * @param bool $cancelled
    *   Whether the lesson was cancelled.
+   * @param \Drupal\workspace_events\Entity\SeasonInterface|null $season
+   *   The season of a course occurrence, NULL for an event.
    */
   public function __construct(
     public NodeInterface $node,
@@ -47,6 +50,7 @@ final readonly class EventOccurrence {
     public ?TermInterface $organizer,
     public ?TermInterface $location,
     public bool $cancelled = FALSE,
+    public ?SeasonInterface $season = NULL,
   ) {}
 
   /**

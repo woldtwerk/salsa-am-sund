@@ -15,6 +15,7 @@ use Drupal\Core\Entity\Form\DeleteMultipleForm;
 use Drupal\Core\Entity\Routing\AdminHtmlRouteProvider;
 use Drupal\Core\Field\BaseFieldDefinition;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
+use Drupal\node\NodeInterface;
 use Drupal\user\EntityOwnerTrait;
 use Drupal\workspace_events\Form\LessonForm;
 
@@ -95,6 +96,14 @@ class Lesson extends ContentEntityBase implements LessonInterface {
       ->setSetting('max_length', 255)
       ->setDisplayConfigurable('form', TRUE);
 
+    $fields['season'] = BaseFieldDefinition::create('entity_reference')
+      ->setLabel(new TranslatableMarkup('Season'))
+      ->setRequired(TRUE)
+      ->setCardinality(1)
+      ->setSetting('target_type', 'course_season')
+      ->setSetting('handler', 'default:course_season')
+      ->setTranslatable(FALSE);
+
     $fields['created'] = BaseFieldDefinition::create('created')
       ->setLabel(new TranslatableMarkup('Created'));
 
@@ -118,6 +127,41 @@ class Lesson extends ContentEntityBase implements LessonInterface {
   public function setCreatedTime(int $timestamp): static {
     $this->set('created', $timestamp);
     return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getSeason(): ?SeasonInterface {
+    $season = $this->get('season')->entity;
+    return $season instanceof SeasonInterface ? $season : NULL;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getCourse(): ?NodeInterface {
+    return $this->getSeason()?->getCourse();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function hasRecordedData(): bool {
+    foreach (['field_dance_figures', 'field_participants'] as $field_name) {
+      if ($this->hasField($field_name) && !$this->get($field_name)->isEmpty()) {
+        return TRUE;
+      }
+    }
+
+    return $this->isCancelled();
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function isCancelled(): bool {
+    return $this->hasField('field_cancelled') && $this->get('field_cancelled')->getString() === '1';
   }
 
 }

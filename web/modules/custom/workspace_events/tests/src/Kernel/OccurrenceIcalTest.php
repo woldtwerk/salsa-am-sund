@@ -13,7 +13,6 @@ use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
-use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -52,7 +51,7 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     $location = $this->createLocation('Kulturhaus Stralsund');
     $course = $this->createCourse([
       'title' => 'Salsa-Nacht',
-      'field_location' => $location->id(),
+      'season_location' => $location->id(),
       ...$this->courseSchedule($start, $start->modify('+2 weeks')),
     ]);
     $lessons = $this->loadCourseLessons($course);
@@ -101,10 +100,16 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     // the repository memoize the course, so use fresh instances.
     $course->set('status', NodeInterface::NOT_PUBLISHED);
     $course->save();
+    // The lesson caches its season and the season its course, so clear the
+    // entity caches and reload the lesson to see the unpublished course.
+    $this->lessonStorage->resetCache();
+    $this->seasonStorage->resetCache();
+    $this->nodeStorage->resetCache();
+    $unpublished_lesson = $this->lessonStorage->load((int) $lessons[1]->id());
+    self::assertInstanceOf(LessonInterface::class, $unpublished_lesson);
     $repository = new EventOccurrenceRepository(
       $this->container->get('entity_type.manager'),
       $this->container->get(SiteTimeZone::class),
-      new LessonCourseResolver($this->container->get('entity_type.manager')),
       $this->container->get('database'),
       $this->container->get('datetime.time'),
     );
@@ -116,7 +121,7 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
       $this->container->get(DetailFieldResolver::class),
       $this->container->get('transliteration'),
     );
-    $this->assertNotFound(fn () => $controller->lessonOccurrence($this->lessonRequest($lessons[1]), $lessons[1]));
+    $this->assertNotFound(fn () => $controller->lessonOccurrence($this->lessonRequest($unpublished_lesson), $unpublished_lesson));
 
     NodeType::create([
       'type' => 'page',
