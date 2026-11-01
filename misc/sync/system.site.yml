@@ -3,7 +3,7 @@ _core:
 langcode: de
 uuid: c066a228-ad00-428b-8067-437412c863f5
 name: salsa-am-sund
-mail: info@woldtwerk.de
+mail: donotreply@woldtwerk.de
 slogan: ''
 page:
   403: /user/login
