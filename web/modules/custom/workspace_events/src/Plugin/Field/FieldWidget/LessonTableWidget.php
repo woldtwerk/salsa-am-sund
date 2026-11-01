@@ -16,7 +16,7 @@ use Drupal\Core\Field\WidgetBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\node\NodeInterface;
-use Drupal\workspace_events\LessonGenerator;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\SiteTimeZone;
 
 /**
@@ -75,15 +75,8 @@ final class LessonTableWidget extends WidgetBase {
    * {@inheritdoc}
    */
   public static function isApplicable(FieldDefinitionInterface $field_definition): bool {
-    if ($field_definition->getType() !== 'entity_reference' || $field_definition->getSetting('target_type') !== 'node') {
-      return FALSE;
-    }
-    $handler_settings = $field_definition->getSetting('handler_settings');
-    if (!is_array($handler_settings)) {
-      return FALSE;
-    }
-    $target_bundles = $handler_settings['target_bundles'] ?? [];
-    return is_array($target_bundles) && array_key_exists(LessonGenerator::LESSON_BUNDLE, $target_bundles);
+    return $field_definition->getType() === 'entity_reference'
+      && $field_definition->getSetting('target_type') === 'lesson';
   }
 
   /**
@@ -193,7 +186,7 @@ final class LessonTableWidget extends WidgetBase {
    * @param \Drupal\Core\Field\FieldItemListInterface<\Drupal\Core\Field\FieldItemInterface> $items
    *   The lesson reference field.
    *
-   * @return \Drupal\node\NodeInterface[]
+   * @return \Drupal\workspace_events\Entity\LessonInterface[]
    *   The lessons, sorted by start. Lessons without a date come last.
    */
   private function loadLessons(FieldItemListInterface $items): array {
@@ -209,15 +202,15 @@ final class LessonTableWidget extends WidgetBase {
       return [];
     }
 
-    $storage = $this->entityTypeManager->getStorage('node');
+    $storage = $this->entityTypeManager->getStorage('lesson');
     $lessons = [];
     foreach ($storage->loadMultiple(array_unique($ids)) as $lesson) {
-      if ($lesson instanceof NodeInterface && $lesson->bundle() === LessonGenerator::LESSON_BUNDLE) {
+      if ($lesson instanceof LessonInterface) {
         $lessons[] = $lesson;
       }
     }
 
-    /** @var array<int, array{lesson: \Drupal\node\NodeInterface, start: \DateTimeImmutable|null}> $sorted */
+    /** @var array<int, array{lesson: \Drupal\workspace_events\Entity\LessonInterface, start: \DateTimeImmutable|null}> $sorted */
     $sorted = [];
     foreach ($lessons as $lesson) {
       $sorted[] = [
@@ -227,13 +220,13 @@ final class LessonTableWidget extends WidgetBase {
     }
     usort($sorted, static fn (array $a, array $b): int => ($a['start']?->getTimestamp() ?? PHP_INT_MAX) <=> ($b['start']?->getTimestamp() ?? PHP_INT_MAX));
 
-    return array_map(static fn (array $item): NodeInterface => $item['lesson'], $sorted);
+    return array_map(static fn (array $item): LessonInterface => $item['lesson'], $sorted);
   }
 
   /**
    * Finds the most relevant lesson of the table.
    *
-   * @param \Drupal\node\NodeInterface[] $lessons
+   * @param \Drupal\workspace_events\Entity\LessonInterface[] $lessons
    *   The lessons, sorted by start.
    * @param \DateTimeImmutable $now
    *   The current time in the site timezone.
@@ -271,7 +264,7 @@ final class LessonTableWidget extends WidgetBase {
   /**
    * Builds the table row of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    * @param string|null $destination
    *   The course edit URL used as link destination, or NULL when unknown.
@@ -281,7 +274,7 @@ final class LessonTableWidget extends WidgetBase {
    * @return array<string, mixed>
    *   The row with its cells and attributes.
    */
-  private function buildRow(NodeInterface $lesson, ?string $destination, ?array $relevant): array {
+  private function buildRow(LessonInterface $lesson, ?string $destination, ?array $relevant): array {
     $start = $this->lessonStart($lesson);
     $end = $this->lessonEnd($lesson, $start);
     $is_relevant = $relevant !== NULL && $relevant['id'] === (int) $lesson->id();
@@ -340,13 +333,13 @@ final class LessonTableWidget extends WidgetBase {
   /**
    * Returns the start of a lesson in the site timezone.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return \DateTimeImmutable|null
    *   The start, or NULL when the lesson has no date.
    */
-  private function lessonStart(NodeInterface $lesson): ?\DateTimeImmutable {
+  private function lessonStart(LessonInterface $lesson): ?\DateTimeImmutable {
     $item = $this->lessonDateItem($lesson);
     if ($item === NULL) {
       return NULL;
@@ -358,7 +351,7 @@ final class LessonTableWidget extends WidgetBase {
   /**
    * Returns the end of a lesson in the site timezone.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    * @param \DateTimeImmutable|null $start
    *   The start of the lesson.
@@ -366,7 +359,7 @@ final class LessonTableWidget extends WidgetBase {
    * @return \DateTimeImmutable|null
    *   The end, the start when no end is stored, or NULL without a date.
    */
-  private function lessonEnd(NodeInterface $lesson, ?\DateTimeImmutable $start): ?\DateTimeImmutable {
+  private function lessonEnd(LessonInterface $lesson, ?\DateTimeImmutable $start): ?\DateTimeImmutable {
     $item = $this->lessonDateItem($lesson);
     if ($item === NULL) {
       return NULL;
@@ -378,13 +371,13 @@ final class LessonTableWidget extends WidgetBase {
   /**
    * Returns the first date item of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return \Drupal\Core\Field\FieldItemInterface|null
    *   The date item, or NULL when the lesson has no date.
    */
-  private function lessonDateItem(NodeInterface $lesson): ?FieldItemInterface {
+  private function lessonDateItem(LessonInterface $lesson): ?FieldItemInterface {
     if (!$lesson->hasField('field_lesson_date')) {
       return NULL;
     }
@@ -394,13 +387,13 @@ final class LessonTableWidget extends WidgetBase {
   /**
    * Returns the status label of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return \Drupal\Core\StringTranslation\TranslatableMarkup
    *   The status label.
    */
-  private function statusLabel(NodeInterface $lesson): TranslatableMarkup {
+  private function statusLabel(LessonInterface $lesson): TranslatableMarkup {
     if ($this->isCancelled($lesson)) {
       return $this->t('Cancelled');
     }
@@ -410,20 +403,20 @@ final class LessonTableWidget extends WidgetBase {
   /**
    * Returns whether a lesson is cancelled.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return bool
    *   TRUE when the lesson is cancelled.
    */
-  private function isCancelled(NodeInterface $lesson): bool {
+  private function isCancelled(LessonInterface $lesson): bool {
     return $lesson->hasField('field_cancelled') && $lesson->get('field_cancelled')->getString() === '1';
   }
 
   /**
    * Counts the values of an optional lesson field.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    * @param string $field_name
    *   The field name.
@@ -431,7 +424,7 @@ final class LessonTableWidget extends WidgetBase {
    * @return int
    *   The number of values, or 0 when the lesson has no such field.
    */
-  private function fieldCount(NodeInterface $lesson, string $field_name): int {
+  private function fieldCount(LessonInterface $lesson, string $field_name): int {
     return $lesson->hasField($field_name) ? $lesson->get($field_name)->count() : 0;
   }
 

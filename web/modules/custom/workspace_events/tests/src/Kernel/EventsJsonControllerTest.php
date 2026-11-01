@@ -39,7 +39,7 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
   /**
    * The lessons of the course.
    *
-   * @var \Drupal\node\NodeInterface[]
+   * @var \Drupal\workspace_events\Entity\LessonInterface[]
    */
   private array $lessons;
 
@@ -150,7 +150,7 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
       self::assertFalse($item['extendedProps']['cancelled']);
       self::assertNull($item['extendedProps']['organizer']);
       self::assertSame('Bootshaus Stralsund', $item['extendedProps']['location']);
-      self::assertStringStartsWith($this->lessons[$index]->id() . '-', $item['id']);
+      self::assertStringStartsWith('lesson-' . $this->lessons[$index]->id() . '-', $item['id']);
       $starts[] = $item['start'];
     }
     self::assertCount(4, array_unique($starts));
@@ -176,6 +176,57 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     self::assertTrue($items[1]['extendedProps']['cancelled']);
     self::assertContains('is-cancelled', $items[1]['classNames']);
     self::assertNotContains('is-cancelled', $items[0]['classNames']);
+
+    // A lesson and an event may share a numeric ID. Their JSON ids must stay
+    // distinct, and the event keeps the deployed "<nid>-<start>" format.
+    $collision_id = 1000;
+    $collision_start = $this->date('now +20 days', '18:00');
+    $collision_lesson = $this->createLesson([
+      'id' => $collision_id,
+      'title' => 'Kollisionsstunde',
+      'field_lesson_date' => $this->dateRange(
+        $collision_start,
+        $collision_start->modify('+1 hour'),
+      ),
+    ]);
+    $targets = [];
+    foreach ($this->course->get('field_lessons') as $item) {
+      $targets[] = ['target_id' => (int) $item->get('target_id')->getString()];
+    }
+    $targets[] = ['target_id' => (int) $collision_lesson->id()];
+    $this->course->set('field_lessons', $targets);
+    $this->course->save();
+    $this->createEvent([
+      'nid' => $collision_id,
+      'title' => 'Kollisionsparty',
+      'field_event_date' => $this->smartDateRange(
+        $collision_start,
+        $collision_start->modify('+1 hour'),
+      ),
+    ]);
+    $repository = new EventOccurrenceRepository(
+      $this->container->get('entity_type.manager'),
+      $this->container->get(SiteTimeZone::class),
+      $this->container->get(LessonCourseResolver::class),
+      $this->container->get('database'),
+      $this->container->get('datetime.time'),
+    );
+    $this->controller = new EventsJsonController(
+      $repository,
+      $this->container->get(EventFilterFactory::class),
+    );
+    $items = $this->items($this->range());
+    $collision_timestamp = $collision_start->getTimestamp();
+    $lesson_item = array_values(array_filter(
+      $items,
+      static fn (array $item): bool => str_starts_with($item['id'], 'lesson-' . $collision_id . '-'),
+    ));
+    self::assertCount(1, $lesson_item);
+    self::assertSame('lesson-' . $collision_id . '-' . $collision_timestamp, $lesson_item[0]['id']);
+    self::assertSame(
+      $collision_id . '-' . $collision_timestamp,
+      $this->findByTitle($items, 'Kollisionsparty')['id'],
+    );
   }
 
   /**
@@ -207,7 +258,7 @@ final class EventsJsonControllerTest extends LessonKernelTestBase {
     foreach ([
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
       'taxonomy_term:' . $this->locationA,

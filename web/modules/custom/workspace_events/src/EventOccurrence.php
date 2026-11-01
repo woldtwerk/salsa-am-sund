@@ -7,6 +7,7 @@ namespace Drupal\workspace_events;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 
 /**
  * Immutable value object for a single event occurrence.
@@ -22,7 +23,7 @@ final readonly class EventOccurrence {
    *
    * @param \Drupal\node\NodeInterface $node
    *   The event or course node.
-   * @param \Drupal\node\NodeInterface|null $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface|null $lesson
    *   The lesson of a course occurrence, NULL for an event.
    * @param \DateTimeImmutable $start
    *   The start date and time, in the site timezone.
@@ -39,7 +40,7 @@ final readonly class EventOccurrence {
    */
   public function __construct(
     public NodeInterface $node,
-    public ?NodeInterface $lesson,
+    public ?LessonInterface $lesson,
     public \DateTimeImmutable $start,
     public ?\DateTimeImmutable $end,
     public bool $allDay,
@@ -49,10 +50,25 @@ final readonly class EventOccurrence {
   ) {}
 
   /**
-   * Returns the node that stores this occurrence's date.
+   * Returns the entity that stores this occurrence's date.
+   *
+   * That is the lesson of a course occurrence and the event itself otherwise.
    */
-  public function sourceNode(): NodeInterface {
+  public function source(): LessonInterface|NodeInterface {
     return $this->lesson ?? $this->node;
+  }
+
+  /**
+   * Returns a key that identifies the source across entity types.
+   *
+   * Lesson and node IDs overlap, so the key prefixes a lesson ID. Event keys
+   * stay the bare node ID, because the deployed iCal UIDs and JSON/JSON-LD
+   * identifiers must not change.
+   */
+  public function sourceKey(): string {
+    return $this->lesson !== NULL
+      ? 'lesson-' . $this->lesson->id()
+      : (string) $this->node->id();
   }
 
   /**
@@ -72,12 +88,16 @@ final readonly class EventOccurrence {
   /**
    * Returns the download URL of this occurrence.
    *
-   * The route takes the node that stores the date: the lesson of a course or
-   * the event itself.
+   * The route takes the lesson of a course or the event itself.
    */
   public function toIcalUrl(): Url {
+    if ($this->lesson !== NULL) {
+      return Url::fromRoute('workspace_events.lesson_ical', [
+        'lesson' => (int) $this->lesson->id(),
+      ]);
+    }
     return Url::fromRoute('workspace_events.occurrence_ical', [
-      'node' => (int) $this->sourceNode()->id(),
+      'node' => (int) $this->node->id(),
     ]);
   }
 

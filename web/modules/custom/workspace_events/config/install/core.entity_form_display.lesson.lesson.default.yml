@@ -1,0 +1,82 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.field.lesson.lesson.field_cancelled
+    - field.field.lesson.lesson.field_dance_figures
+    - field.field.lesson.lesson.field_lesson_date
+    - field.field.lesson.lesson.field_participants
+  module:
+    - datetime_range
+    - field_widget_actions
+    - scheduler
+    - workspace_events
+id: lesson.lesson.default
+targetEntityType: lesson
+bundle: lesson
+mode: default
+content:
+  field_cancelled:
+    type: boolean_checkbox
+    weight: 1
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
+  field_dance_figures:
+    type: entity_reference_autocomplete_tags
+    weight: 2
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  field_lesson_date:
+    type: daterange_default
+    weight: 0
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_participants:
+    type: entity_reference_autocomplete_tags
+    weight: 3
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings:
+      field_widget_actions:
+        5b2a6c1e-8f4d-4d2b-9a7e-3c1f0d9e8b6a:
+          enabled: '1'
+          button_label: 'Teilnehmer aus Foto erkennen'
+          weight: '0'
+          multiple: false
+          plugin_id: attendance_from_photo_participants
+  publish_on:
+    type: datetime_timestamp_no_default
+    weight: 6
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  scheduler_settings:
+    weight: 7
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  status:
+    type: boolean_checkbox
+    weight: 5
+    region: content
+    settings:
+      display_label: true
+    third_party_settings: {  }
+hidden:
+  created: true
+  langcode: true
+  title: true
+  uid: true
+  unpublish_on: true

@@ -10,8 +10,8 @@ use Drupal\Core\Routing\Access\AccessInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\user\UserInterface;
+use Drupal\workspace_events\Entity\LessonAccessControlHandler;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
-use Drupal\workspace_events\Hook\LessonAccessHooks;
 
 /**
  * Controls access to the "Meine Kurse" tab of a user profile.
@@ -44,7 +44,7 @@ final class MyCoursesAccess implements AccessInterface {
       return $this->forbidden();
     }
 
-    if ($account->hasPermission(LessonAccessHooks::EDIT_PERMISSION)) {
+    if ($account->hasPermission(LessonAccessControlHandler::EDIT_PERMISSION)) {
       return $this->allowed();
     }
 

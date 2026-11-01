@@ -7,6 +7,7 @@ namespace Drupal\Tests\workspace_events\Kernel;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
 use Drupal\workspace_events\DetailFieldResolver;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventOccurrence;
 use Drupal\workspace_events\OrganizerResolver;
@@ -229,7 +230,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
    *
    * @param \Drupal\node\NodeInterface $course
    *   The course.
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    * @param \Drupal\taxonomy\TermInterface|null $location
    *   The location of the course.
@@ -237,7 +238,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
    * @return \Drupal\workspace_events\EventOccurrence
    *   The occurrence.
    */
-  private function lessonOccurrence(NodeInterface $course, NodeInterface $lesson, ?TermInterface $location): EventOccurrence {
+  private function lessonOccurrence(NodeInterface $course, LessonInterface $lesson, ?TermInterface $location): EventOccurrence {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
     $timezone = new \DateTimeZone(self::TIMEZONE);

@@ -23,6 +23,21 @@ workspace_events.occurrence_ical:
     node: '\d+'
     _access: 'TRUE'
 
+workspace_events.lesson_ical:
+  path: '/termine/stunde/{lesson}/ical'
+  defaults:
+    _controller: '\Drupal\workspace_events\Controller\IcalController::lessonOccurrence'
+    _title: 'Lesson'
+    _title_context: workspace_events
+  methods: [GET]
+  options:
+    parameters:
+      lesson:
+        type: entity:lesson
+  requirements:
+    lesson: '\d+'
+    _access: 'TRUE'
+
 workspace_events.events_json:
   path: '/termine.json'
   defaults:
@@ -32,4 +47,3 @@ workspace_events.events_json:
   methods: [GET]
   requirements:
     _access: 'TRUE'
-

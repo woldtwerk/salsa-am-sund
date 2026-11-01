@@ -15,8 +15,9 @@ use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\taxonomy\TermInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\DanceFigureFlag;
+use Drupal\workspace_events\Entity\LessonAccessControlHandler;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
-use Drupal\workspace_events\Hook\LessonAccessHooks;
 use Drupal\workspace_events\Hook\MemberProfileHooks;
 use Drupal\workspace_events\MemberProgress;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -184,7 +185,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
     $editor = $this->createUser([
       'access content',
       DanceFigureAccessHooks::VIEW_PERMISSION,
-      LessonAccessHooks::EDIT_PERMISSION,
+      LessonAccessControlHandler::EDIT_PERMISSION,
     ]);
     $switcher->switchTo($editor);
     $build = $this->buildProfile($owner);
@@ -280,7 +281,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
    *
    * @param string $title
    *   The course title.
-   * @param \Drupal\node\NodeInterface[] $lessons
+   * @param \Drupal\workspace_events\Entity\LessonInterface[] $lessons
    *   The lessons.
    * @param int $status
    *   The publication status.
@@ -293,7 +294,7 @@ final class MemberProgressTest extends LessonKernelTestBase {
       'title' => $title,
       'status' => $status,
       'field_lessons' => array_map(
-        static fn (NodeInterface $lesson): array => ['target_id' => $lesson->id()],
+        static fn (LessonInterface $lesson): array => ['target_id' => $lesson->id()],
         $lessons,
       ),
     ]);
@@ -307,10 +308,10 @@ final class MemberProgressTest extends LessonKernelTestBase {
    * @param string $title
    *   The lesson title.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return \Drupal\workspace_events\Entity\LessonInterface
    *   The lesson.
    */
-  private function createParticipantLesson(UserInterface $participant, string $title): NodeInterface {
+  private function createParticipantLesson(UserInterface $participant, string $title): LessonInterface {
     return $this->createLesson([
       'title' => $title,
       'field_participants' => [$participant->id()],

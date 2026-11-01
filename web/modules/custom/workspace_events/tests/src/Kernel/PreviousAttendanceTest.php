@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Kernel;
 
-use Drupal\node\Entity\Node;
-use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Attendance\PreviousAttendance;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LessonCourseResolver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -48,7 +47,7 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
     $this->createCourse([
       'title' => 'Salsa Kurs',
       'field_lessons' => array_map(
-        static fn (NodeInterface $lesson): array => ['target_id' => $lesson->id()],
+        static fn (LessonInterface $lesson): array => ['target_id' => $lesson->id()],
         [...$lessons, $current],
       ),
     ]);
@@ -79,8 +78,7 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
     ]);
     self::assertSame([], $this->recommender()->recommendAll($without_course, $candidates));
 
-    $unsaved = Node::create([
-      'type' => 'lesson',
+    $unsaved = $this->lessonStorage->create([
       'title' => 'Noch nicht gespeichert',
       'field_lesson_date' => $this->dateRange($first, $first->modify('+1 hour')),
     ]);
@@ -90,12 +88,12 @@ final class PreviousAttendanceTest extends LessonKernelTestBase {
   /**
    * Sets the participants of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    * @param int[] $participants
    *   The participant user IDs.
    */
-  private function setParticipants(NodeInterface $lesson, array $participants): void {
+  private function setParticipants(LessonInterface $lesson, array $participants): void {
     $lesson->set('field_participants', $participants);
     $lesson->save();
   }

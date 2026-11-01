@@ -16,8 +16,7 @@ selection_criteria:
     negate: true
     context_mapping:
       node: node
-    bundles:
-      lesson: lesson
+    bundles: {  }
 selection_logic: and
 weight: 10
 relationships: {  }

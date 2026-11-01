@@ -1,0 +1,23 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.lesson.field_cancelled
+  module:
+    - workspace_events
+id: lesson.lesson.field_cancelled
+field_name: field_cancelled
+entity_type: lesson
+bundle: lesson
+label: 'Fällt aus'
+description: 'Stunde absagen, ohne sie zu löschen.'
+required: false
+translatable: false
+default_value:
+  -
+    value: false
+default_value_callback: ''
+settings:
+  on_label: An
+  off_label: Aus
+field_type: boolean

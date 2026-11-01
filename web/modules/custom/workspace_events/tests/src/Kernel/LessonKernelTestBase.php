@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\workspace_events\Kernel;
 
-use Drupal\node\Entity\Node;
-use Drupal\node\NodeInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 
 /**
  * Base class for kernel tests of the course lessons.
  *
  * The event content model of the base class already contains the lesson
- * bundle, the course schedule and the event date field.
+ * entity type, the course schedule and the event date field.
  */
 abstract class LessonKernelTestBase extends EventKernelTestBase {
 
@@ -38,23 +37,23 @@ abstract class LessonKernelTestBase extends EventKernelTestBase {
   }
 
   /**
-   * Creates a lesson node.
+   * Creates a lesson.
    *
    * @param array<string, mixed> $values
-   *   The node values.
+   *   The lesson values.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return \Drupal\workspace_events\Entity\LessonInterface
    *   The lesson.
    */
-  protected function createLesson(array $values): NodeInterface {
+  protected function createLesson(array $values): LessonInterface {
     $values += [
-      'type' => 'lesson',
-      'status' => NodeInterface::PUBLISHED,
+      'status' => 1,
       'uid' => 1,
     ];
-    $node = Node::create($values);
-    $node->save();
-    return $node;
+    $lesson = $this->lessonStorage->create($values);
+    \assert($lesson instanceof LessonInterface);
+    $lesson->save();
+    return $lesson;
   }
 
 }

@@ -98,7 +98,7 @@ final class EventsJsonControllerTest extends UnitTestCase {
     $storage->method('getQuery')->willReturn($query);
 
     $entity_type_manager = $this->createMock(EntityTypeManagerInterface::class);
-    $entity_type_manager->method('getStorage')->with('node')->willReturn($storage);
+    $entity_type_manager->method('getStorage')->willReturn($storage);
 
     $statement = $this->createMock(StatementInterface::class);
     $statement->method('fetchAll')->willReturn([]);

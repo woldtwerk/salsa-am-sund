@@ -57,9 +57,8 @@ final class MemberProgress {
     }
 
     $node_storage = $this->entityTypeManager->getStorage('node');
-    $lesson_ids = $node_storage->getQuery()
+    $lesson_ids = $this->entityTypeManager->getStorage('lesson')->getQuery()
       ->accessCheck(FALSE)
-      ->condition('type', LessonGenerator::LESSON_BUNDLE)
       ->condition('field_participants.target_id', $uid)
       ->execute();
     if ($lesson_ids === []) {

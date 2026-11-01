@@ -80,6 +80,7 @@ abstract class ConfigRecordInstaller {
       str_starts_with($name, 'views.view.') => 'view',
       str_starts_with($name, 'flag.flag.') => 'flag',
       str_starts_with($name, 'key.key.') => 'key',
+      str_starts_with($name, 'system.action.') => 'action',
       default => throw new \InvalidArgumentException(sprintf('Unsupported configuration %s.', $name)),
     };
 

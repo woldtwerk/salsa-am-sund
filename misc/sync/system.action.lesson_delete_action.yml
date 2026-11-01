@@ -1,0 +1,11 @@
+uuid: 6ca14e8f-de34-459a-b266-95e2e9287115
+langcode: de
+status: true
+dependencies:
+  module:
+    - workspace_events
+id: lesson_delete_action
+label: 'Delete lesson'
+type: lesson
+plugin: 'entity:delete_action:lesson'
+configuration: {  }

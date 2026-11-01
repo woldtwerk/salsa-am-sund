@@ -15,6 +15,7 @@ use Drupal\Core\StringTranslation\TranslationInterface;
 use Drupal\taxonomy\TermInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\DanceFigureFlag;
+use Drupal\workspace_events\Entity\LessonAccessControlHandler;
 use Drupal\workspace_events\MemberProgress;
 
 /**
@@ -131,7 +132,7 @@ final class MemberProfileHooks {
 
     $is_owner = $this->currentUser->isAuthenticated()
       && (int) $this->currentUser->id() === (int) $account->id();
-    if (!$is_owner && !$this->currentUser->hasPermission(LessonAccessHooks::EDIT_PERMISSION)) {
+    if (!$is_owner && !$this->currentUser->hasPermission(LessonAccessControlHandler::EDIT_PERMISSION)) {
       $metadata = CacheableMetadata::createFromRenderArray($build);
       $metadata->addCacheContexts(['user.permissions', 'user']);
       // @phpstan-ignore paramOut.type (applyTo() widens the array type.)
@@ -305,7 +306,7 @@ final class MemberProfileHooks {
     $metadata = new CacheableMetadata();
     $metadata->addCacheContexts(['user.permissions', 'user']);
     $metadata->addCacheTags([
-      'node_list:lesson',
+      'lesson_list',
       'node_list:course',
       'flagging_list',
       'taxonomy_term_list:dance_figure',

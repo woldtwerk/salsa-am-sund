@@ -224,6 +224,33 @@ msgstr "Erlaubt das Erkennen von Teilnehmern auf einem Anwesenheitsfoto."
 msgid "Lessons"
 msgstr "Unterrichtsstunden"
 
+msgid "Lesson"
+msgstr "Unterrichtsstunde"
+
+msgid "Lesson %label has been saved."
+msgstr "Die Unterrichtsstunde %label wurde gespeichert."
+
+msgid "Delete lesson"
+msgstr "Unterrichtsstunde löschen"
+
+msgid "Administer lessons"
+msgstr "Unterrichtsstunden verwalten"
+
+msgid "Allows administering lessons."
+msgstr "Erlaubt das Verwalten von Unterrichtsstunden."
+
+msgid "Edit lessons"
+msgstr "Unterrichtsstunden bearbeiten"
+
+msgid "Allows editing lessons."
+msgstr "Erlaubt das Bearbeiten von Unterrichtsstunden."
+
+msgid "Delete lessons"
+msgstr "Unterrichtsstunden löschen"
+
+msgid "Allows deleting lessons."
+msgstr "Erlaubt das Löschen von Unterrichtsstunden."
+
 msgid "Create and edit lessons."
 msgstr "Unterrichtsstunden anlegen und bearbeiten."
 

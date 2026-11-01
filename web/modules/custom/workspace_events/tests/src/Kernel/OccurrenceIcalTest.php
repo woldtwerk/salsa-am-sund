@@ -8,6 +8,13 @@ use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Controller\IcalController;
+use Drupal\workspace_events\DetailFieldResolver;
+use Drupal\workspace_events\Entity\LessonInterface;
+use Drupal\workspace_events\EventDescriptionFormatter;
+use Drupal\workspace_events\EventFilterFactory;
+use Drupal\workspace_events\EventOccurrenceRepository;
+use Drupal\workspace_events\LessonCourseResolver;
+use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -51,13 +58,13 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     $lessons = $this->loadCourseLessons($course);
     self::assertCount(3, $lessons);
 
-    $response = $this->controller->occurrence($this->request($lessons[1]), $lessons[1]);
+    $response = $this->controller->lessonOccurrence($this->lessonRequest($lessons[1]), $lessons[1]);
     self::assertSame(200, $response->getStatusCode());
     $calendar = $this->readCalendar($response->getContent());
     $events = $calendar->select('VEVENT');
     self::assertCount(1, $events);
     $ical_event = array_values($events)[0];
-    self::assertSame('event-' . $lessons[1]->id() . '@salsa-am-sund.localhost', $ical_event->UID?->getValue());
+    self::assertSame('event-lesson-' . $lessons[1]->id() . '@salsa-am-sund.localhost', $ical_event->UID?->getValue());
     self::assertSame('Salsa-Nacht', $ical_event->SUMMARY?->getValue());
     $expected_start = $this->lessonStart($lessons[1]);
     self::assertSame($expected_start->format('Ymd\THis'), $ical_event->DTSTART?->getValue());
@@ -68,7 +75,7 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     self::assertStringContainsString('Salsa-Nacht-' . $expected_start->format('Y-m-d') . '.ics', $disposition);
     $cacheability = $response->getCacheableMetadata();
     self::assertContains('node:' . $course->id(), $cacheability->getCacheTags());
-    self::assertContains('node:' . $lessons[1]->id(), $cacheability->getCacheTags());
+    self::assertContains('lesson:' . $lessons[1]->id(), $cacheability->getCacheTags());
     self::assertContains('taxonomy_term:' . $location->id(), $cacheability->getCacheTags());
 
     $event = $this->createEvent([
@@ -89,6 +96,27 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
     self::assertContains('taxonomy_term:' . $this->externalOrganizer, $cacheability->getCacheTags());
 
     $this->assertNotFound(fn () => $this->controller->occurrence($this->request($course), $course));
+
+    // A lesson of an unpublished course has no occurrence. The resolver and
+    // the repository memoize the course, so use fresh instances.
+    $course->set('status', NodeInterface::NOT_PUBLISHED);
+    $course->save();
+    $repository = new EventOccurrenceRepository(
+      $this->container->get('entity_type.manager'),
+      $this->container->get(SiteTimeZone::class),
+      new LessonCourseResolver($this->container->get('entity_type.manager')),
+      $this->container->get('database'),
+      $this->container->get('datetime.time'),
+    );
+    $controller = new IcalController(
+      $repository,
+      $this->container->get('entity_type.manager'),
+      $this->container->get(EventDescriptionFormatter::class),
+      $this->container->get(EventFilterFactory::class),
+      $this->container->get(DetailFieldResolver::class),
+      $this->container->get('transliteration'),
+    );
+    $this->assertNotFound(fn () => $controller->lessonOccurrence($this->lessonRequest($lessons[1]), $lessons[1]));
 
     NodeType::create([
       'type' => 'page',
@@ -131,13 +159,13 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
   /**
    * Returns the start of a lesson in the site timezone.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return \DateTimeImmutable
    *   The start.
    */
-  private function lessonStart(NodeInterface $lesson): \DateTimeImmutable {
+  private function lessonStart(LessonInterface $lesson): \DateTimeImmutable {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
     return (new \DateTimeImmutable(
@@ -157,6 +185,19 @@ final class OccurrenceIcalTest extends LessonKernelTestBase {
    */
   private function request(NodeInterface $node): Request {
     return Request::create('https://salsa-am-sund.localhost/termine/' . $node->id() . '/ical');
+  }
+
+  /**
+   * Builds the request of a lesson occurrence download.
+   *
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The lesson.
+   *
+   * @return \Symfony\Component\HttpFoundation\Request
+   *   The request.
+   */
+  private function lessonRequest(LessonInterface $lesson): Request {
+    return Request::create('https://salsa-am-sund.localhost/termine/stunde/' . $lesson->id() . '/ical');
   }
 
   /**

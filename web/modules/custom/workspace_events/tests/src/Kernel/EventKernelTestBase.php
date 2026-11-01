@@ -19,6 +19,7 @@ use Drupal\Tests\user\Traits\UserCreationTrait;
 use Drupal\workspace_events\ConfigRecordInstaller;
 use Drupal\workspace_events\ConfigRecordLoader;
 use Drupal\workspace_events\Difficulty;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\OrganizerResolver;
 
@@ -72,6 +73,11 @@ abstract class EventKernelTestBase extends KernelTestBase {
   protected EntityStorageInterface $nodeStorage;
 
   /**
+   * The lesson storage.
+   */
+  protected EntityStorageInterface $lessonStorage;
+
+  /**
    * The ID of the "Salsa am Sund" organizer term.
    */
   protected int $salsaAmSund;
@@ -91,6 +97,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
     $this->installSchema('user', ['users_data']);
     $this->installEntitySchema('node');
     $this->installSchema('node', ['node_access']);
+    $this->installEntitySchema('lesson');
     $this->installEntitySchema('taxonomy_term');
     $this->installEntitySchema('flagging');
     $this->installSchema('flag', ['flag_counts']);
@@ -106,6 +113,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
     $this->setUpCurrentUser([], ['access content']);
     $this->termStorage = $this->container->get('entity_type.manager')->getStorage('taxonomy_term');
     $this->nodeStorage = $this->container->get('entity_type.manager')->getStorage('node');
+    $this->lessonStorage = $this->container->get('entity_type.manager')->getStorage('lesson');
 
     $salsa = reset($this->termStorage->loadByProperties(['uuid' => OrganizerResolver::SALSA_AM_SUND_UUID]));
     $external = reset($this->termStorage->loadByProperties(['uuid' => OrganizerResolver::EXTERNAL_UUID]));
@@ -131,6 +139,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
     // Creating the fields can rebuild the container. Refresh the storage so
     // the tests use the field definitions of the new configuration.
     $this->nodeStorage = $this->container->get('entity_type.manager')->getStorage('node');
+    $this->lessonStorage = $this->container->get('entity_type.manager')->getStorage('lesson');
   }
 
   /**
@@ -324,7 +333,7 @@ abstract class EventKernelTestBase extends KernelTestBase {
    * @param \Drupal\node\NodeInterface $course
    *   The course.
    *
-   * @return \Drupal\node\NodeInterface[]
+   * @return \Drupal\workspace_events\Entity\LessonInterface[]
    *   The lessons, in the stored order.
    */
   protected function loadCourseLessons(NodeInterface $course): array {
@@ -332,12 +341,12 @@ abstract class EventKernelTestBase extends KernelTestBase {
     foreach ($course->get('field_lessons') as $item) {
       $ids[] = (int) $item->get('target_id')->getString();
     }
-    $this->nodeStorage->resetCache($ids);
+    $this->lessonStorage->resetCache($ids);
 
     $lessons = [];
     foreach ($ids as $id) {
-      $lesson = $this->nodeStorage->load($id);
-      self::assertInstanceOf(NodeInterface::class, $lesson);
+      $lesson = $this->lessonStorage->load($id);
+      self::assertInstanceOf(LessonInterface::class, $lesson);
       $lessons[] = $lesson;
     }
     return $lessons;

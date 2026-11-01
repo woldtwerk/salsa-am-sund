@@ -6,8 +6,8 @@ namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\node\NodeInterface;
 use Drupal\smart_date_recur\Entity\SmartDateRule;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\ScheduleMigrator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -70,7 +70,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
       $start->modify('+4 weeks')->format('Y-m-d'),
       $start->modify('+6 weeks')->format('Y-m-d'),
     ], array_map(
-      function (NodeInterface $lesson): string {
+      function (LessonInterface $lesson): string {
         $item = $lesson->get('field_lesson_date')->first();
         self::assertNotNull($item);
         return (new \DateTimeImmutable(
@@ -218,7 +218,7 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
    * @param int $course_id
    *   The course node ID.
    *
-   * @return \Drupal\node\NodeInterface[]
+   * @return \Drupal\workspace_events\Entity\LessonInterface[]
    *   The lessons, in the stored order.
    */
   private function loadLessons(int $course_id): array {
@@ -229,11 +229,11 @@ final class ScheduleMigratorTest extends LessonKernelTestBase {
       ->execute()
       ->fetchCol();
     $ids = array_map(static fn (mixed $id): int => (int) $id, $ids);
-    $this->nodeStorage->resetCache($ids);
+    $this->lessonStorage->resetCache($ids);
     $lessons = [];
     foreach ($ids as $id) {
-      $lesson = $this->nodeStorage->load($id);
-      self::assertInstanceOf(NodeInterface::class, $lesson);
+      $lesson = $this->lessonStorage->load($id);
+      self::assertInstanceOf(LessonInterface::class, $lesson);
       $lessons[] = $lesson;
     }
     return $lessons;

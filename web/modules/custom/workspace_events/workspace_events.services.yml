@@ -36,10 +36,6 @@ services:
   Drupal\workspace_events\EventSubscriber\MyCoursesRouteSubscriber:
     tags:
       - { name: event_subscriber }
-  Drupal\workspace_events\EventSubscriber\LessonRedirectSubscriber:
-    autowire: true
-    tags:
-      - { name: event_subscriber }
   Drupal\workspace_events\StructuredDataBuilder:
     autowire: true
   Drupal\workspace_events\OrganizerResolver:

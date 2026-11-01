@@ -7,6 +7,7 @@ namespace Drupal\Tests\workspace_events\Kernel;
 use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Routing\RouteObjectInterface;
 use Drupal\node\NodeInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\Hook\DetailPagePreprocessHooks;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -94,13 +95,13 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     ], array_column($dates, 'date_iso'));
     self::assertTrue($dates[0]['cancelled']);
     self::assertFalse($dates[1]['cancelled']);
-    self::assertSame('/termine/' . $lessons[0]->id() . '/ical', $dates[0]['ical_url']);
+    self::assertSame('/termine/stunde/' . $lessons[0]->id() . '/ical', $dates[0]['ical_url']);
     foreach ($dates as $index => $date) {
       \assert(is_array($date));
       self::assertSame($weekday, $date['weekday']);
       self::assertSame('19:30 to 20:30', $date['time']);
       self::assertSame($start->modify('+' . ($index * 2) . ' weeks')->format('d.m.Y'), $date['date']);
-      self::assertSame('/termine/' . $lessons[$index]->id() . '/ical', $date['ical_url']);
+      self::assertSame('/termine/stunde/' . $lessons[$index]->id() . '/ical', $date['ical_url']);
     }
 
     self::assertStringStartsWith('webcal://', $variables['course_ical_url']);
@@ -117,8 +118,8 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     $cache = $variables['#cache'];
     \assert(is_array($cache));
     self::assertContains('node:' . $course->id(), $cache['tags']);
-    self::assertContains('node:' . $lessons[0]->id(), $cache['tags']);
-    self::assertContains('node_list:lesson', $cache['tags']);
+    self::assertContains('lesson:' . $lessons[0]->id(), $cache['tags']);
+    self::assertContains('lesson_list', $cache['tags']);
     self::assertContains('taxonomy_term:' . $location->id(), $cache['tags']);
     self::assertContains('taxonomy_term:' . $this->salsaAmSund, $cache['tags']);
     self::assertContains('config:filter.format.plain_text', $cache['tags']);
@@ -319,13 +320,13 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
   /**
    * Returns the end timestamp of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return int
    *   The timestamp at which the lesson ends.
    */
-  private function lessonEndTimestamp(NodeInterface $lesson): int {
+  private function lessonEndTimestamp(LessonInterface $lesson): int {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
     return (new \DateTimeImmutable(

@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Hook;
 
 use Drupal\Core\Hook\Attribute\Hook;
-use Drupal\node\NodeInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LearnedFigureFlagger;
-use Drupal\workspace_events\LessonGenerator;
 
 /**
  * Marks the dance figures of saved lessons as learned for their participants.
@@ -25,38 +24,25 @@ final class LessonLearnedFiguresHooks {
   ) {}
 
   /**
-   * Implements hook_ENTITY_TYPE_insert() for node entities.
+   * Implements hook_ENTITY_TYPE_insert() for lesson entities.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The created node.
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The created lesson.
    */
-  #[Hook('node_insert')]
-  public function nodeInsert(NodeInterface $node): void {
-    $this->flag($node);
+  #[Hook('lesson_insert')]
+  public function lessonInsert(LessonInterface $lesson): void {
+    $this->flagger->flag($lesson);
   }
 
   /**
-   * Implements hook_ENTITY_TYPE_update() for node entities.
+   * Implements hook_ENTITY_TYPE_update() for lesson entities.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The updated node.
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The updated lesson.
    */
-  #[Hook('node_update')]
-  public function nodeUpdate(NodeInterface $node): void {
-    $this->flag($node);
-  }
-
-  /**
-   * Flags the lesson figures for the lesson participants.
-   *
-   * @param \Drupal\node\NodeInterface $node
-   *   The saved node.
-   */
-  private function flag(NodeInterface $node): void {
-    if ($node->bundle() !== LessonGenerator::LESSON_BUNDLE) {
-      return;
-    }
-    $this->flagger->flag($node);
+  #[Hook('lesson_update')]
+  public function lessonUpdate(LessonInterface $lesson): void {
+    $this->flagger->flag($lesson);
   }
 
 }

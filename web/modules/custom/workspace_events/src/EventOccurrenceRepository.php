@@ -11,6 +11,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 
 /**
  * Finds event occurrences in the new date fields.
@@ -18,8 +19,8 @@ use Drupal\taxonomy\TermInterface;
  * Events store their recurring dates as Smart Date timestamps, one delta per
  * occurrence. Courses store their schedule and reference the generated
  * lessons, so a course occurrence is one lesson of a published course. The
- * lesson nodes themselves are access-restricted, but their dates are public:
- * the queries only look at the published course.
+ * lessons themselves are access-restricted, but their dates are public: the
+ * queries only look at the published course.
  */
 final class EventOccurrenceRepository {
 
@@ -31,11 +32,20 @@ final class EventOccurrenceRepository {
   private array $occurrenceCache = [];
 
   /**
-   * The single-occurrence cache of the current request.
+   * The single-event cache of the current request.
    *
    * @var array<int, \Drupal\workspace_events\EventOccurrence|null>
    */
   private array $nodeCache = [];
+
+  /**
+   * The single-lesson cache of the current request.
+   *
+   * Kept apart from the node cache because lesson and node IDs overlap.
+   *
+   * @var array<int, \Drupal\workspace_events\EventOccurrence|null>
+   */
+  private array $lessonCache = [];
 
   /**
    * Constructs an EventOccurrenceRepository.
@@ -104,11 +114,11 @@ final class EventOccurrenceRepository {
     usort($occurrences, static function (EventOccurrence $a, EventOccurrence $b): int {
       return [
         $a->start->getTimestamp(),
-        (int) $a->sourceNode()->id(),
+        $a->sourceKey(),
         (int) $a->node->id(),
       ] <=> [
         $b->start->getTimestamp(),
-        (int) $b->sourceNode()->id(),
+        $b->sourceKey(),
         (int) $b->node->id(),
       ];
     });
@@ -123,18 +133,18 @@ final class EventOccurrenceRepository {
   }
 
   /**
-   * Finds the occurrence of a date-bearing node.
+   * Finds the occurrence of an event.
    *
-   * The node is either an event or a lesson of a published course. Courses and
-   * other bundles have no occurrence of their own anymore, so old per-delta
-   * links return 404.
+   * Courses and other bundles have no occurrence of their own anymore, so old
+   * per-delta links return 404. Lessons are resolved by
+   * findLessonOccurrence(), because their IDs overlap with node IDs.
    *
    * @param \Drupal\node\NodeInterface $node
-   *   The event or lesson node.
+   *   The event node.
    *
    * @return \Drupal\workspace_events\EventOccurrence|null
-   *   The occurrence, or NULL when the node is unpublished, has no date or is
-   *   a lesson without a published course.
+   *   The occurrence, or NULL when the node is not a published event or has no
+   *   date.
    */
   public function findOccurrence(NodeInterface $node): ?EventOccurrence {
     $id = (int) $node->id();
@@ -142,45 +152,46 @@ final class EventOccurrenceRepository {
       return $this->nodeCache[$id];
     }
 
-    $occurrence = $this->buildSingleOccurrence($node);
+    $occurrence = $node->bundle() === 'event' && $node->isPublished()
+      ? $this->buildNextEventOccurrence($node)
+      : NULL;
     $this->nodeCache[$id] = $occurrence;
 
     return $occurrence;
   }
 
   /**
-   * Builds the occurrence of an event or lesson.
+   * Finds the occurrence of a lesson of a published course.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The event or lesson node.
+   * Memoized separately from the event cache, because a lesson and a node can
+   * share the same numeric ID.
+   *
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The lesson.
    *
    * @return \Drupal\workspace_events\EventOccurrence|null
-   *   The occurrence, or NULL when there is none.
+   *   The occurrence, or NULL when the lesson has no date or belongs to no
+   *   published course.
    */
-  private function buildSingleOccurrence(NodeInterface $node): ?EventOccurrence {
-    if ($node->bundle() === 'event') {
-      if (!$node->isPublished()) {
-        return NULL;
-      }
-      return $this->buildNextEventOccurrence($node);
+  public function findLessonOccurrence(LessonInterface $lesson): ?EventOccurrence {
+    $id = (int) $lesson->id();
+    if (array_key_exists($id, $this->lessonCache)) {
+      return $this->lessonCache[$id];
     }
 
-    if ($node->bundle() !== 'lesson') {
-      return NULL;
-    }
+    $course = $this->lessonCourseResolver->findCourse($id, TRUE);
+    $occurrence = $course === NULL
+      ? NULL
+      : $this->buildOccurrence(
+        $course,
+        $lesson,
+        'field_lesson_date',
+        NULL,
+        $this->getLocation($course),
+      );
+    $this->lessonCache[$id] = $occurrence;
 
-    $course = $this->lessonCourseResolver->findCourse((int) $node->id(), TRUE);
-    if ($course === NULL) {
-      return NULL;
-    }
-
-    return $this->buildOccurrence(
-      $course,
-      $node,
-      'field_lesson_date',
-      NULL,
-      $this->getLocation($course),
-    );
+    return $occurrence;
   }
 
   /**
@@ -251,9 +262,9 @@ final class EventOccurrenceRepository {
     }
 
     $occurrences = [];
-    $lessons = $this->entityTypeManager->getStorage('node')->loadMultiple($lesson_ids);
+    $lessons = $this->entityTypeManager->getStorage('lesson')->loadMultiple($lesson_ids);
     foreach ($lessons as $lesson) {
-      if (!$lesson instanceof NodeInterface) {
+      if (!$lesson instanceof LessonInterface) {
         continue;
       }
       $course = $course_by_lesson[(int) $lesson->id()] ?? NULL;
@@ -459,15 +470,14 @@ final class EventOccurrenceRepository {
       return [];
     }
 
-    $query = $this->entityTypeManager->getStorage('node')->getQuery()
+    $query = $this->entityTypeManager->getStorage('lesson')->getQuery()
       ->accessCheck(FALSE)
-      ->condition('type', 'lesson')
       ->condition('field_lesson_date.value', $this->toStorageValue($to), '<=')
       ->condition('field_lesson_date.end_value', $this->toStorageValue($from), '>=')
       ->sort('field_lesson_date.value')
-      ->sort('nid');
+      ->sort('id');
     if ($restrict_ids !== NULL) {
-      $query->condition('nid', $restrict_ids, 'IN');
+      $query->condition('id', $restrict_ids, 'IN');
     }
     if ($limit !== NULL) {
       $query->range(0, max(0, $limit));
@@ -509,7 +519,7 @@ final class EventOccurrenceRepository {
    *
    * @param \Drupal\node\NodeInterface $node
    *   The event or course node.
-   * @param \Drupal\node\NodeInterface|null $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface|null $lesson
    *   The lesson of a course occurrence, NULL for an event.
    * @param string $field_name
    *   The name of the date range field.
@@ -521,7 +531,7 @@ final class EventOccurrenceRepository {
    * @return \Drupal\workspace_events\EventOccurrence|null
    *   The occurrence, or NULL when the field is empty.
    */
-  private function buildOccurrence(NodeInterface $node, ?NodeInterface $lesson, string $field_name, ?TermInterface $organizer, ?TermInterface $location): ?EventOccurrence {
+  private function buildOccurrence(NodeInterface $node, ?LessonInterface $lesson, string $field_name, ?TermInterface $organizer, ?TermInterface $location): ?EventOccurrence {
     $date_node = $lesson ?? $node;
     if (!$date_node->hasField($field_name)) {
       return NULL;

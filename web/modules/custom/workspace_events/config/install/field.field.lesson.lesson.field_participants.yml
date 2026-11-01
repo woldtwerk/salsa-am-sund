@@ -1,0 +1,33 @@
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.lesson.field_participants
+    - user.role.member
+  module:
+    - user
+    - workspace_events
+id: lesson.lesson.field_participants
+field_name: field_participants
+entity_type: lesson
+bundle: lesson
+label: Teilnehmer
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:user'
+  handler_settings:
+    target_bundles: null
+    sort:
+      field: _none
+      direction: ASC
+    auto_create: false
+    filter:
+      type: role
+      role:
+        member: member
+    include_anonymous: false
+field_type: entity_reference

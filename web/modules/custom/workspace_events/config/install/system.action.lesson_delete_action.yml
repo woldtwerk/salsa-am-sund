@@ -1,0 +1,10 @@
+langcode: de
+status: true
+dependencies:
+  module:
+    - workspace_events
+id: lesson_delete_action
+label: 'Delete lesson'
+type: lesson
+plugin: 'entity:delete_action:lesson'
+configuration: {  }

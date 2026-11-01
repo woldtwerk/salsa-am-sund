@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Drupal\workspace_events\Attendance;
 
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\node\NodeInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LessonCourseResolver;
 
 /**
@@ -17,11 +17,6 @@ use Drupal\workspace_events\LessonCourseResolver;
  * the candidates attended decides.
  */
 final class PreviousAttendance {
-
-  /**
-   * The node bundle of a lesson.
-   */
-  private const string LESSON_BUNDLE = 'lesson';
 
   /**
    * The number of recent lessons that make a member a regular attendee.
@@ -56,7 +51,7 @@ final class PreviousAttendance {
   /**
    * Recommends one or more of the candidates by the earlier lessons.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson whose attendance is being recorded.
    * @param int[] $candidates
    *   The user IDs that the recognized name fits.
@@ -64,7 +59,7 @@ final class PreviousAttendance {
    * @return int[]
    *   The recommended user IDs, empty when the earlier lessons do not tell.
    */
-  public function recommendAll(NodeInterface $lesson, array $candidates): array {
+  public function recommendAll(LessonInterface $lesson, array $candidates): array {
     return $this->recommendation($lesson, $candidates)['recommended'];
   }
 
@@ -76,7 +71,7 @@ final class PreviousAttendance {
    * first name. Only when nobody is regular does the most recent earlier
    * lesson count in which exactly one of the candidates took part.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson whose attendance is being recorded.
    * @param int[] $candidates
    *   The user IDs that the recognized name fits.
@@ -86,7 +81,7 @@ final class PreviousAttendance {
    *   attend regularly, because they attended the last lesson alone, or not at
    *   all (NULL on an empty recommendation).
    */
-  public function recommendation(NodeInterface $lesson, array $candidates): array {
+  public function recommendation(LessonInterface $lesson, array $candidates): array {
     $empty = ['recommended' => [], 'reason' => NULL];
     $candidates = array_values(array_unique(array_map('intval', $candidates)));
     if ($candidates === [] || $lesson->isNew() || !$lesson->hasField('field_lesson_date')) {
@@ -161,7 +156,7 @@ final class PreviousAttendance {
       return $this->attendance[$lessonId] = [];
     }
 
-    $storage = $this->entityTypeManager->getStorage('node');
+    $storage = $this->entityTypeManager->getStorage('lesson');
 
     $lessonIds = [];
     foreach ($course->get('field_lessons') as $item) {
@@ -176,17 +171,16 @@ final class PreviousAttendance {
 
     $previousIds = $storage->getQuery()
       ->accessCheck(FALSE)
-      ->condition('type', self::LESSON_BUNDLE)
-      ->condition('nid', array_values($lessonIds), 'IN')
+      ->condition('id', array_values($lessonIds), 'IN')
       ->condition('field_lesson_date.value', $start, '<')
       ->sort('field_lesson_date.value', 'DESC')
-      ->sort('nid', 'DESC')
+      ->sort('id', 'DESC')
       ->range(0, self::MAX_LESSONS)
       ->execute();
 
     $attendance = [];
     foreach ($storage->loadMultiple($previousIds) as $previous) {
-      if (!$previous instanceof NodeInterface || !$previous->hasField('field_participants')) {
+      if (!$previous instanceof LessonInterface || !$previous->hasField('field_participants')) {
         continue;
       }
       $participants = [];
