@@ -56,6 +56,21 @@ final class SeasonHooks {
   ) {}
 
   /**
+   * Implements hook_sam_allowed_widget_types_alter().
+   *
+   * Lets the SAM module simplify the price widget, so the empty price rows are
+   * hidden behind its "Add another item" button instead of showing all five
+   * rows of the field.
+   *
+   * @param array<mixed> $widget_types
+   *   The widget IDs that the SAM module may simplify.
+   */
+  #[Hook('sam_allowed_widget_types_alter')]
+  public function samAllowedWidgetTypesAlter(array &$widget_types): void {
+    $widget_types[] = 'workspace_events_price_default';
+  }
+
+  /**
    * Implements hook_ENTITY_TYPE_insert() for course seasons.
    *
    * @param \Drupal\workspace_events\Entity\SeasonInterface $season

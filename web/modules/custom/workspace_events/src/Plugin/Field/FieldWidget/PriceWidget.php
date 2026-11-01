@@ -52,6 +52,8 @@ final class PriceWidget extends WidgetBase {
       '#type' => 'select',
       '#title' => $this->t('Category'),
       '#options' => $options,
+      '#empty_option' => $this->t('- Select -'),
+      '#empty_value' => '',
       '#default_value' => $items[$delta]->category ?? NULL,
     ];
 

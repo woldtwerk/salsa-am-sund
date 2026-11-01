@@ -97,12 +97,16 @@ final class PriceItem extends FieldItemBase {
   /**
    * {@inheritdoc}
    *
-   * An item is empty when it has no amount. The category alone is only the
-   * default selection of an empty widget row and must not create a price.
+   * An item is empty when it has no amount or no category. The category alone
+   * is only the default selection of an empty widget row and must not create a
+   * price. SAM's "Remove" button clears the category select but not the number
+   * input of the amount, so a removed row can still carry an amount; without a
+   * category it is not a price and is dropped before validation and save.
    */
   public function isEmpty(): bool {
     $amount = $this->get('amount')->getValue();
-    return $amount === NULL || $amount === '';
+    $category = (string) $this->get('category')->getString();
+    return $amount === NULL || $amount === '' || $category === '';
   }
 
   /**
