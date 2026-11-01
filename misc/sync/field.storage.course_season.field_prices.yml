@@ -11,7 +11,7 @@ type: workspace_events_price
 settings:
   categories:
     normal: Normal
-    student: Student
+    student: Student/Azubi
 module: workspace_events
 locked: false
 cardinality: 5

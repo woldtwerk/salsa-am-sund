@@ -81,5 +81,5 @@ props:
       examples:
         - - category: 'Normal'
             amount: '12,00 €'
-          - category: 'Student'
+          - category: 'Student/Azubi'
             amount: '10,00 €'

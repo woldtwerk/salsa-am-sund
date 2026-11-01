@@ -17,7 +17,7 @@ use Drupal\Core\TypedData\DataDefinition;
  *
  * A single field item holds one category and its price. A field with several
  * items therefore stores the price per category, for example "Normal" for
- * 12,00 € and "Student" for 10,00 €. The available categories are field
+ * 12,00 € and "Student/Azubi" for 10,00 €. The available categories are field
  * storage settings, so new categories need no code change.
  */
 #[FieldType(
@@ -46,7 +46,7 @@ final class PriceItem extends FieldItemBase {
     $settings = parent::defaultStorageSettings();
     $settings['categories'] = [
       'normal' => 'Normal',
-      'student' => 'Student',
+      'student' => 'Student/Azubi',
     ];
     return $settings;
   }

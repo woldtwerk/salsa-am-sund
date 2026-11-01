@@ -222,7 +222,7 @@ final class StructuredDataBuilderTest extends LessonKernelTestBase {
       'value' => 1,
       'unitText' => 'lesson',
     ], $offers[0]['priceSpecification']['referenceQuantity']);
-    self::assertSame('Student', $offers[1]['category']);
+    self::assertSame('Student/Azubi', $offers[1]['category']);
     self::assertSame('10.00', $offers[1]['price']);
 
     $empty = $this->createCourse(['title' => 'Anfänger']);

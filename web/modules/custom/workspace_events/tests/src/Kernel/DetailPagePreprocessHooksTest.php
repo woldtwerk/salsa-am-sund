@@ -206,7 +206,7 @@ final class DetailPagePreprocessHooksTest extends LessonKernelTestBase {
     self::assertSame('Every 2 weeks', $seasons[0]['interval']);
     self::assertSame([
       ['category' => 'Normal', 'amount' => '12,00 €'],
-      ['category' => 'Student', 'amount' => '10,00 €'],
+      ['category' => 'Student/Azubi', 'amount' => '10,00 €'],
     ], $seasons[0]['prices']);
     self::assertSame('next', $seasons[1]['status']);
     self::assertSame((string) $next->label(), $seasons[1]['label']);
