@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   ci:
-    uses: woldtwerk-websites/renovate-config/.github/workflows/drupal-ci.yml@4ba57fa2ceb65e2388aea0c26435467c2bba325c # main
+    uses: woldtwerk-websites/renovate-config/.github/workflows/drupal-ci.yml@885049df5f3cab29ad8c5c327c922659bb90295f # main
     with:
       build-script: typecheck
       # Its post-start hook installs agent skills, not needed in CI.
