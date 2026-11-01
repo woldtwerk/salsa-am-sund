@@ -26,7 +26,7 @@ same() {
 non_runtime() {
   case "$1" in
     .github/* | .ddev/* | .vscode/* | .vite-hooks/* | .agents/* | .claude/* | .opencode/*) return 0 ;;
-    misc/scaffold/* | */tests/* | *.md) return 0 ;;
+    */tests/* | *.md) return 0 ;;
     renovate.json | taze.config.js | phpcs.xml.dist | phpstan.neon | skills-lock.json) return 0 ;;
     tsconfig.json | jsconfig.json | globals.d.ts | .editorconfig) return 0 ;;
   esac

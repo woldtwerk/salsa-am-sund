@@ -14587,16 +14587,16 @@
         },
         {
             "name": "woldtwerk-websites/scaffold",
-            "version": "v1.0.0",
+            "version": "v1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/woldtwerk-websites/scaffold.git",
-                "reference": "0bfe38840c8d8a985b46080ccbf80a9d56892787"
+                "reference": "46e095d0605df42fcfbe8f00644f80ca2f9f095e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/woldtwerk-websites/scaffold/zipball/0bfe38840c8d8a985b46080ccbf80a9d56892787",
-                "reference": "0bfe38840c8d8a985b46080ccbf80a9d56892787",
+                "url": "https://api.github.com/repos/woldtwerk-websites/scaffold/zipball/46e095d0605df42fcfbe8f00644f80ca2f9f095e",
+                "reference": "46e095d0605df42fcfbe8f00644f80ca2f9f095e",
                 "shasum": ""
             },
             "type": "library",
@@ -14735,6 +14735,30 @@
                             "path": "assets/jsconfig.json",
                             "overwrite": true
                         },
+                        "[project-root]/misc/ai/skills/drupal/SKILL.md": {
+                            "path": "assets/misc/ai/skills/drupal/SKILL.md",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/deployer/deploy.yaml": {
+                            "path": "assets/misc/deployer/deploy.yaml",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/deployer/rsync.php": {
+                            "path": "assets/misc/deployer/rsync.php",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/hooks/post-update.sh": {
+                            "path": "assets/misc/hooks/post-update.sh",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/hooks/pre-update.sh": {
+                            "path": "assets/misc/hooks/pre-update.sh",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/hooks/warm-cache.sh": {
+                            "path": "assets/misc/hooks/warm-cache.sh",
+                            "overwrite": true
+                        },
                         "[project-root]/misc/snapshot/ci-snapshot-dispatch.sh": {
                             "path": "assets/misc/snapshot/ci-snapshot-dispatch.sh",
                             "overwrite": true
@@ -14745,6 +14769,42 @@
                         },
                         "[project-root]/misc/snapshot/sanitize.sql": {
                             "path": "assets/misc/snapshot/sanitize.sql",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/README.md": {
+                            "path": "assets/misc/systemd/containers/README.md",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/drupal-app@.container": {
+                            "path": "assets/misc/systemd/containers/drupal-app@.container",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/drupal-db@.container": {
+                            "path": "assets/misc/systemd/containers/drupal-db@.container",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/drupal-db@.volume": {
+                            "path": "assets/misc/systemd/containers/drupal-db@.volume",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/drupal-tmp@.volume": {
+                            "path": "assets/misc/systemd/containers/drupal-tmp@.volume",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/drupal@.pod": {
+                            "path": "assets/misc/systemd/containers/drupal@.pod",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/containers/env.example": {
+                            "path": "assets/misc/systemd/containers/env.example",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/user/drupal-cron@.service": {
+                            "path": "assets/misc/systemd/user/drupal-cron@.service",
+                            "overwrite": true
+                        },
+                        "[project-root]/misc/systemd/user/drupal-cron@.timer": {
+                            "path": "assets/misc/systemd/user/drupal-cron@.timer",
                             "overwrite": true
                         },
                         "[project-root]/package.json": {
@@ -14762,6 +14822,10 @@
                         "[project-root]/pnpm-workspace.yaml": {
                             "path": "assets/pnpm-workspace.yaml",
                             "overwrite": false
+                        },
+                        "[project-root]/private/.gitkeep": {
+                            "path": "assets/private/.gitkeep",
+                            "overwrite": true
                         },
                         "[project-root]/renovate.json": {
                             "path": "assets/renovate.json",
@@ -14788,10 +14852,10 @@
             },
             "description": "Shared Drupal scaffold files for the woldtwerk-websites sites: DDEV, Vite+, CI workflows, tooling config",
             "support": {
-                "source": "https://github.com/woldtwerk-websites/scaffold/tree/v1.0.0",
+                "source": "https://github.com/woldtwerk-websites/scaffold/tree/v1.1.0",
                 "issues": "https://github.com/woldtwerk-websites/scaffold/issues"
             },
-            "time": "2026-11-01T20:16:12+00:00"
+            "time": "2026-11-01T20:40:01+00:00"
         },
         {
             "name": "workspace/workspace_admin_ui",

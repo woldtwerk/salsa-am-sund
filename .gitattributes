@@ -86,5 +86,3 @@ core/.phpstan-baseline.php text eol=lf whitespace=blank-at-eol,-blank-at-eof,-sp
 
 # Small hand-written SQL, kept out of LFS so pull requests show the scrub rules.
 misc/snapshot/sanitize.sql !filter !diff !merge text
-# The scaffold source is committed before it is scaffolded out, so keep it text.
-misc/scaffold/assets/misc/snapshot/sanitize.sql !filter !diff !merge text
