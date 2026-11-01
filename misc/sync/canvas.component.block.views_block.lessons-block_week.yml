@@ -1,0 +1,26 @@
+uuid: 953a2be7-13da-4446-aac6-a76b2b13d9ea
+langcode: de
+status: true
+dependencies:
+  config:
+    - views.view.lessons
+  module:
+    - views
+active_version: aefaed9982b5f785
+versioned_properties:
+  active:
+    settings:
+      default_settings:
+        id: 'views_block:lessons-block_week'
+        label: 'Stunden dieser Woche'
+        label_display: '0'
+        provider: views
+        views_label: ''
+        items_per_page: null
+    fallback_metadata:
+      slot_definitions: null
+label: 'Stunden dieser Woche'
+id: block.views_block.lessons-block_week
+provider: views
+source: block
+source_local_id: 'views_block:lessons-block_week'
