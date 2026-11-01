@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\workspace_tailwindcss_cli\Asset;
 
+use Symfony\Component\Finder\Glob;
+
 /**
  * Detects Tailwind sources and hashes the files they are compiled from.
  *
@@ -23,6 +25,11 @@ final class TailwindSourceHasher {
    * @var array<string, string|null>
    */
   private array $hashes = [];
+
+  /**
+   * The application root with symlinks resolved.
+   */
+  private ?string $realRoot = NULL;
 
   /**
    * Constructs the hasher.
@@ -62,8 +69,8 @@ final class TailwindSourceHasher {
       return $this->hashes[$relativePath];
     }
 
-    $file = $this->appRoot . '/' . $relativePath;
-    $contents = is_file($file) ? @file_get_contents($file) : FALSE;
+    $file = $this->confine($this->appRoot . '/' . $relativePath);
+    $contents = $file !== NULL && is_file($file) ? @file_get_contents($file) : FALSE;
     if ($contents === FALSE || !$this->needsCompilation($contents)) {
       return $this->hashes[$relativePath] = NULL;
     }
@@ -97,7 +104,9 @@ final class TailwindSourceHasher {
 
     $hash = hash_init('xxh64');
     foreach (array_keys($files) as $path) {
-      $pathRelativeToRoot = $this->relativePath($this->appRoot, $path);
+      // Relative to the real root, so the release directory that a symlinked
+      // root points at does not end up in the hash.
+      $pathRelativeToRoot = $this->relativePath((string) $this->realRoot, $path);
       hash_update($hash, $pathRelativeToRoot . "\0");
       hash_update($hash, (string) @file_get_contents($path) . "\0");
     }
@@ -187,8 +196,8 @@ final class TailwindSourceHasher {
       if ($specifier === '') {
         continue;
       }
-      $path = $this->resolvePath($directory, $specifier);
-      if ($path !== '' && is_file($path)) {
+      $path = $this->confine($this->resolvePath($directory, $specifier));
+      if ($path !== NULL && is_file($path)) {
         $dependencies[$path] = TRUE;
       }
     }
@@ -212,8 +221,8 @@ final class TailwindSourceHasher {
       return $this->expandGlob($directory, $specifier);
     }
 
-    $target = $this->resolvePath($directory, $specifier);
-    if ($target === '') {
+    $target = $this->confine($this->resolvePath($directory, $specifier));
+    if ($target === NULL) {
       return [];
     }
     if (is_file($target)) {
@@ -252,12 +261,14 @@ final class TailwindSourceHasher {
       $base_parts[] = $part;
     }
 
-    $base = $base_parts === [] ? $directory : $this->resolvePath($directory, implode('/', $base_parts));
-    if ($base === '' || !is_dir($base)) {
+    $base = $this->confine($base_parts === [] ? $directory : $this->resolvePath($directory, implode('/', $base_parts)));
+    if ($base === NULL || !is_dir($base)) {
       return [];
     }
 
-    $regex = $this->globToRegex($glob);
+    // Same semantics as Tailwind: ** matches zero or more directories, * and
+    // ? do not cross '/', {a,b} lists alternatives.
+    $regex = Glob::toRegex($glob);
     $files = [];
     foreach (array_keys($this->collectFiles($base)) as $path) {
       if (preg_match($regex, $this->relativePath($directory, $path)) === 1) {
@@ -266,56 +277,6 @@ final class TailwindSourceHasher {
     }
 
     return $files;
-  }
-
-  /**
-   * Converts a glob to a regular expression.
-   *
-   * @param string $glob
-   *   The glob pattern.
-   */
-  private function globToRegex(string $glob): string {
-    $regex = '';
-    $length = strlen($glob);
-    for ($i = 0; $i < $length; $i++) {
-      $char = $glob[$i];
-      if ($char === '*') {
-        if (($glob[$i + 1] ?? '') === '*') {
-          $i++;
-          if (($glob[$i + 1] ?? '') === '/') {
-            $i++;
-            $regex .= '(?:.*/)?';
-          }
-          else {
-            $regex .= '.*';
-          }
-        }
-        else {
-          $regex .= '[^/]*';
-        }
-      }
-      elseif ($char === '?') {
-        $regex .= '[^/]';
-      }
-      elseif ($char === '{') {
-        $end = strpos($glob, '}', $i);
-        if ($end === FALSE) {
-          $regex .= preg_quote($char, '#');
-          continue;
-        }
-        $alternatives = explode(',', substr($glob, $i + 1, $end - $i - 1));
-        $regex .= '(?:' . implode('|', array_map(
-          static fn (string $alternative): string => preg_quote($alternative, '#'),
-          $alternatives,
-        )) . ')';
-        $i = $end;
-      }
-      else {
-        $regex .= preg_quote($char, '#');
-      }
-    }
-
-    return '#^' . $regex . '$#';
   }
 
   /**
@@ -339,12 +300,39 @@ final class TailwindSourceHasher {
 
     $files = [];
     foreach (new \RecursiveIteratorIterator($filter) as $file) {
-      if ($file instanceof \SplFileInfo && $file->isFile()) {
-        $files[$file->getPathname()] = TRUE;
+      // A symlinked file may point outside the application root.
+      $path = $file instanceof \SplFileInfo && $file->isFile() ? $this->confine($file->getPathname()) : NULL;
+      if ($path !== NULL) {
+        $files[$path] = TRUE;
       }
     }
 
     return $files;
+  }
+
+  /**
+   * Resolves symlinks and keeps a path only when it lies in the app root.
+   *
+   * The @import, @reference and @source rules come from library CSS, which
+   * developers write, but a wrong number of '../' must not make the hasher
+   * read files outside the Drupal installation.
+   *
+   * @param string $path
+   *   An absolute path, or an empty string.
+   *
+   * @return string|null
+   *   The real path, or NULL when it does not exist or lies outside the
+   *   application root.
+   */
+  private function confine(string $path): ?string {
+    // realpath('') returns the working directory.
+    if ($path === '') {
+      return NULL;
+    }
+    $this->realRoot ??= realpath($this->appRoot) ?: $this->appRoot;
+    $real = realpath($path);
+
+    return $real !== FALSE && str_starts_with($real, $this->realRoot . '/') ? $real : NULL;
   }
 
   /**

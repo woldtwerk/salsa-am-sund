@@ -54,7 +54,9 @@ class TailwindSourceHasherTest extends UnitTestCase {
       '@import "./prose.css";',
       '@source "../../templates";',
       '@source not "../../templates/ignored";',
+      '@source "../../../../../../outside.txt";',
     ]) . "\n");
+    file_put_contents($this->baseDir . '/outside.txt', "secret\n");
     file_put_contents($this->extensionRoot . '/src/css/prose.css', ".prose { color: red; }\n");
     file_put_contents($this->extensionRoot . '/src/css/plain.css', "body { color: red; }\n");
     file_put_contents($this->extensionRoot . '/src/css/widget.css', "@reference 'main.css';\n");
@@ -117,6 +119,15 @@ class TailwindSourceHasherTest extends UnitTestCase {
     file_put_contents($unrelated, "console.log('changed');\n");
     $this->assertSame($after_template, $this->hashFresh($this->cssPath));
 
+    // Files outside the application root are never read.
+    file_put_contents($this->baseDir . '/outside.txt', "changed\n");
+    $this->assertSame($after_template, $this->hashFresh($this->cssPath));
+
+    // A symlinked application root, as with release directories, gives the
+    // same hash, so a deploy without source changes keeps the aggregates.
+    symlink($this->appRoot, $this->baseDir . '/current');
+    $this->assertSame($after_template, (new TailwindSourceHasher($this->baseDir . '/current'))->hash($this->cssPath));
+
     // Referenced CSS files resolve their reference relative to themselves.
     $widget_path = 'themes/custom/test_theme/src/css/widget.css';
     $card_path = 'themes/custom/test_theme/components/card/card.css';
@@ -162,7 +173,7 @@ class TailwindSourceHasherTest extends UnitTestCase {
       \RecursiveIteratorIterator::CHILD_FIRST,
     );
     foreach ($items as $item) {
-      if ($item->isDir()) {
+      if ($item->isDir() && !$item->isLink()) {
         rmdir($item->getPathname());
       }
       else {
