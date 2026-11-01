@@ -1,3 +1,16 @@
+administer lessons:
+  title: 'Administer lessons'
+  description: 'Allows administering lessons.'
+  restrict access: true
+
+edit lessons:
+  title: 'Edit lessons'
+  description: 'Allows editing lessons.'
+
+delete lessons:
+  title: 'Delete lessons'
+  description: 'Allows deleting lessons.'
+
 view dance figures:
   title: 'View dance figures'
   description: 'Allows viewing dance figures.'

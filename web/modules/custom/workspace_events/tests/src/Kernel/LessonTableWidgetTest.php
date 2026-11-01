@@ -8,7 +8,7 @@ use Drupal\Component\Datetime\TimeInterface;
 use Drupal\Core\Entity\EntityFormInterface;
 use Drupal\Core\Form\FormState;
 use Drupal\node\NodeInterface;
-use Drupal\workspace_events\Hook\LessonAccessHooks;
+use Drupal\workspace_events\Entity\LessonAccessControlHandler;
 use Drupal\workspace_events\Plugin\Field\FieldWidget\LessonTableWidget;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -42,7 +42,7 @@ final class LessonTableWidgetTest extends LessonKernelTestBase {
     $this->container->set('datetime.time', $time);
     $this->container->set(SiteTimeZone::class, new SiteTimeZone($this->container->get('config.factory'), $time));
 
-    $editor = $this->createUser(['access content', LessonAccessHooks::EDIT_PERMISSION]);
+    $editor = $this->createUser(['access content', LessonAccessControlHandler::EDIT_PERMISSION]);
     $non_editor = $this->createUser(['access content']);
 
     $cancelled = $this->createLesson([

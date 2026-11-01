@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Drupal\Tests\workspace_events\Kernel;
 
 use Drupal\node\NodeInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LessonGenerator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -60,8 +61,8 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
     self::assertCount(5, $this->loadReferencedLessons($course));
 
     // Deleting all lessons lets the next save create new ones and drop the
-    // references to the deleted nodes.
-    $this->nodeStorage->delete($lessons);
+    // references to the deleted entities.
+    $this->lessonStorage->delete($lessons);
     $course->save();
     $new_ids = $this->referencedLessonIds($course);
     self::assertCount(5, $new_ids);
@@ -83,8 +84,36 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
 
     $course->delete();
 
-    self::assertNull($this->nodeStorage->load((int) $lessons[1]->id()));
-    self::assertInstanceOf(NodeInterface::class, $this->nodeStorage->load($recorded_id));
+    self::assertNull($this->lessonStorage->load((int) $lessons[1]->id()));
+    self::assertInstanceOf(LessonInterface::class, $this->lessonStorage->load($recorded_id));
+  }
+
+  /**
+   * Tests that Scheduler publishes a lesson on cron.
+   *
+   * This fails when the Scheduler plugin, its event class or the no-bundle
+   * settings are missing.
+   */
+  public function testSchedulerPublishesFutureLesson(): void {
+    $first = new \DateTimeImmutable('now +1 week 18:00', new \DateTimeZone(self::TIMEZONE));
+    $course = $this->createCourseSchedule($first, $first);
+    $lessons = $this->loadReferencedLessons($course);
+    self::assertCount(1, $lessons);
+
+    $lesson = $lessons[0];
+    self::assertFalse($lesson->isPublished());
+    self::assertNotSame('', $lesson->get('publish_on')->getString());
+
+    // Move the publication date into the past, as the next cron run would.
+    $lesson->set('publish_on', $this->container->get('datetime.time')->getRequestTime() - 60);
+    $lesson->save();
+
+    \Drupal::service('scheduler.manager')->publish();
+
+    $this->lessonStorage->resetCache([(int) $lesson->id()]);
+    $published = $this->lessonStorage->load((int) $lesson->id());
+    self::assertInstanceOf(LessonInterface::class, $published);
+    self::assertTrue($published->isPublished());
   }
 
   /**
@@ -128,16 +157,16 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
    * @param \Drupal\node\NodeInterface $course
    *   The course.
    *
-   * @return \Drupal\node\NodeInterface[]
+   * @return \Drupal\workspace_events\Entity\LessonInterface[]
    *   The lessons, in the stored order.
    */
   private function loadReferencedLessons(NodeInterface $course): array {
     $lessons = [];
     $ids = $this->referencedLessonIds($course);
-    $this->nodeStorage->resetCache($ids);
+    $this->lessonStorage->resetCache($ids);
     foreach ($ids as $id) {
-      $lesson = $this->nodeStorage->load($id);
-      self::assertInstanceOf(NodeInterface::class, $lesson);
+      $lesson = $this->lessonStorage->load($id);
+      self::assertInstanceOf(LessonInterface::class, $lesson);
       $lessons[] = $lesson;
     }
     return $lessons;
@@ -146,13 +175,13 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   /**
    * Returns the start of a lesson in the site timezone.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return \DateTimeImmutable
    *   The start.
    */
-  private function lessonStart(NodeInterface $lesson): \DateTimeImmutable {
+  private function lessonStart(LessonInterface $lesson): \DateTimeImmutable {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
     return (new \DateTimeImmutable(
@@ -164,13 +193,13 @@ final class LessonGeneratorTest extends LessonKernelTestBase {
   /**
    * Returns the end timestamp of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return int
    *   The timestamp at which the lesson ends.
    */
-  private function lessonEnd(NodeInterface $lesson): int {
+  private function lessonEnd(LessonInterface $lesson): int {
     $item = $lesson->get('field_lesson_date')->first();
     self::assertNotNull($item);
     return (new \DateTimeImmutable(

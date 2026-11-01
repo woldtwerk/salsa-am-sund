@@ -4,9 +4,9 @@ dependencies:
   config:
     - field.storage.node.field_lessons
     - node.type.course
-    - node.type.lesson
   module:
     - node
+    - workspace_events
 id: node.course.field_lessons
 field_name: field_lessons
 entity_type: node
@@ -18,13 +18,10 @@ translatable: false
 default_value: {  }
 default_value_callback: ''
 settings:
-  handler: 'default:node'
+  handler: 'default:lesson'
   handler_settings:
-    target_bundles:
-      lesson: lesson
     sort:
       field: field_lesson_date.value
       direction: ASC
     auto_create: false
-    auto_create_bundle: ''
 field_type: entity_reference

@@ -264,12 +264,12 @@ final class DetailPagePreprocessHooks {
     // JSON-LD is only attached on the node's canonical route.
     $cacheability->addCacheContexts(['url.site', 'route']);
     foreach ($occurrences as $occurrence) {
-      $cacheability->addCacheableDependency($occurrence->sourceNode());
+      $cacheability->addCacheableDependency($occurrence->source());
       $cacheability->addCacheableDependency($occurrence->node);
     }
     if ($node->bundle() === 'course') {
       // A new lesson changes the next dates of its course.
-      $cacheability->addCacheTags(['node_list:lesson']);
+      $cacheability->addCacheTags(['lesson_list']);
     }
     $location = $this->detailFieldResolver->getLocationTerm($node);
     if ($location !== NULL) {

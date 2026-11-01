@@ -17,7 +17,6 @@ use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\StringTranslation\TranslatableMarkup;
 use Drupal\field_widget_actions\Attribute\FieldWidgetAction;
 use Drupal\field_widget_actions\FieldWidgetActionBase;
-use Drupal\node\NodeInterface;
 use Drupal\user\UserInterface;
 use Drupal\workspace_events\Attendance\AttendanceRecognitionException;
 use Drupal\workspace_events\Attendance\AttendanceRecognizer;
@@ -25,6 +24,7 @@ use Drupal\workspace_events\Attendance\MemberMatcher;
 use Drupal\workspace_events\Attendance\MemberNameLoaderInterface;
 use Drupal\workspace_events\Attendance\PreviousAttendance;
 use Drupal\workspace_events\AttendanceRecognition;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -508,7 +508,7 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
       }
       $rows[$index]['recommended'] = [];
       $rows[$index]['reason'] = NULL;
-      if (!$lesson instanceof NodeInterface || $row['candidates'] === []) {
+      if (!$lesson instanceof LessonInterface || $row['candidates'] === []) {
         continue;
       }
       $recommendation = $this->previousAttendance->recommendation($lesson, $row['candidates']);

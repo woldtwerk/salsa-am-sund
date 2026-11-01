@@ -1,0 +1,21 @@
+uuid: 58887357-49a5-49a1-b585-1422e28cfe02
+langcode: de
+status: true
+dependencies:
+  config:
+    - field.storage.lesson.field_lesson_date
+  module:
+    - datetime_range
+    - workspace_events
+id: lesson.lesson.field_lesson_date
+field_name: field_lesson_date
+entity_type: lesson
+bundle: lesson
+label: 'Datum & Uhrzeit'
+description: ''
+required: true
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: daterange

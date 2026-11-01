@@ -52,3 +52,6 @@ block.settings.salsa_course_schedule:
           Range:
             min: 1
 
+views.filter.workspace_events_course_reference:
+  type: views.filter.entity_reference
+  label: 'Course reference filter'

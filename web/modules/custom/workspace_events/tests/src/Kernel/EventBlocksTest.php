@@ -125,7 +125,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     foreach ([
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ] as $tag) {
@@ -246,7 +246,7 @@ final class EventBlocksTest extends LessonKernelTestBase {
     foreach ([
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ] as $tag) {

@@ -7,6 +7,7 @@ namespace Drupal\workspace_events\Hook;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Hook\Attribute\Hook;
 use Drupal\node\NodeInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LessonGenerator;
 
 /**
@@ -72,9 +73,9 @@ final class LessonHooks {
       return;
     }
 
-    $lessons = $this->entityTypeManager->getStorage('node')->loadMultiple($ids);
+    $lessons = $this->entityTypeManager->getStorage('lesson')->loadMultiple($ids);
     foreach ($lessons as $lesson) {
-      if (!$lesson instanceof NodeInterface || $lesson->bundle() !== LessonGenerator::LESSON_BUNDLE) {
+      if (!$lesson instanceof LessonInterface) {
         continue;
       }
       if ($this->hasRecordedData($lesson)) {
@@ -87,13 +88,13 @@ final class LessonHooks {
   /**
    * Returns whether a lesson has data that must survive a course deletion.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson.
    *
    * @return bool
    *   TRUE when the lesson has figures, participants or is cancelled.
    */
-  private function hasRecordedData(NodeInterface $lesson): bool {
+  private function hasRecordedData(LessonInterface $lesson): bool {
     foreach (['field_dance_figures', 'field_participants'] as $field_name) {
       if ($lesson->hasField($field_name) && !$lesson->get($field_name)->isEmpty()) {
         return TRUE;

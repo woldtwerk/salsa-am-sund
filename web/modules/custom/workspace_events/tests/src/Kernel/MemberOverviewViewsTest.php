@@ -21,8 +21,9 @@ use Drupal\views\ViewExecutable;
 use Drupal\workspace_events\Access\MyCoursesAccess;
 use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\Difficulty;
+use Drupal\workspace_events\Entity\LessonAccessControlHandler;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
-use Drupal\workspace_events\Hook\LessonAccessHooks;
 use Drupal\workspace_events\Hook\ViewsDataHooks;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
@@ -106,7 +107,7 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
   public function testMyCoursesAccess(): void {
     $member = $this->createMember();
     $other_member = $this->createMember();
-    $editor = $this->createUser([LessonAccessHooks::EDIT_PERMISSION]);
+    $editor = $this->createUser([LessonAccessControlHandler::EDIT_PERMISSION]);
     $access = new MyCoursesAccess();
 
     $own = $access->access($member, $this->userRouteMatch($member->id()));
@@ -142,7 +143,7 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
 
     $view = $this->executeView('my_courses', [], [$member->id()]);
     self::assertCount(2, $view->result);
-    $lesson_ids = array_map(static fn (object $row): int => (int) $row->nid, $view->result);
+    $lesson_ids = array_map(static fn (object $row): int => (int) $row->id, $view->result);
     sort($lesson_ids);
     $expected = [(int) $first->id(), (int) $second->id()];
     sort($expected);
@@ -230,10 +231,10 @@ final class MemberOverviewViewsTest extends LessonKernelTestBase {
    * @param \Drupal\taxonomy\TermInterface[] $figures
    *   The dance figures.
    *
-   * @return \Drupal\node\NodeInterface
+   * @return \Drupal\workspace_events\Entity\LessonInterface
    *   The lesson.
    */
-  private function createLessonFor(NodeInterface $course, \DateTimeImmutable $start, UserInterface $participant, array $figures): NodeInterface {
+  private function createLessonFor(NodeInterface $course, \DateTimeImmutable $start, UserInterface $participant, array $figures): LessonInterface {
     $lesson = $this->createLesson([
       'title' => $course->label() . ' – ' . $start->format('d.m.Y'),
       'field_lesson_date' => [

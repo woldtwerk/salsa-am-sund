@@ -1,0 +1,17 @@
+langcode: de
+status: true
+dependencies:
+  module:
+    - workspace_events
+id: lesson.field_cancelled
+field_name: field_cancelled
+entity_type: lesson
+type: boolean
+settings: {  }
+module: core
+locked: false
+cardinality: 1
+translatable: false
+indexes: {  }
+persist_with_no_fields: false
+custom_storage: false

@@ -12,7 +12,6 @@ use Drupal\Core\Field\FieldPurger;
 use Drupal\Core\Utility\UpdateException;
 use Drupal\field\Entity\FieldConfig;
 use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\node\NodeAccessRebuild;
 use Drupal\taxonomy\Entity\Term;
 use Drupal\taxonomy\Entity\Vocabulary;
 use Drupal\user\Entity\Role;
@@ -20,7 +19,6 @@ use Drupal\workspace_events\AttendanceRecognition;
 use Drupal\workspace_events\CourseDifficultyMigrator;
 use Drupal\workspace_events\DanceFigureFlag;
 use Drupal\workspace_events\Hook\DanceFigureAccessHooks;
-use Drupal\workspace_events\LessonGenerator;
 use Drupal\workspace_events\LessonInstaller;
 use Drupal\workspace_events\OrganizerResolver;
 use Drupal\workspace_events\ScheduleMigrator;
@@ -97,8 +95,12 @@ function workspace_events_update_10004(): void {
 /**
  * Implements hook_update_N().
  *
- * Adds the lesson bundle, the course and event date fields and the lesson
- * fields, migrates the existing Smart Date series and generates the lessons.
+ * Installs the lesson entity type and its fields, adds the course and event
+ * date fields and migrates the existing Smart Date series.
+ *
+ * Lessons are a fieldable content entity without bundles, so the entity type
+ * itself is installed first. Its Scheduler fields are added afterwards, before
+ * the lesson field configuration is created.
  *
  * Courses keep their lessons. Events keep the whole Smart Date series: every
  * delta of the legacy field is copied to the new recurring event date field
@@ -113,27 +115,25 @@ function workspace_events_update_10007(): ?string {
     \Drupal::service('module_installer')->install($modules);
   }
 
+  // The Scheduler plugin of the lesson entity type must be discovered before
+  // the entity type is installed, so that its base fields are part of the
+  // installed definition.
+  \Drupal::service('plugin.manager.scheduler')->clearCachedDefinitions();
+  \Drupal::service('scheduler.manager')->invalidatePluginCache();
+
+  $definition_update_manager = \Drupal::entityDefinitionUpdateManager();
+  if ($definition_update_manager->getEntityType('lesson') === NULL) {
+    $definition_update_manager->installEntityType(\Drupal::entityTypeManager()->getDefinition('lesson'));
+  }
+  \Drupal::service('scheduler.manager')->entityUpdate();
+
   $installer = \Drupal::service(LessonInstaller::class);
   \assert($installer instanceof LessonInstaller);
   $installer->install();
 
-  // The site's ECA model adds every new content type to the editorial
-  // workflow. Lessons are not moderated, so remove the new bundle again
-  // before the lessons are generated.
-  workspace_events_set_bundle_in_workflow('lesson', FALSE);
-
   $migrator = \Drupal::service(ScheduleMigrator::class);
   \assert($migrator instanceof ScheduleMigrator);
   $message = $migrator->migrate();
-
-  // Lessons redirect to their course and must not have a URL alias. The
-  // generator already skips Pathauto, but the old pattern may have created
-  // aliases before this update, so remove them in batches as well.
-  workspace_events_delete_lesson_aliases();
-
-  // The module now implements node grants, so every node needs its grant
-  // records: the lessons get theirs, all other bundles get the default grant.
-  \Drupal::service(NodeAccessRebuild::class)->rebuild();
 
   return $message === '' ? NULL : $message;
 }
@@ -253,39 +253,6 @@ function workspace_events_purge_deleted_fields(): void {
       break;
     }
     $purger->purgeBatch(50);
-  }
-}
-
-/**
- * Deletes the URL aliases of all lesson nodes in batches.
- *
- * Lessons redirect to their course, so a /node/{nid} alias must not exist.
- * The alias paths are matched in chunks, which avoids one query per lesson.
- */
-function workspace_events_delete_lesson_aliases(): void {
-  $entity_type_manager = \Drupal::entityTypeManager();
-  if (!$entity_type_manager->hasDefinition('path_alias')) {
-    return;
-  }
-
-  $lesson_ids = $entity_type_manager->getStorage('node')->getQuery()
-    ->accessCheck(FALSE)
-    ->condition('type', LessonGenerator::LESSON_BUNDLE)
-    ->execute();
-  if ($lesson_ids === []) {
-    return;
-  }
-
-  $alias_storage = $entity_type_manager->getStorage('path_alias');
-  foreach (array_chunk(array_map(static fn (mixed $id): int => (int) $id, array_values($lesson_ids)), 100) as $chunk) {
-    $paths = array_map(static fn (int $id): string => '/node/' . $id, $chunk);
-    $alias_ids = $alias_storage->getQuery()
-      ->accessCheck(FALSE)
-      ->condition('path', $paths, 'IN')
-      ->execute();
-    if ($alias_ids !== []) {
-      $alias_storage->delete($alias_storage->loadMultiple($alias_ids));
-    }
   }
 }
 
@@ -493,8 +460,8 @@ function workspace_events_editor_permissions(): array {
     'edit terms in dance_figure',
     'delete terms in dance_figure',
     'access taxonomy overview',
-    'edit any lesson content',
-    'delete any lesson content',
+    'edit lessons',
+    'delete lessons',
     'make smart dates recur',
     DanceFigureAccessHooks::VIEW_PERMISSION,
     AttendanceRecognition::PERMISSION,

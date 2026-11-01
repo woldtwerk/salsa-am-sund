@@ -103,12 +103,12 @@ final class EventsJsonController implements ContainerInjectionInterface {
     $cacheability->addCacheTags([
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
     foreach ($occurrences as $occurrence) {
-      $cacheability->addCacheableDependency($occurrence->sourceNode());
+      $cacheability->addCacheableDependency($occurrence->source());
       $cacheability->addCacheableDependency($occurrence->node);
       if ($occurrence->organizer !== NULL) {
         $cacheability->addCacheableDependency($occurrence->organizer);
@@ -141,7 +141,7 @@ final class EventsJsonController implements ContainerInjectionInterface {
     }
 
     return [
-      'id' => $occurrence->sourceNode()->id() . '-' . $occurrence->start->getTimestamp(),
+      'id' => $occurrence->sourceKey() . '-' . $occurrence->start->getTimestamp(),
       'title' => (string) $occurrence->node->label(),
       'start' => $occurrence->allDay ? $start->format('Y-m-d') : $start->format(\DateTimeInterface::ATOM),
       'end' => $this->formatEnd($end, $occurrence->allDay),

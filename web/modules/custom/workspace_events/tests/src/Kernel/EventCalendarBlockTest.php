@@ -125,7 +125,7 @@ final class EventCalendarBlockTest extends LessonKernelTestBase {
     $lessons = $this->loadCourseLessons($course);
     self::assertCount(1, $lessons);
     self::assertSame(
-      '/termine/' . $lessons[0]->id() . '/ical',
+      '/termine/stunde/' . $lessons[0]->id() . '/ical',
       $items[1]['card']['#props']['ical_href'],
     );
 
@@ -137,7 +137,7 @@ final class EventCalendarBlockTest extends LessonKernelTestBase {
       'taxonomy_term_list:organizer',
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term:' . $this->salsaAmSund,
       'taxonomy_term:' . $this->externalOrganizer,
     ] as $tag) {

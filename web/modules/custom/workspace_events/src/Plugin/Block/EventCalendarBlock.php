@@ -53,7 +53,7 @@ final class EventCalendarBlock extends EventBlockBase {
     $cacheability->addCacheTags([
       'taxonomy_term_list:organizer',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
     ]);
 
     $organizers = [];
@@ -85,11 +85,11 @@ final class EventCalendarBlock extends EventBlockBase {
     usort($occurrences, static function (EventOccurrence $a, EventOccurrence $b): int {
       return [
         $a->start->getTimestamp(),
-        (int) $a->sourceNode()->id(),
+        $a->sourceKey(),
         (int) $a->node->id(),
       ] <=> [
         $b->start->getTimestamp(),
-        (int) $b->sourceNode()->id(),
+        $b->sourceKey(),
         (int) $b->node->id(),
       ];
     });

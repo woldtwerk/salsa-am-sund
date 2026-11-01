@@ -9,6 +9,7 @@ use Drupal\node\NodeInterface;
 use Drupal\workspace_events\EventFilter;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\LessonCourseResolver;
 use Drupal\workspace_events\SiteTimeZone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -439,14 +440,14 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
     self::assertCount(1, $limited);
     self::assertSame('2026-10-05', $limited[0]->start->format('Y-m-d'));
     $lesson_id = (int) $unpublished->get('field_lessons')->first()?->get('target_id')->getString();
-    $lesson = $this->nodeStorage->load($lesson_id);
-    self::assertInstanceOf(NodeInterface::class, $lesson);
-    self::assertNull($this->repository->findOccurrence($lesson));
+    $lesson = $this->lessonStorage->load($lesson_id);
+    self::assertInstanceOf(LessonInterface::class, $lesson);
+    self::assertNull($this->repository->findLessonOccurrence($lesson));
 
     // The lesson dates are public even though the lessons are restricted.
     $lesson_id = (int) $this->nodeStorage->load($this->courseId)?->get('field_lessons')->first()?->get('target_id')->getString();
-    $lesson = $this->nodeStorage->load($lesson_id);
-    self::assertInstanceOf(NodeInterface::class, $lesson);
+    $lesson = $this->lessonStorage->load($lesson_id);
+    self::assertInstanceOf(LessonInterface::class, $lesson);
     $anonymous = new AnonymousUserSession();
     $this->container->get('current_user')->setAccount($anonymous);
     self::assertFalse($lesson->access('view', $anonymous));
@@ -469,8 +470,8 @@ final class EventOccurrenceRepositoryTest extends LessonKernelTestBase {
       ),
     ]);
     $lesson_id = (int) $cancelled_course->get('field_lessons')->first()?->get('target_id')->getString();
-    $lesson = $this->nodeStorage->load($lesson_id);
-    self::assertInstanceOf(NodeInterface::class, $lesson);
+    $lesson = $this->lessonStorage->load($lesson_id);
+    self::assertInstanceOf(LessonInterface::class, $lesson);
     $lesson->set('field_cancelled', TRUE);
     $lesson->save();
     $occurrences = $this->repository->findOccurrences(

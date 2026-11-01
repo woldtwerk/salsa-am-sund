@@ -9,6 +9,7 @@ use Drupal\Core\Cache\CacheableResponse;
 use Drupal\node\NodeInterface;
 use Drupal\workspace_events\Controller\IcalController;
 use Drupal\workspace_events\DetailFieldResolver;
+use Drupal\workspace_events\Entity\LessonInterface;
 use Drupal\workspace_events\EventDescriptionFormatter;
 use Drupal\workspace_events\EventFilterFactory;
 use Drupal\workspace_events\EventOccurrenceRepository;
@@ -40,7 +41,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
   /**
    * The lessons of the course.
    *
-   * @var \Drupal\node\NodeInterface[]
+   * @var \Drupal\workspace_events\Entity\LessonInterface[]
    */
   private array $lessons;
 
@@ -207,7 +208,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     self::assertContains('event-' . $this->externalId . '@salsa-am-sund.localhost', $uids);
     self::assertContains('event-' . $this->pastId . '@salsa-am-sund.localhost', $uids);
     foreach ($this->lessons as $lesson) {
-      self::assertContains('event-' . $lesson->id() . '@salsa-am-sund.localhost', $uids);
+      self::assertContains('event-lesson-' . $lesson->id() . '@salsa-am-sund.localhost', $uids);
     }
     $this->assertNoValidationErrors($calendar);
 
@@ -215,7 +216,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     foreach ($events as $event) {
       $by_uid[(string) $event->UID->getValue()] = $event;
     }
-    $course = $by_uid['event-' . $this->lessons[0]->id() . '@salsa-am-sund.localhost'];
+    $course = $by_uid['event-lesson-' . $this->lessons[0]->id() . '@salsa-am-sund.localhost'];
     self::assertSame('Anfänger (Level 0)', $course->SUMMARY?->getValue());
     self::assertSame('Kurs', $course->CATEGORIES?->getValue());
     self::assertSame('Europe/Berlin', $course->DTSTART['TZID']?->getValue());
@@ -270,7 +271,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     $calendar = $this->readCalendar('/termine.ics?course=' . $this->course->id());
     $events = $calendar->select('VEVENT');
     self::assertCount(4, $events);
-    $lesson_uids = array_map(static fn (NodeInterface $lesson): string => 'event-' . $lesson->id() . '@', $this->lessons);
+    $lesson_uids = array_map(static fn (LessonInterface $lesson): string => 'event-lesson-' . $lesson->id() . '@', $this->lessons);
     foreach ($events as $event) {
       $uid = (string) $event->UID->getValue();
       self::assertNotSame(
@@ -298,7 +299,7 @@ final class IcalControllerTest extends LessonKernelTestBase {
     foreach ([
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ] as $tag) {

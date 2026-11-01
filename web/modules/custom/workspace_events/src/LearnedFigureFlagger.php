@@ -8,9 +8,9 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\flag\FlagInterface;
 use Drupal\flag\FlagServiceInterface;
 use Drupal\flag\FlaggingInterface;
-use Drupal\node\NodeInterface;
 use Drupal\taxonomy\TermInterface;
 use Drupal\user\UserInterface;
+use Drupal\workspace_events\Entity\LessonInterface;
 
 /**
  * Marks the dance figures of a lesson as learned for its participants.
@@ -43,14 +43,11 @@ final class LearnedFigureFlagger {
   /**
    * Flags the new figure and participant combinations of a lesson.
    *
-   * @param \Drupal\node\NodeInterface $lesson
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
    *   The lesson that was saved.
    */
-  public function flag(NodeInterface $lesson): void {
+  public function flag(LessonInterface $lesson): void {
     if ($this->flagService === NULL) {
-      return;
-    }
-    if ($lesson->bundle() !== LessonGenerator::LESSON_BUNDLE) {
       return;
     }
     if (!$lesson->hasField('field_participants') || !$lesson->hasField('field_dance_figures')) {
@@ -156,21 +153,21 @@ final class LearnedFigureFlagger {
   /**
    * Returns the unique target IDs of an entity reference field.
    *
-   * @param \Drupal\node\NodeInterface $node
-   *   The node.
+   * @param \Drupal\workspace_events\Entity\LessonInterface $lesson
+   *   The lesson.
    * @param string $field_name
    *   The field name.
    *
    * @return int[]
    *   The target IDs.
    */
-  private function targetIds(NodeInterface $node, string $field_name): array {
-    if (!$node->hasField($field_name)) {
+  private function targetIds(LessonInterface $lesson, string $field_name): array {
+    if (!$lesson->hasField($field_name)) {
       return [];
     }
 
     $ids = [];
-    foreach ($node->get($field_name) as $item) {
+    foreach ($lesson->get($field_name) as $item) {
       $target_id = $item->get('target_id')->getString();
       if ($target_id === '' || !ctype_digit($target_id)) {
         continue;

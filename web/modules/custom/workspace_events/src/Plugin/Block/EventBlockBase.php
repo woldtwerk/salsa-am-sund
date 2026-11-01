@@ -626,7 +626,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     $cacheability->addCacheTags([
       'node_list:event',
       'node_list:course',
-      'node_list:lesson',
+      'lesson_list',
       'taxonomy_term_list:location',
       'taxonomy_term_list:organizer',
     ]);
@@ -634,7 +634,7 @@ abstract class EventBlockBase extends BlockBase implements ContainerFactoryPlugi
     $now = time();
     $max_age = 86400;
     foreach ($occurrences as $occurrence) {
-      $cacheability->addCacheableDependency($occurrence->sourceNode());
+      $cacheability->addCacheableDependency($occurrence->source());
       $cacheability->addCacheableDependency($occurrence->node);
       if ($occurrence->organizer !== NULL) {
         $cacheability->addCacheableDependency($occurrence->organizer);

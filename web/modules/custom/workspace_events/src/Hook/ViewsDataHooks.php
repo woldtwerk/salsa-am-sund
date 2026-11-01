@@ -21,7 +21,8 @@ final class ViewsDataHooks {
    * the course's "Stunden" field. The generic entity views data can therefore
    * only filter the course by its numeric node ID. This adds a course
    * reference filter to the node table, so the exposed filter lists the
-   * courses by title.
+   * courses by title. The filter lists the courses itself, because the
+   * reference field targets lessons and has no bundles.
    *
    * @param array<mixed> $data
    *   The views data.
@@ -39,7 +40,7 @@ final class ViewsDataHooks {
       'filter' => [
         'title' => $this->t('Course'),
         'help' => $this->t('Filters lessons by their course.'),
-        'id' => 'entity_reference',
+        'id' => 'workspace_events_course_reference',
         'entity type' => 'node',
         'entity_type' => 'node',
         'entity field' => 'field_lessons',

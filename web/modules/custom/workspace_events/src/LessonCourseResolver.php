@@ -11,8 +11,9 @@ use Drupal\node\NodeInterface;
  * Finds the course that references a lesson.
  *
  * Lessons are generated from the schedule of a course and belong to exactly
- * one course. Both the lesson redirect and the queries that need the course of
- * a lesson resolve it here, so the lookup exists only once.
+ * one course. Both the queries that need the course of a lesson and the
+ * consumers that output a lesson resolve it here, so the lookup exists only
+ * once.
  */
 final class LessonCourseResolver {
 
@@ -37,7 +38,7 @@ final class LessonCourseResolver {
    * Finds the course that references a lesson.
    *
    * @param int $lesson_id
-   *   The lesson node ID.
+   *   The lesson ID.
    * @param bool $published_only
    *   Whether only a published course may be returned.
    *
