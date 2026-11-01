@@ -1,0 +1,20 @@
+uuid: cd531978-0b4a-4b37-a952-e92d5e8af548
+langcode: de
+status: true
+dependencies: {  }
+id: smtp
+label: SMTP
+plugin: smtp
+configuration:
+  user: donotreply@woldtwerk.de
+  pass: ''
+  pass_key: smtp_token
+  use_key_module: true
+  host: smtp.protonmail.ch
+  port: 587
+  query:
+    verify_peer: true
+    local_domain: ''
+    restart_threshold: 100
+    restart_threshold_sleep: 0
+    ping_threshold: 100
