@@ -13,7 +13,13 @@ label: 'Preise pro Stunde'
 description: ''
 required: false
 translatable: false
-default_value: {  }
+default_value:
+  -
+    category: normal
+    amount: '5'
+  -
+    category: student
+    amount: '3'
 default_value_callback: ''
 settings: {  }
 field_type: workspace_events_price

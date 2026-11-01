@@ -14,7 +14,7 @@ mode: default
 content:
   field_prices:
     type: workspace_events_price_default
-    weight: 0
+    weight: 10
     region: content
     settings: {  }
     third_party_settings: {  }
