@@ -11,6 +11,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\Core\Field\FieldItemListInterface;
 use Drupal\Core\Field\WidgetBase;
+use Drupal\Core\Field\WidgetInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Session\AccountProxyInterface;
@@ -42,6 +43,8 @@ use Symfony\Component\HttpFoundation\RequestStack;
   widget_types: [
     'entity_reference_autocomplete',
     'entity_reference_autocomplete_tags',
+    'tagify_entity_reference_autocomplete_widget',
+    'tagify_user_list_entity_reference_autocomplete_widget',
   ],
   field_types: ['entity_reference'],
   category: new TranslatableMarkup('Attendance'),
@@ -52,6 +55,16 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    * The property of the autocomplete element that holds the reference.
    */
   public const string FORM_ELEMENT_PROPERTY = 'target_id';
+
+  /**
+   * The tagify widgets that read their input as one JSON string.
+   *
+   * @var string[]
+   */
+  private const array TAGIFY_WIDGETS = [
+    'tagify_entity_reference_autocomplete_widget',
+    'tagify_user_list_entity_reference_autocomplete_widget',
+  ];
 
   /**
    * The name of the upload form element and of its entry in the files bag.
@@ -713,8 +726,11 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
   /**
    * Writes the participants into the user input of the widget.
    *
-   * The tags widget renders one text input for all values and expects the
-   * comma separated "Name (ID)" format instead of one element per delta.
+   * The core tags widget renders one text input for all values and expects the
+   * comma separated "Name (ID)" format instead of one element per delta. The
+   * tagify widgets also render one input, but submit a JSON string that their
+   * element value callback builds from the programmatic entity reference
+   * values, so they get the field values in that shape.
    *
    * @param \Drupal\Core\Entity\FieldableEntityInterface $entity
    *   The entity that holds the participants.
@@ -725,8 +741,12 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    */
   private function setFormInput(FieldableEntityInterface $entity, FormStateInterface $form_state, string $fieldName): void {
     $input = $form_state->getUserInput();
+    $widgetId = $this->widget($form_state, $fieldName)?->getPluginId();
 
-    if ($this->widgetHandlesMultipleValues($form_state, $fieldName)) {
+    if ($widgetId !== NULL && in_array($widgetId, self::TAGIFY_WIDGETS, TRUE)) {
+      $input[$fieldName] = $entity->get($fieldName)->getValue();
+    }
+    elseif ($this->widgetHandlesMultipleValues($form_state, $fieldName)) {
       $tags = [];
       foreach ($entity->get($fieldName) as $item) {
         $user = $item->get('entity')->getValue();
@@ -798,16 +818,33 @@ final class AttendanceFromPhotoParticipants extends FieldWidgetActionBase {
    *   TRUE when the widget declares multiple_values.
    */
   private function widgetHandlesMultipleValues(FormStateInterface $form_state, string $fieldName): bool {
-    $formDisplay = NestedArray::getValue($form_state->getStorage(), ['form_display']);
-    if (!$formDisplay instanceof EntityFormDisplayInterface) {
-      return FALSE;
-    }
-    $widget = $formDisplay->getRenderer($fieldName);
+    $widget = $this->widget($form_state, $fieldName);
     if ($widget === NULL) {
       return FALSE;
     }
     $definition = $widget->getPluginDefinition();
     return is_array($definition) && !empty($definition['multiple_values']);
+  }
+
+  /**
+   * Returns the widget of a field from the form display in the form state.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The form state carrying the form display.
+   * @param string $fieldName
+   *   The field name.
+   *
+   * @return \Drupal\Core\Field\WidgetInterface|null
+   *   The widget, or NULL when the form state has no form display or the
+   *   field is not rendered.
+   */
+  private function widget(FormStateInterface $form_state, string $fieldName): ?WidgetInterface {
+    $formDisplay = NestedArray::getValue($form_state->getStorage(), ['form_display']);
+    if (!$formDisplay instanceof EntityFormDisplayInterface) {
+      return NULL;
+    }
+    $widget = $formDisplay->getRenderer($fieldName);
+    return $widget instanceof WidgetInterface ? $widget : NULL;
   }
 
 }
