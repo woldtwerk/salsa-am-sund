@@ -4936,17 +4936,17 @@
         },
         {
             "name": "drupal/metatag",
-            "version": "2.2.4",
+            "version": "2.2.5",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/metatag.git",
-                "reference": "2.2.4"
+                "reference": "2.2.5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/metatag-2.2.4.zip",
-                "reference": "2.2.4",
-                "shasum": "08ca0e9c22acf47cb8312220c12c8229f43c304d"
+                "url": "https://ftp.drupal.org/files/projects/metatag-2.2.5.zip",
+                "reference": "2.2.5",
+                "shasum": "2851a7dd5e5b3c0c15defa658790386af4556199"
             },
             "require": {
                 "drupal/core": "^10.3 || ^11",
@@ -4961,14 +4961,13 @@
                 "drupal/metatag_open_graph": "*",
                 "drupal/page_manager": "^4.0",
                 "drupal/redirect": "^1.0",
-                "ergebnis/composer-normalize": "*",
-                "mpyw/phpunit-patch-serializable-comparison": "*"
+                "ergebnis/composer-normalize": "*"
             },
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "2.2.4",
-                    "datestamp": "1793239109",
+                    "version": "2.2.5",
+                    "datestamp": "1793445181",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -5004,7 +5003,8 @@
                 "source": "https://git.drupalcode.org/project/metatag",
                 "issues": "https://www.drupal.org/project/issues/metatag",
                 "docs": "https://www.drupal.org/docs/8/modules/metatag"
-            }
+            },
+            "published-time": "2026-10-31T11:12:40+00:00"
         },
         {
             "name": "drupal/modeler",
@@ -6137,27 +6137,27 @@
         },
         {
             "name": "drupal/tailwind_merge_classes",
-            "version": "2.2.3",
+            "version": "2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://git.drupalcode.org/project/tailwind_merge_classes.git",
-                "reference": "2.2.3"
+                "reference": "2.3.0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://ftp.drupal.org/files/projects/tailwind_merge_classes-2.2.3.zip",
-                "reference": "2.2.3",
-                "shasum": "7c2f08ffb53f8082f9f4e7bf2223bf6f43127913"
+                "url": "https://ftp.drupal.org/files/projects/tailwind_merge_classes-2.3.0.zip",
+                "reference": "2.3.0",
+                "shasum": "e9b82d086325d37d8e177bdcf863f8296ee433f7"
             },
             "require": {
                 "drupal/core": "^10.3 || ^11 || ^12",
-                "tales-from-a-dev/tailwind-merge-php": "^0.4.0"
+                "tales-from-a-dev/tailwind-merge-php": "^0.5.0"
             },
             "type": "drupal-module",
             "extra": {
                 "drupal": {
-                    "version": "2.2.3",
-                    "datestamp": "1789068714",
+                    "version": "2.3.0",
+                    "datestamp": "1793470337",
                     "security-coverage": {
                         "status": "covered",
                         "message": "Covered by Drupal's security advisory policy"
@@ -6180,7 +6180,8 @@
             "support": {
                 "source": "https://git.drupalcode.org/project/tailwind_merge_classes",
                 "issues": "https://drupal.org/project/issues/tailwind_merge_classes"
-            }
+            },
+            "published-time": "2026-10-31T18:04:28+00:00"
         },
         {
             "name": "drupal/token",
@@ -6252,7 +6253,8 @@
             "homepage": "https://www.drupal.org/project/token",
             "support": {
                 "source": "https://git.drupalcode.org/project/token"
-            }
+            },
+            "published-time": "2026-01-09T06:49:44+00:00"
         },
         {
             "name": "drupal/token_or",
@@ -8615,7 +8617,8 @@
             "support": {
                 "source": "https://github.com/php-fig/simple-cache/tree/3.0.0"
             },
-            "time": "2021-10-29T13:26:27+00:00"
+            "time": "2021-10-29T13:26:27+00:00",
+            "published-time": "2021-10-29T13:27:19+00:00"
         },
         {
             "name": "psy/psysh",
@@ -12637,16 +12640,16 @@
         },
         {
             "name": "tales-from-a-dev/tailwind-merge-php",
-            "version": "v0.4.1",
+            "version": "v0.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/tales-from-a-dev/tailwind-merge-php.git",
-                "reference": "14d38c09cd2299bbc899d6a297da4050fb81fbe5"
+                "reference": "61cbc85c3ced1b5724c816d101bc910f0cf8cc10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/14d38c09cd2299bbc899d6a297da4050fb81fbe5",
-                "reference": "14d38c09cd2299bbc899d6a297da4050fb81fbe5",
+                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/61cbc85c3ced1b5724c816d101bc910f0cf8cc10",
+                "reference": "61cbc85c3ced1b5724c816d101bc910f0cf8cc10",
                 "shasum": ""
             },
             "require": {
@@ -12688,9 +12691,10 @@
             ],
             "support": {
                 "issues": "https://github.com/tales-from-a-dev/tailwind-merge-php/issues",
-                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.4.1"
+                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.5.0"
             },
-            "time": "2026-10-04T09:24:33+00:00"
+            "time": "2026-10-04T11:35:09+00:00",
+            "published-time": "2026-10-04T11:35:43+00:00"
         },
         {
             "name": "tijsverkoyen/css-to-inline-styles",
