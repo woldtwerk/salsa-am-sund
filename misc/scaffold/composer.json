@@ -71,6 +71,10 @@
                     "path": "assets/.ddev/web-build/pre.Dockerfile.frankenphp",
                     "overwrite": true
                 },
+                "[project-root]/.github/scripts/promote-check.sh": {
+                    "path": "assets/.github/scripts/promote-check.sh",
+                    "overwrite": true
+                },
                 "[project-root]/.github/workflows/ci.yml": {
                     "path": "assets/.github/workflows/ci.yml",
                     "overwrite": true
