@@ -1,6 +1,12 @@
 {
   "name": "workspace/workspace_tailwindcss_cli",
   "version": "0.0.1",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://packages.drupal.org/8"
+    }
+  ],
   "require": {
     "symfony/finder": "^7.4"
   }
