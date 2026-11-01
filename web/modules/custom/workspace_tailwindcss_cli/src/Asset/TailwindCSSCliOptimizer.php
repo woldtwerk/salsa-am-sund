@@ -22,6 +22,8 @@ class TailwindCSSCliOptimizer extends CssOptimizer {
    *   The file URL generator.
    * @param \Drupal\Core\Extension\ExtensionPathResolver $extensionPathResolver
    *   The extension path resolver.
+   * @param \Drupal\workspace_tailwindcss_cli\Asset\TailwindSourceHasher $sourceHasher
+   *   The Tailwind source hasher.
    * @param \Drupal\Core\Logger\LoggerChannelInterface $logger
    *   The module logger channel.
    * @param string $appRoot
@@ -30,6 +32,7 @@ class TailwindCSSCliOptimizer extends CssOptimizer {
   public function __construct(
     FileUrlGeneratorInterface $file_url_generator,
     private readonly ExtensionPathResolver $extensionPathResolver,
+    private readonly TailwindSourceHasher $sourceHasher,
     private readonly LoggerChannelInterface $logger,
     private readonly string $appRoot,
   ) {
@@ -76,22 +79,9 @@ class TailwindCSSCliOptimizer extends CssOptimizer {
       return parent::processFile($css_asset);
     }
 
-    return $this->shouldCompile($contents)
+    return $this->sourceHasher->needsCompilation($contents)
       ? $this->compileFile($css_asset)
       : parent::processFile($css_asset);
-  }
-
-  /**
-   * Determines whether a CSS source needs the Tailwind CLI.
-   *
-   * @param string $contents
-   *   The CSS file contents.
-   */
-  protected function shouldCompile(string $contents): bool {
-    return (bool) preg_match(
-      '#@tailwindcss-placeholder|@reference(?:\s|;|$)|@import\s+(?:"|\')tailwindcss#',
-      $contents,
-    );
   }
 
   /**
@@ -139,7 +129,7 @@ class TailwindCSSCliOptimizer extends CssOptimizer {
     }
 
     $file = $this->appRoot . '/' . $data;
-    $cwd = $this->findExtensionRoot($file);
+    $cwd = $this->sourceHasher->findExtensionRoot($file);
 
     $process = new Process(
       [$binary, '-i', $file, '-m', '--cwd', $cwd],
@@ -191,27 +181,6 @@ class TailwindCSSCliOptimizer extends CssOptimizer {
     ], $contents);
 
     return $rewritten ?? $contents;
-  }
-
-  /**
-   * Finds the extension root for a file inside a theme or module.
-   */
-  protected function findExtensionRoot(string $file): string {
-    $directory = dirname($file);
-
-    while ($directory !== $this->appRoot && str_starts_with($directory, $this->appRoot)) {
-      $info_files = glob($directory . '/*.info.yml');
-      if (is_array($info_files) && $info_files !== []) {
-        return $directory;
-      }
-      $parent = dirname($directory);
-      if ($parent === $directory) {
-        break;
-      }
-      $directory = $parent;
-    }
-
-    return dirname($file);
   }
 
 }

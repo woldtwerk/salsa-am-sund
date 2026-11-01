@@ -3,11 +3,19 @@ services:
     parent: logger.channel_base
     arguments: ['workspace_tailwindcss_cli']
 
+  workspace_tailwindcss_cli.tailwind_source_hasher:
+    class: Drupal\workspace_tailwindcss_cli\Asset\TailwindSourceHasher
+    arguments:
+      - '%app.root%'
+
+  Drupal\workspace_tailwindcss_cli\Asset\TailwindSourceHasher: '@workspace_tailwindcss_cli.tailwind_source_hasher'
+
   workspace_tailwindcss_cli.css.optimizer:
     class: Drupal\workspace_tailwindcss_cli\Asset\TailwindCSSCliOptimizer
     decorates: asset.css.optimizer
     arguments:
       - '@file_url_generator'
       - '@extension.path.resolver'
+      - '@workspace_tailwindcss_cli.tailwind_source_hasher'
       - '@logger.channel.workspace_tailwindcss_cli'
       - '%app.root%'

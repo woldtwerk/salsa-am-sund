@@ -9,6 +9,7 @@ use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Tests\UnitTestCase;
 use Drupal\workspace_tailwindcss_cli\Asset\TailwindCSSCliOptimizer;
+use Drupal\workspace_tailwindcss_cli\Asset\TailwindSourceHasher;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -45,21 +46,6 @@ class TailwindCSSCliOptimizerTest extends UnitTestCase {
   protected function tearDown(): void {
     $this->removeDirectory($this->baseDir);
     parent::tearDown();
-  }
-
-  /**
-   * Tests which CSS sources are sent to the Tailwind CLI.
-   */
-  public function testStrategyDecision(): void {
-    $optimizer = $this->createOptimizer();
-    $method = new \ReflectionMethod($optimizer, 'shouldCompile');
-
-    $this->assertTrue($method->invoke($optimizer, '@import "tailwindcss";'));
-    $this->assertTrue($method->invoke($optimizer, "@import 'tailwindcss';"));
-    $this->assertTrue($method->invoke($optimizer, '@reference "tailwindcss";'));
-    $this->assertTrue($method->invoke($optimizer, '/* @tailwindcss-placeholder */'));
-    $this->assertFalse($method->invoke($optimizer, 'body { color: red; }'));
-    $this->assertFalse($method->invoke($optimizer, '@import "./local.css";'));
   }
 
   /**
@@ -100,7 +86,7 @@ class TailwindCSSCliOptimizerTest extends UnitTestCase {
     $logger = $this->createMock(LoggerChannelInterface::class);
     $fileUrlGenerator = $this->createMock(FileUrlGeneratorInterface::class);
 
-    return new TailwindCSSCliOptimizer($fileUrlGenerator, $resolver, $logger, $this->appRoot);
+    return new TailwindCSSCliOptimizer($fileUrlGenerator, $resolver, new TailwindSourceHasher($this->appRoot), $logger, $this->appRoot);
   }
 
   /**
