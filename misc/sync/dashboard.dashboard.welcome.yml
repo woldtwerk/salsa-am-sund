@@ -3,13 +3,9 @@ langcode: de
 status: true
 dependencies:
   config:
-    - system.menu.top-tasks
     - views.view.lessons
-    - views.view.recent_content
-    - views.view.recent_pages
   module:
     - layout_builder
-    - system
     - views
 _core:
   default_config_hash: rDgAg1cQ23DkO9q8xFsuRWByPhqfkgG1mWW4rrnoOaI
@@ -36,48 +32,6 @@ layout:
           views_label: ''
           items_per_page: 0
         weight: 0
-        additional: {  }
-      cb457c1c-83c2-4a79-a09e-2c64a8bf8fb8:
-        uuid: cb457c1c-83c2-4a79-a09e-2c64a8bf8fb8
-        region: second
-        configuration:
-          id: 'system_menu_block:top-tasks'
-          label: 'Wichtige Aufgaben'
-          label_display: visible
-          provider: system
-          context_mapping: {  }
-          level: 1
-          depth: 1
-          expand_all_items: false
-        weight: 0
-        additional: {  }
-      911f9ec8-28b6-46a3-a002-c3b271ba8efb:
-        uuid: 911f9ec8-28b6-46a3-a002-c3b271ba8efb
-        region: first
-        configuration:
-          id: dashboard_placeholder
-          decorates: 'views_block:recent_pages-block_recent_pages'
-          label: ''
-          label_display: visible
-          provider: views
-          context_mapping: {  }
-          views_label: ''
-          items_per_page: null
-        weight: 2
-        additional: {  }
-      27befbfe-fa01-4708-913b-e93797dbd366:
-        uuid: 27befbfe-fa01-4708-913b-e93797dbd366
-        region: first
-        configuration:
-          id: dashboard_placeholder
-          label: 'Aktuelle Inhalte'
-          label_display: visible
-          provider: views
-          views_label: 'Aktuelle Inhalte'
-          items_per_page: null
-          context_mapping: {  }
-          decorates: 'views_block:recent_content-block_recent_content'
-        weight: 3
         additional: {  }
       dca0f1f8-6ec0-47ec-88de-4ca8dca54d89:
         uuid: dca0f1f8-6ec0-47ec-88de-4ca8dca54d89
