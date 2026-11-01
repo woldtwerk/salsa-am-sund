@@ -31,7 +31,7 @@
   {% include '@salsa/includes/dance-figure-levels.html.twig' with {levels: levels} only %}
 
   {% if dance_figure_has_video and video|trim is not empty %}
-    <div class="relative mt-8 aspect-video w-full overflow-hidden rounded-2xl border border-line bg-ink-2 [&_iframe]:absolute [&_iframe]:inset-0 [&_iframe]:h-full [&_iframe]:w-full [&_video]:absolute [&_video]:inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-contain">
+    <div class="mt-8 w-full overflow-hidden rounded-2xl border border-line bg-ink-2 [&_iframe]:block [&_iframe]:aspect-video [&_iframe]:h-auto [&_iframe]:w-full [&_video]:block [&_video]:aspect-video [&_video]:h-auto [&_video]:w-full [&_video]:object-contain">
       {{ video }}
     </div>
   {% endif %}
