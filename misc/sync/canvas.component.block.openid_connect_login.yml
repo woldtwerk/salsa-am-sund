@@ -4,9 +4,18 @@ status: true
 dependencies:
   module:
     - openid_connect
-active_version: 0c13c9d026e990e6
+active_version: 2cdb606a34939663
 versioned_properties:
   active:
+    settings:
+      default_settings:
+        id: openid_connect_login
+        label: 'OpenID Connect Anmeldung'
+        label_display: '0'
+        provider: openid_connect
+    fallback_metadata:
+      slot_definitions: null
+  0c13c9d026e990e6:
     settings:
       default_settings:
         id: openid_connect_login
@@ -15,7 +24,7 @@ versioned_properties:
         provider: openid_connect
     fallback_metadata:
       slot_definitions: null
-label: 'OpenID Connect login'
+label: 'OpenID Connect Anmeldung'
 id: block.openid_connect_login
 provider: openid_connect
 source: block
