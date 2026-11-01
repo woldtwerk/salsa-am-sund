@@ -219,6 +219,10 @@ final class SeasonHooks {
         '#url' => Url::fromRoute('entity.course_season.add_form', [], [
           'query' => ['course' => $course->id()],
         ]),
+        '#weight' => 10,
+        '#attributes' => [
+          'class' => ['button', 'button--small', 'button--action', 'button--primary'],
+        ],
       ];
     }
 
@@ -256,6 +260,7 @@ final class SeasonHooks {
 
     $form['seasons']['table'] = [
       '#type' => 'table',
+      '#weight' => 0,
       '#header' => [
         $this->t('Season'),
         $this->t('First lesson'),
