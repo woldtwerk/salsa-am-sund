@@ -6,11 +6,12 @@
       {{ content }}
     </div>
 
-    {% if navigation is not empty %}
-      <div class="md:pt-1">
+    <div class="flex flex-col gap-8 md:items-end md:pt-1">
+      {% if navigation is not empty %}
         {{ navigation }}
-      </div>
-    {% endif %}
+      {% endif %}
+      <img src="{{ file_url('themes/custom/salsa/logo.svg') }}" alt="" width="175" height="224" loading="lazy" decoding="async" class="h-32 w-auto self-start md:h-48 md:self-end">
+    </div>
   </div>
 
   <div class="border-t border-line/60">
