@@ -1,8 +1,29 @@
 uuid: e6d8a2a0-af56-40d2-ab91-9120a6409f0f
 langcode: de
 status: true
-dependencies: {  }
-name: Termin
+dependencies:
+  module:
+    - menu_ui
+    - scheduler
+third_party_settings:
+  menu_ui:
+    available_menus:
+      - main
+    parent: 'main:'
+  scheduler:
+    expand_fieldset: when_required
+    fields_display_mode: vertical_tab
+    publish_enable: false
+    publish_past_date: error
+    publish_past_date_created: false
+    publish_required: false
+    publish_revision: false
+    publish_touch: false
+    show_message_after_update: true
+    unpublish_enable: false
+    unpublish_required: false
+    unpublish_revision: false
+name: Event
 type: event
 description: 'Kurse, Partys und externe Veranstaltungen'
 help: null
